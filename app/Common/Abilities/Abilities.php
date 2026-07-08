@@ -91,7 +91,7 @@ class Abilities {
 	protected function registerPostAbilities() {
 		wp_register_ability( 'aioseo-posts/seo-data-get', [
 			'label'               => __( 'Get Post SEO Data', 'all-in-one-seo-pack' ),
-			'description'         => __( 'Returns the SEO snapshot for a post: title, meta description, focus keyphrases, robots flags, canonical URL, social meta, schema type, pillar flag and TruSEO score. Optionally includes the full TruSEO analysis breakdown when "analysis" is passed in include.', 'all-in-one-seo-pack' ), // phpcs:ignore Generic.Files.LineLength.MaxExceeded
+			'description'         => __( 'Returns the SEO snapshot for a post: title, meta description, focus keywords, robots flags, canonical URL, social meta, schema type, pillar flag and TruSEO score. Optionally includes the full TruSEO analysis breakdown when "analysis" is passed in include.', 'all-in-one-seo-pack' ), // phpcs:ignore Generic.Files.LineLength.MaxExceeded
 			'category'            => 'aioseo-posts',
 			'input_schema'        => [
 				'type'                 => 'object',
@@ -121,7 +121,7 @@ class Abilities {
 
 		wp_register_ability( 'aioseo-posts/seo-data-update', [
 			'label'               => __( 'Update Post SEO Data', 'all-in-one-seo-pack' ),
-			'description'         => __( 'Updates SEO fields for a post: title, description, focus keyphrase, additional keyphrases, robots flags, canonical URL, pillar flag and social meta. Only the fields provided in input are changed; others are preserved. Fields not listed (e.g. schema, EEAT) are rejected — use the AIOSEO admin UI for those.', 'all-in-one-seo-pack' ), // phpcs:ignore Generic.Files.LineLength.MaxExceeded
+			'description'         => __( 'Updates SEO fields for a post: title, description, focus keyword, additional keywords, robots flags, canonical URL, pillar flag and social meta. Only the fields provided in input are changed; others are preserved. Fields not listed (e.g. schema, EEAT) are rejected — use the AIOSEO admin UI for those.', 'all-in-one-seo-pack' ), // phpcs:ignore Generic.Files.LineLength.MaxExceeded
 			'category'            => 'aioseo-posts',
 			'input_schema'        => [
 				'type'                 => 'object',
@@ -165,7 +165,7 @@ class Abilities {
 
 		wp_register_ability( 'aioseo-posts/list-missing-seo', [
 			'label'               => __( 'List Posts Missing SEO Data', 'all-in-one-seo-pack' ),
-			'description'         => __( 'Returns posts where one or more SEO fields are unset (title, description, or focus keyphrase). Defaults to focus_keyphrase. Useful for "which posts need SEO attention?" prompts.', 'all-in-one-seo-pack' ), // phpcs:ignore Generic.Files.LineLength.MaxExceeded
+			'description'         => __( 'Returns posts where one or more SEO fields are unset (title, description, or focus keyword). Defaults to focus_keyphrase. Useful for "which posts need SEO attention?" prompts.', 'all-in-one-seo-pack' ), // phpcs:ignore Generic.Files.LineLength.MaxExceeded
 			'category'            => 'aioseo-posts',
 			'input_schema'        => [
 				'type'                 => 'object',

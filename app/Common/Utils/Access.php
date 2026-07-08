@@ -106,7 +106,8 @@ class Access {
 	 * Adds capabilities into WordPress for the current user.
 	 * Only on activation or settings saved.
 	 *
-	 * @since 4.0.0
+	 * @since   4.0.0
+	 * @version 4.9.10 Grant aioseo_page_writing_assistant_settings to post-editing roles.
 	 *
 	 * @return void
 	 */
@@ -130,7 +131,8 @@ class Access {
 					'aioseo_page_analysis',
 					'aioseo_page_general_settings',
 					'aioseo_page_schema_settings',
-					'aioseo_page_social_settings'
+					'aioseo_page_social_settings',
+					'aioseo_page_writing_assistant_settings'
 				];
 
 				foreach ( $postCapabilities as $capability ) {
@@ -186,7 +188,8 @@ class Access {
 	/**
 	 * Checks if the current user has the capability.
 	 *
-	 * @since 4.0.0
+	 * @since   4.0.0
+	 * @version 4.9.10 Authorize per-post capabilities by actual grant instead of a name match.
 	 *
 	 * @param  string|array $capability The capability to check against.
 	 * @param  string|null  $checkRole  A role to check against.
@@ -204,7 +207,7 @@ class Access {
 
 		if ( is_array( $capability ) ) {
 			foreach ( $capability as $cap ) {
-				if ( false !== strpos( $cap, 'aioseo_page_' ) ) {
+				if ( $this->hasCapability( $cap, $checkRole ) ) {
 					return true;
 				}
 			}
@@ -212,7 +215,14 @@ class Access {
 			return false;
 		}
 
-		return false !== strpos( $capability, 'aioseo_page_' );
+		// Non-admins are limited to the per-post AIOSEO capabilities, and only when the capability
+		// was actually granted to their role (see addCapabilities()) - authorize by the real grant,
+		// not by a name match, so an ungranted aioseo_page_* route isn't reachable by capability name.
+		if ( 0 !== strpos( $capability, 'aioseo_page_' ) ) {
+			return false;
+		}
+
+		return $this->can( $capability, $checkRole );
 	}
 
 	/**

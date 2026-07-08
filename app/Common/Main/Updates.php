@@ -253,6 +253,11 @@ class Updates {
 			$this->cleanupSearchStatisticsProfile();
 		}
 
+		// Re-sync capabilities so aioseo_page_* caps added this release reach existing installs.
+		if ( version_compare( $lastActiveVersion, '4.9.10', '<' ) ) {
+			aioseo()->access->addCapabilities();
+		}
+
 		do_action( 'aioseo_run_updates', $lastActiveVersion );
 
 		// Always clear the cache if the last active version is different from our current.

@@ -64,6 +64,53 @@ trait Vue {
 	}
 
 	/**
+	 * Removes site-global configuration from a Vue data payload for users who cannot manage AIOSEO.
+	 *
+	 * Surfaces that localize the full payload for low-privilege users (the user's own profile page, the
+	 * posts/terms list details column) call this so site options and the admin email are not disclosed.
+	 * Pro features (e.g. Redirects) nest a copy of the payload under their own key, so that copy is
+	 * stripped as well.
+	 *
+	 * @since 4.9.10
+	 *
+	 * @param  array $data A Vue data payload from {@see getVueData()}.
+	 * @return array       The payload, with site-global configuration removed for non-managers.
+	 */
+	public function filterPrivilegedVueData( $data ) {
+		if ( aioseo()->access->canManage() ) {
+			return $data;
+		}
+
+		$data = $this->stripPrivilegedVueData( $data );
+
+		// Pro features nest a copy of the payload under their own key (e.g. 'redirects'), which would
+		// otherwise re-expose the groups removed above.
+		if ( ! empty( $data['redirects'] ) && is_array( $data['redirects'] ) ) {
+			$data['redirects'] = $this->stripPrivilegedVueData( $data['redirects'] );
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Removes the site-global configuration groups from a single Vue data payload level.
+	 *
+	 * @since 4.9.10
+	 *
+	 * @param  array $data A Vue data payload level.
+	 * @return array       The payload level without site-global configuration.
+	 */
+	private function stripPrivilegedVueData( $data ) {
+		unset( $data['options'], $data['internalOptions'], $data['dynamicOptions'] );
+
+		if ( isset( $data['data']['adminEmail'] ) ) {
+			unset( $data['data']['adminEmail'] );
+		}
+
+		return $data;
+	}
+
+	/**
 	 * Set Vue initial data.
 	 *
 	 * @since 4.4.9
@@ -860,9 +907,17 @@ trait Vue {
 			'rateLimit' => ! empty( $rateLimit ) ? $rateLimit : null,
 			'mcp'       => [
 				'abilitiesApiAvailable' => function_exists( 'wp_register_ability' ),
+				// Total across all plugins; 0 on WP 6.9+ means the Abilities API is being suppressed
+				// since Core always registers its own abilities.
+				'totalAbilities'        => function_exists( 'wp_get_abilities' ) ? count( wp_get_abilities() ) : 0,
 				'mcpAdapterActive'      => class_exists( '\\WP\\MCP\\Core\\McpAdapter' ),
 				'mcpAdapterInstalled'   => '' !== \AIOSEO\Plugin\Common\Api\AiAgents::getInstalledMcpAdapterFile(),
 				'hasAppPassword'        => $this->currentUserHasMcpAppPassword(),
+				// `supported` is core's HTTPS/local-env gate (replicated inline — the core helper
+				// is WP 5.9+); `available` also accounts for a security plugin or filter/constant
+				// disabling the feature. Each false-by-cause drives distinct guidance in the UI.
+				'appPasswordsSupported' => is_ssl() || 'local' === wp_get_environment_type(),
+				'appPasswordsAvailable' => $this->applicationPasswordsAvailable(),
 				'abilities'             => $this->getRegisteredMcpAbilities()
 			]
 		];
@@ -905,6 +960,30 @@ trait Vue {
 		}
 
 		return $abilities;
+	}
+
+	/**
+	 * Checks whether Application Passwords can be generated for the current user.
+	 *
+	 * Returns false when the feature is disabled — by the HTTPS/local-env gate, a security
+	 * plugin, or the `wp_is_application_passwords_available[_for_user]` filter/constant.
+	 * The per-user core function internally calls the global one, so this covers every cause.
+	 *
+	 * @since 4.9.10
+	 *
+	 * @return bool
+	 */
+	private function applicationPasswordsAvailable() {
+		if ( ! function_exists( 'wp_is_application_passwords_available' ) ) {
+			return false;
+		}
+
+		$userId = get_current_user_id();
+		if ( $userId && function_exists( 'wp_is_application_passwords_available_for_user' ) ) {
+			return wp_is_application_passwords_available_for_user( $userId );
+		}
+
+		return wp_is_application_passwords_available();
 	}
 
 	/**

@@ -88,7 +88,7 @@
 
 					<!-- Step 3 inline action / link -->
 					<base-button
-						v-if="'appPassword' === step.key && !hasAppPassword"
+						v-if="'appPassword' === step.key && !hasAppPassword && appPasswordsAvailable"
 						type="blue"
 						size="small"
 						:loading="generatingAppPassword"
@@ -123,6 +123,10 @@
 				<div class="mcp-v2-step-body">
 					<!-- Step 1: abilities list (categories collapsed by default) -->
 					<template v-if="'abilities' === step.key">
+						<p
+							v-if="abilitiesActionPlan"
+							v-html="abilitiesActionPlan"
+						/>
 						<transition-slide :active="showAbilities">
 							<div class="mcp-v2-abilities">
 								<div
@@ -158,25 +162,18 @@
 								</div>
 							</div>
 						</transition-slide>
-						<p v-if="!showAbilities">
+						<p v-if="!showAbilities && !abilitiesActionPlan">
 							{{ strings.steps.abilitiesDescription }}
 						</p>
 					</template>
 
 					<!-- Step 2: adapter detail -->
 					<template v-if="'mcpAdapter' === step.key">
-						<p>{{ strings.steps.mcpAdapterDescription }}</p>
-						<p
-							v-if="!mcpAdapterDetected && mcpAdapterInstalled"
-							class="mcp-v2-hint"
-						>
-							{{ strings.steps.mcpAdapterActivateHint }}
+						<p v-if="mcpAdapterInstalled && !mcpAdapterDetected">
+							{{ strings.steps.mcpAdapterActivateDescription }}
 						</p>
-						<p
-							v-if="!mcpAdapterDetected && !mcpAdapterInstalled"
-							class="mcp-v2-hint"
-						>
-							{{ strings.steps.mcpAdapterInstallHint }}
+						<p v-else>
+							{{ strings.steps.mcpAdapterInstallDescription }}
 						</p>
 						<div
 							v-if="mcpAdapterInstallMessage"
@@ -189,7 +186,15 @@
 
 					<!-- Step 3: app password detail -->
 					<template v-if="'appPassword' === step.key">
-						<p v-html="appPasswordDescription" />
+						<div
+							v-if="appPasswordsDisabledNotice && !hasAppPassword"
+							class="mcp-v2-inline-message error"
+							v-html="appPasswordsDisabledNotice"
+						/>
+						<p
+							v-else
+							v-html="appPasswordDescription"
+						/>
 
 						<div
 							v-if="generatedAppPassword"
@@ -399,6 +404,8 @@ import SvgCircleCheck from '@/vue/components/common/svg/circle/Check'
 import SvgCircleExclamation from '@/vue/components/common/svg/circle/Exclamation'
 import TransitionSlide from '@/vue/components/common/transition/Slide'
 
+import links from '@/vue/utils/links'
+
 import { __, sprintf } from '@/vue/plugins/translations'
 
 const td        = import.meta.env.VITE_TEXTDOMAIN
@@ -413,6 +420,7 @@ const mcpAdapterInstalled   = computed(() => true === mcpData.value.mcpAdapterIn
 
 const refreshedCount = ref(null)
 const abilitiesCount = computed(() => null !== refreshedCount.value ? refreshedCount.value : abilities.value.length)
+const totalAbilities = computed(() => 'number' === typeof mcpData.value.totalAbilities ? mcpData.value.totalAbilities : abilities.value.length)
 
 const showAbilities      = ref(false)
 const expandedCategories = ref({})
@@ -451,11 +459,68 @@ const currentUsername = computed(() => {
 
 const appPasswordUrl = computed(() => siteUrl.value + '/wp-admin/profile.php#application-passwords-section')
 
+const wpUpdateUrl = computed(() => siteUrl.value + '/wp-admin/update-core.php')
+
+const supportUrl = computed(() => links.utmUrl(
+	'aioseo-mcp',
+	'abilities-not-registered',
+	rootStore.isPro ? 'https://aioseo.com/plugin/pro-support' : 'https://aioseo.com/plugin/lite-support'
+))
+
+// Tells the user how to get unstuck when step 1 fails: old WP, a suppressed Abilities API, or a registration failure.
+const abilitiesActionPlan = computed(() => {
+	if (abilitiesApiAvailable.value && 0 < abilitiesCount.value) {
+		return ''
+	}
+
+	if (!abilitiesApiAvailable.value) {
+		return sprintf(
+			// Translators: 1 - Opening link tag, 2 - Closing link tag.
+			__('This version of WordPress doesn\'t include the Abilities API. %1$sUpdate WordPress%2$s to version 6.9 or later, then revisit this page.', td),
+			'<a href="' + wpUpdateUrl.value + '">',
+			'</a>'
+		)
+	}
+
+	if (0 === totalAbilities.value) {
+		return __('The Abilities API is available, but no abilities are registered on this site at all. It has likely been disabled by a security plugin or custom code. Re-enable it, then reload this page.', td)
+	}
+
+	return sprintf(
+		// Translators: 1 - Opening link tag, 2 - Closing link tag.
+		__('The Abilities API is working, but the AIOSEO abilities failed to register. Please %1$scontact our support team%2$s so we can help you troubleshoot this.', td),
+		'<a href="' + supportUrl.value + '" target="_blank" rel="noopener">',
+		'</a>'
+	)
+})
+
 const generatingAppPassword = ref(false)
 const generatedAppPassword  = ref(null)
 const appPasswordError      = ref('')
 
 const hasAppPassword = computed(() => true === mcpData.value.hasAppPassword || null !== generatedAppPassword.value)
+
+// Default to available when the flag is absent (older payload) so we never warn on a false positive.
+const appPasswordsSupported = computed(() => false !== mcpData.value.appPasswordsSupported)
+const appPasswordsAvailable = computed(() => false !== mcpData.value.appPasswordsAvailable)
+
+// Advises the user when they can't generate a credential, with cause-specific guidance.
+const appPasswordsDisabledNotice = computed(() => {
+	if (appPasswordsAvailable.value) {
+		return ''
+	}
+
+	if (!appPasswordsSupported.value) {
+		return sprintf(
+			// Translators: 1 - Opening link tag, 2 - Closing link tag.
+			__('Application Passwords are disabled because this site isn\'t served over HTTPS. Switch your site to HTTPS to enable them, or see %1$sthe WordPress documentation%2$s for details.', td),
+			'<a href="https://wordpress.org/documentation/article/application-passwords/" target="_blank" rel="noopener">',
+			'</a>'
+		)
+	}
+
+	return __('Application Passwords are disabled on this site, so a credential can\'t be generated here. A security plugin or a constant/filter in your site\'s code is most likely turning the feature off. Re-enable Application Passwords (check your security plugin\'s settings or remove the override), then reload this page.', td)
+})
 
 const restNonce             = computed(() => (rootStore.aioseo && rootStore.aioseo.nonce) || '')
 const aioseoRestBase        = computed(() => siteUrl.value + '/wp-json/aioseo/v1')
@@ -699,11 +764,15 @@ const steps = computed(() => {
 					__('Generated for %s', td),
 					'<strong>' + currentUsername.value + '</strong>'
 				)
-				: strings.steps.appPasswordSubtitle,
+				: (appPasswordsAvailable.value ? strings.steps.appPasswordSubtitle : strings.steps.appPasswordDisabledSubtitle),
 			done      : hasAppPassword.value,
-			pillLabel : hasAppPassword.value ? strings.steps.generated : strings.steps.actionNeeded,
-			pillClass : hasAppPassword.value ? 'green' : 'orange',
-			blocking  : !hasAppPassword.value
+			pillLabel : hasAppPassword.value
+				? strings.steps.generated
+				: (appPasswordsAvailable.value ? strings.steps.actionNeeded : strings.steps.disabled),
+			pillClass : hasAppPassword.value
+				? 'green'
+				: (appPasswordsAvailable.value ? 'orange' : 'red'),
+			blocking : !hasAppPassword.value
 		},
 		{
 			key   : 'test',
@@ -976,51 +1045,52 @@ const strings = {
 		stepsComplete : __('steps complete', td)
 	},
 	steps : {
-		abilitiesTitle         : __('AIOSEO Abilities registered', td),
-		abilitiesDescription   : __('SEO functions AIOSEO has registered for agents to call — read posts, audit the site, manage redirects, and more.', td),
-		viewAbilities          : __('View all abilities', td),
-		hideAbilities          : __('Hide abilities', td),
-		showDetails            : __('Show details', td),
-		hideDetails            : __('Hide details', td),
-		mcpAdapterTitle        : __('MCP Adapter installed', td),
-		mcpAdapterSubtitle     : __('Bridges AIOSEO abilities to the Model Context Protocol so Claude, Cursor and others can call them', td),
-		mcpAdapterDescription  : __('The MCP Adapter is a free WordPress plugin that exposes registered abilities over the Model Context Protocol.', td),
-		mcpAdapterInstallHint  : __('Install it to expose AIOSEO\'s SEO abilities over MCP.', td),
-		mcpAdapterActivateHint : __('The plugin is installed but not active. Activate it to expose AIOSEO\'s SEO abilities over MCP.', td),
-		installMcpAdapter      : __('Install MCP Adapter', td),
-		activateMcpAdapter     : __('Activate MCP Adapter', td),
-		installing             : __('Installing…', td),
-		activating             : __('Activating…', td),
-		appPasswordTitle       : __('Application password generated', td),
-		appPasswordSubtitle    : __('Generate a password so an AI client can sign in to your site', td),
-		appPasswordShownOnce   : __('This password will not be shown again. Copy it now.', td),
-		appPasswordSessionHint : __('We\'ve also pre-filled it into the configuration snippets below for this session. Once you leave the page, the snippets will show a placeholder instead.', td),
-		generateAppPassword    : __('Generate Application Password', td),
-		generating             : __('Generating…', td),
-		manageInProfile        : __('Manage in profile', td),
-		username               : __('Username', td),
-		password               : __('Password', td),
-		copy                   : __('Copy', td),
-		copied                 : __('Copied', td),
-		testTitle              : __('Test the connection', td),
-		testReadyTitle         : __('Connection ready', td),
-		testSubtitle           : __('We\'ll sign in with your Application Password and confirm an AI client can reach your AIOSEO abilities.', td),
-		testVerifiedSubtitle   : __('All steps are complete — your site is ready for an AI client to connect.', td),
-		testJustRan            : __('Last tested just now', td),
-		testLocked             : __('Available once the steps above are complete.', td),
-		testServerVerifiedHint : __('Your site is set up and ready to connect an AI client. To run a live credential test, generate a new Application Password above.', td),
-		testConnection         : __('Test connection', td),
-		testAgain              : __('Test again', td),
-		testSuccess            : __('Connection successful', td),
-		testFailure            : __('Connection unsuccessful', td),
-		ready                  : __('Ready', td),
-		active                 : __('Active', td),
-		actionNeeded           : __('Action needed', td),
-		generated              : __('Generated', td),
-		verified               : __('Verified', td),
-		pending                : __('Pending', td),
-		upgradeWp              : __('Requires WP 6.9+', td),
-		noAbilities            : __('Not registered', td)
+		abilitiesTitle                : __('AIOSEO Abilities registered', td),
+		abilitiesDescription          : __('SEO functions AIOSEO has registered for agents to call — read posts, audit the site, manage redirects, and more.', td),
+		viewAbilities                 : __('View all abilities', td),
+		hideAbilities                 : __('Hide abilities', td),
+		showDetails                   : __('Show details', td),
+		hideDetails                   : __('Hide details', td),
+		mcpAdapterTitle               : __('MCP Adapter installed', td),
+		mcpAdapterSubtitle            : __('Bridges AIOSEO abilities to the Model Context Protocol', td),
+		mcpAdapterInstallDescription  : __('The MCP Adapter is a free WordPress plugin that exposes registered abilities over the Model Context Protocol. Install it so AI clients can call AIOSEO\'s SEO abilities.', td), // eslint-disable-line max-len
+		mcpAdapterActivateDescription : __('The MCP Adapter plugin is installed but not active. Activate it so AI clients can call AIOSEO\'s SEO abilities.', td),
+		installMcpAdapter             : __('Install MCP Adapter', td),
+		activateMcpAdapter            : __('Activate MCP Adapter', td),
+		installing                    : __('Installing…', td),
+		activating                    : __('Activating…', td),
+		appPasswordTitle              : __('Application password generated', td),
+		appPasswordSubtitle           : __('Generate a password so an AI client can sign in to your site', td),
+		appPasswordDisabledSubtitle   : __('Application Passwords are disabled on this site', td),
+		appPasswordShownOnce          : __('This password will not be shown again. Copy it now.', td),
+		appPasswordSessionHint        : __('We\'ve also pre-filled it into the configuration snippets below for this session. Once you leave the page, the snippets will show a placeholder instead.', td),
+		generateAppPassword           : __('Generate Application Password', td),
+		generating                    : __('Generating…', td),
+		manageInProfile               : __('Manage in profile', td),
+		username                      : __('Username', td),
+		password                      : __('Password', td),
+		copy                          : __('Copy', td),
+		copied                        : __('Copied', td),
+		testTitle                     : __('Test the connection', td),
+		testReadyTitle                : __('Connection ready', td),
+		testSubtitle                  : __('We\'ll sign in with your Application Password and confirm an AI client can reach your AIOSEO abilities.', td),
+		testVerifiedSubtitle          : __('All steps are complete — your site is ready for an AI client to connect.', td),
+		testJustRan                   : __('Last tested just now', td),
+		testLocked                    : __('Available once the steps above are complete.', td),
+		testServerVerifiedHint        : __('Your site is set up and ready to connect an AI client. To run a live credential test, generate a new Application Password above.', td),
+		testConnection                : __('Test connection', td),
+		testAgain                     : __('Test again', td),
+		testSuccess                   : __('Connection successful', td),
+		testFailure                   : __('Connection unsuccessful', td),
+		ready                         : __('Ready', td),
+		active                        : __('Active', td),
+		actionNeeded                  : __('Action needed', td),
+		disabled                      : __('Disabled', td),
+		generated                     : __('Generated', td),
+		verified                      : __('Verified', td),
+		pending                       : __('Pending', td),
+		upgradeWp                     : __('Requires WP 6.9+', td),
+		noAbilities                   : __('Not registered', td)
 	},
 	clients : {
 		heading           : __('Connect to AI Client', td),
@@ -1240,6 +1310,7 @@ const strings = {
 
 		p {
 			margin: 0 0 10px;
+			font-size: 13px;
 
 			&:last-child {
 				margin-bottom: 0;

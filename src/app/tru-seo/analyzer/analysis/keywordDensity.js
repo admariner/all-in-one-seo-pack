@@ -23,7 +23,8 @@ function keywordDensity (text, keyword, type) {
 	const regex          = new RegExp(map([ keyword ], escapeRegex).join('|'), 'gi')
 	const wordCount      = count(text, 'words')
 	const keywordMatches = (cleanTagsOnly(text).match(regex) || []).length
-	const density        = parseFloat(((keywordMatches / wordCount) * 100).toFixed(2))
+	// Guard against a zero word count (e.g. Divi pages where the tokenizer reads no body text) so density never becomes Infinity/NaN.
+	const density        = 0 < wordCount ? parseFloat(((keywordMatches / wordCount) * 100).toFixed(2)) : 0
 	const title          = sprintf(
 		// Translators: 1 - Focus Keyword or Keyword.
 		__('%1$s density', td),

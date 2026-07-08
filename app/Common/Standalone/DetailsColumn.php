@@ -116,7 +116,8 @@ class DetailsColumn {
 	/**
 	 * Enqueues the JS/CSS for the page/posts table page.
 	 *
-	 * @since 4.0.0
+	 * @since   4.0.0
+	 * @version 4.9.10 Strip site-global configuration for users who cannot manage AIOSEO.
 	 *
 	 * @return void
 	 */
@@ -125,7 +126,7 @@ class DetailsColumn {
 		$data['posts'] = [];
 		$data['terms'] = [];
 
-		aioseo()->core->assets->load( $this->scriptSlug, [], $data );
+		aioseo()->core->assets->load( $this->scriptSlug, [], aioseo()->helpers->filterPrivilegedVueData( $data ) );
 	}
 
 	/**

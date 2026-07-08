@@ -31,14 +31,14 @@ class Api {
 	protected $routes = [
 		// phpcs:disable WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 		'GET'    => [
-			'options'                                     => [ 'callback' => [ 'Settings', 'getOptions' ], 'access' => 'any' ],
+			'options'                                     => [ 'callback' => [ 'Settings', 'getOptions' ], 'access' => 'options' ],
 			'ping'                                        => [ 'callback' => [ 'Ping', 'ping' ], 'access' => 'any' ],
 			'post'                                        => [ 'callback' => [ 'PostsTerms', 'getPostData' ], 'access' => 'any' ],
 			'post/(?P<postId>[\d]+)/first-attached-image' => [ 'callback' => [ 'PostsTerms', 'getFirstAttachedImage' ], 'access' => 'aioseo_page_social_settings' ],
 			'user/(?P<userId>[\d]+)/image'                => [ 'callback' => [ 'User', 'getUserImage' ], 'access' => 'aioseo_page_social_settings' ],
 			'tags'                                        => [ 'callback' => [ 'Tags', 'getTags' ], 'access' => 'any' ],
-			'search-statistics/url/auth'                  => [ 'callback' => [ 'SearchStatistics', 'getAuthUrl' ], 'access' => [ 'aioseo_search_statistics_settings', 'aioseo_general_settings', 'aioseo_setup_wizard' ] ], // phpcs:ignore Generic.Files.LineLength.MaxExceeded
-			'search-statistics/url/reauth'                => [ 'callback' => [ 'SearchStatistics', 'getReauthUrl' ], 'access' => [ 'aioseo_search_statistics_settings', 'aioseo_general_settings' ] ],
+			'search-statistics/url/auth'                  => [ 'callback' => [ 'SearchStatistics', 'getAuthUrl' ], 'access' => [ 'aioseo_search_statistics_settings', 'aioseo_setup_wizard' ] ], // phpcs:ignore Generic.Files.LineLength.MaxExceeded
+			'search-statistics/url/reauth'                => [ 'callback' => [ 'SearchStatistics', 'getReauthUrl' ], 'access' => [ 'aioseo_search_statistics_settings' ] ],
 			'writing-assistant/keyword/(?P<postId>[\d]+)' => [ 'callback' => [ 'WritingAssistant', 'getPostKeyword' ], 'access' => 'aioseo_page_writing_assistant_settings' ],
 			'writing-assistant/user-info'                 => [ 'callback' => [ 'WritingAssistant', 'getUserInfo' ], 'access' => 'aioseo_page_writing_assistant_settings' ],
 			'writing-assistant/user-options'              => [ 'callback' => [ 'WritingAssistant', 'getUserOptions' ], 'access' => 'aioseo_page_writing_assistant_settings' ],
@@ -91,9 +91,9 @@ class Api {
 			'analyze-headline/delete'                                => [ 'callback' => [ 'Analyze', 'deleteHeadline' ], 'access' => 'aioseo_seo_analysis_settings' ],
 			'analyze/delete-site'                                    => [ 'callback' => [ 'Analyze', 'deleteSite' ], 'access' => 'aioseo_seo_analysis_settings' ],
 			'clear-log'                                              => [ 'callback' => [ 'Tools', 'clearLog' ], 'access' => 'aioseo_tools_settings' ],
-			'connect'                                                => [ 'callback' => [ 'Connect', 'saveConnectToken' ], 'access' => [ 'aioseo_general_settings', 'aioseo_setup_wizard' ] ],
-			'connect-pro'                                            => [ 'callback' => [ 'Connect', 'processConnect' ], 'access' => [ 'aioseo_general_settings', 'aioseo_setup_wizard' ] ],
-			'connect-url'                                            => [ 'callback' => [ 'Connect', 'getConnectUrl' ], 'access' => [ 'aioseo_general_settings', 'aioseo_setup_wizard' ] ],
+			'connect'                                                => [ 'callback' => [ 'Connect', 'saveConnectToken' ], 'access' => [ 'aioseo_setup_wizard' ] ],
+			'connect-pro'                                            => [ 'callback' => [ 'Connect', 'processConnect' ], 'access' => [ 'aioseo_setup_wizard' ] ],
+			'connect-url'                                            => [ 'callback' => [ 'Connect', 'getConnectUrl' ], 'access' => [ 'aioseo_setup_wizard' ] ],
 			'backup'                                                 => [ 'callback' => [ 'Tools', 'createBackup' ], 'access' => 'aioseo_tools_settings' ],
 			'backup/restore'                                         => [ 'callback' => [ 'Tools', 'restoreBackup' ], 'access' => 'aioseo_tools_settings' ],
 			'email-debug-info'                                       => [ 'callback' => [ 'Tools', 'emailDebugInfo' ], 'access' => 'aioseo_tools_settings' ],
@@ -140,15 +140,15 @@ class Api {
 			'wizard'                                                 => [ 'callback' => [ 'Wizard', 'saveWizard' ], 'access' => 'aioseo_setup_wizard' ],
 			'integration/semrush/authenticate'                       => [
 				'callback' => [ 'Semrush', 'semrushAuthenticate', 'AIOSEO\\Plugin\\Common\\Api\\Integrations' ],
-				'access'   => 'aioseo_page_analysis'
+				'access'   => 'aioseo_general_settings'
 			],
 			'integration/semrush/refresh'                            => [
 				'callback' => [ 'Semrush', 'semrushRefresh', 'AIOSEO\\Plugin\\Common\\Api\\Integrations' ],
-				'access'   => 'aioseo_page_analysis'
+				'access'   => 'aioseo_general_settings'
 			],
 			'integration/semrush/keyphrases'                         => [
 				'callback' => [ 'Semrush', 'semrushGetKeyphrases', 'AIOSEO\\Plugin\\Common\\Api\\Integrations' ],
-				'access'   => 'aioseo_page_analysis'
+				'access'   => 'aioseo_general_settings'
 			],
 			'integration/wpcode/snippets'                            => [
 				'callback' => [ 'WpCode', 'getSnippets', 'AIOSEO\\Plugin\\Common\\Api\\Integrations' ],

@@ -292,12 +292,17 @@ trait Strings {
 	/**
 	 * Returns the string after all HTML entities have been decoded.
 	 *
-	 * @since 4.0.0
+	 * @since   4.0.0
+	 * @version 4.9.10 Coerce non-string input to an empty string before using it as the static cache key (PHP 8.5 deprecates null offsets).
 	 *
 	 * @param  string $string The string to decode.
 	 * @return string         The decoded string.
 	 */
 	public function decodeHtmlEntities( $string ) {
+		if ( ! is_string( $string ) ) {
+			return '';
+		}
+
 		static $decodeHtmlEntities = [];
 		if ( isset( $decodeHtmlEntities[ $string ] ) ) {
 			return $decodeHtmlEntities[ $string ];
@@ -305,7 +310,7 @@ trait Strings {
 
 		// We must manually decode non-breaking spaces since html_entity_decode doesn't do this.
 		$string                        = $this->pregReplace( '/&nbsp;/', ' ', $string );
-		$decodeHtmlEntities[ $string ] = html_entity_decode( (string) $string, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
+		$decodeHtmlEntities[ $string ] = html_entity_decode( $string, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
 
 		return $decodeHtmlEntities[ $string ];
 	}

@@ -26,13 +26,16 @@ class Frontend {
 	/**
 	 * Gets the current page's breadcrumbs.
 	 *
-	 * @since 4.1.1
+	 * @since   4.1.1
+	 * @version 4.9.10 Strip non-array entries from the filtered trail so downstream loops cannot fatal on PHP 8.
 	 *
 	 * @return array
 	 */
 	public function getBreadcrumbs() {
 		if ( ! empty( $this->breadcrumbs ) ) {
-			return apply_filters( 'aioseo_breadcrumbs_trail', $this->breadcrumbs );
+			$trail = apply_filters( 'aioseo_breadcrumbs_trail', $this->breadcrumbs );
+
+			return is_array( $trail ) ? array_values( array_filter( $trail, 'is_array' ) ) : [];
 		}
 
 		$reference = get_queried_object();
@@ -123,7 +126,9 @@ class Frontend {
 			];
 		}
 
-		return apply_filters( 'aioseo_breadcrumbs_trail', aioseo()->breadcrumbs->buildBreadcrumbs( $type, $reference, $paged ) );
+		$trail = apply_filters( 'aioseo_breadcrumbs_trail', aioseo()->breadcrumbs->buildBreadcrumbs( $type, $reference, $paged ) );
+
+		return is_array( $trail ) ? array_values( array_filter( $trail, 'is_array' ) ) : [];
 	}
 
 	/**

@@ -110,7 +110,8 @@ class SeoPreview {
 	/**
 	 * Returns the data for Vue.
 	 *
-	 * @since 4.2.8
+	 * @since   4.2.8
+	 * @version 4.9.10 Only expose a post's keyphrases/TruSEO analysis to users who can edit it (and not when password-protected).
 	 *
 	 * @return array The data.
 	 */
@@ -166,7 +167,9 @@ class SeoPreview {
 
 					if (
 						! aioseo()->helpers->isSpecialPage( $wpObject->ID ) &&
-						'attachment' !== $templateType
+						'attachment' !== $templateType &&
+						current_user_can( 'edit_post', $wpObject->ID ) &&
+						! post_password_required( $wpObject )
 					) {
 						$aioseoPost            = Models\Post::getPost( $wpObject->ID );
 						$data['page_analysis'] = Models\Post::getPageAnalysisDefaults( $aioseoPost->page_analysis );

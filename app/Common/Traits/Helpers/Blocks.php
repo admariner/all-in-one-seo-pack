@@ -40,7 +40,9 @@ trait Blocks {
 			static $preRenderBlockCallback = null;
 			if ( null === $preRenderBlockCallback ) {
 				$preRenderBlockCallback = function( $preRender, $parsedBlock ) use ( $conflictingBlocks ) {
-					if ( ! empty( $parsedBlock['blockName'] ) && isset( $conflictingBlocks[ $parsedBlock['blockName'] ] ) ) {
+					// Classic/freeform blocks have a null blockName, which PHP 8.5 deprecates as an array offset.
+					$blockName = isset( $parsedBlock['blockName'] ) ? (string) $parsedBlock['blockName'] : '';
+					if ( isset( $conflictingBlocks[ $blockName ] ) ) {
 						return '';
 					}
 

@@ -18,7 +18,7 @@ import { isBlockEditor } from '@/vue/utils/context'
 
 export const useSchemaStore = defineStore('SchemaStore', {
 	state : () => ({
-		capability : 'aioseo_page_schema_settings',
+		capability : 'aioseo_general_settings',
 		custom     : {
 			graphName : '',
 			schema    : ''
@@ -42,6 +42,13 @@ export const useSchemaStore = defineStore('SchemaStore', {
 		templateName              : '',
 		previousOutputRequestData : null
 	}),
+	getters : {
+		// Managing the site-global template collection requires the same capability the backend enforces,
+		// so low-privilege roles (per-post schema editors) don't see template buttons that would no-op.
+		canManageTemplates () {
+			return allowed(this.capability)
+		}
+	},
 	actions : {
 		getCustomObject (graphName, schema) {
 			return {
@@ -416,7 +423,8 @@ export const useSchemaStore = defineStore('SchemaStore', {
 			this.modalOpen     = false
 		},
 		updateSchemaOutput () {
-			if (!allowed(this.capability)) {
+			// Rendering the per-post schema preview only requires per-post schema editing access.
+			if (!allowed('aioseo_page_schema_settings')) {
 				return
 			}
 

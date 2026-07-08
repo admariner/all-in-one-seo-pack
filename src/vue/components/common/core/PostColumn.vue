@@ -427,7 +427,7 @@ export default {
 				return false
 			}
 
-			return this.optionsStore.options.advanced.headlineAnalyzer
+			return this.optionsStore.options.advanced?.headlineAnalyzer
 		}
 	},
 	methods : {

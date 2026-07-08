@@ -184,7 +184,8 @@ class Settings {
 	/**
 	 * Save options from the front end.
 	 *
-	 * @since 4.0.0
+	 * @since   4.0.0
+	 * @version 4.9.10 Strip option groups the caller cannot manage and gate the network-wide write.
 	 *
 	 * @param  \WP_REST_Request  $request The REST Request
 	 * @return \WP_REST_Response          The response.
@@ -197,8 +198,27 @@ class Settings {
 		$networkOptions  = ! empty( $body['networkOptions'] ) ? $body['networkOptions'] : [];
 		$redirectOptions = ! empty( $body['redirectOptions'] ) ? $body['redirectOptions'] : [];
 
+		// Strip the option groups the caller is not allowed to manage (mirrors resetSettings()), so a
+		// non-administrator cannot write privileged groups - e.g. the access-control matrix or the
+		// redirect engine - through this generic save route. Returns [] for admins and on Lite.
+		$notAllowedOptions = aioseo()->access->getNotAllowedOptions();
+		foreach ( $notAllowedOptions as $group ) {
+			unset( $options[ $group ], $dynamicOptions[ $group ] );
+		}
+
+		if ( in_array( 'redirects', $notAllowedOptions, true ) ) {
+			$redirectOptions = [];
+		}
+
 		// If this is the network admin, reset the options.
 		if ( $network ) {
+			// Network-wide options are merged into every site, so require the network-settings capability.
+			if ( ! is_multisite() || ! current_user_can( 'manage_network_options' ) ) {
+				return new \WP_REST_Response( [
+					'success' => false
+				], 403 );
+			}
+
 			aioseo()->networkOptions->sanitizeAndSave( $networkOptions );
 		} else {
 			aioseo()->options->sanitizeAndSave( $options );

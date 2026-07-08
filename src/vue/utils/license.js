@@ -22,8 +22,8 @@ const getFeatures = (type = '') => {
 	const rootStore             = useRootStore()
 	const sensitiveOptionsStore = useSensitiveOptionsStore()
 	const features              = rootStore.aioseo.data.isNetworkLicensed && (rootStore.aioseo.data.isNetworkAdmin || !sensitiveOptionsStore.hasLicenseKey)
-		? optionsStore.internalNetworkOptions.internal.license?.features || []
-		: optionsStore.internalOptions.internal.license?.features || []
+		? optionsStore.internalNetworkOptions.internal?.license?.features || []
+		: optionsStore.internalOptions.internal?.license?.features || []
 	let allFeatures = getJsonValue(features, [])
 	if (type) {
 		allFeatures = allFeatures[type] || []
