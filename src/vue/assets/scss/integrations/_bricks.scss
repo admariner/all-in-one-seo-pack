@@ -12,7 +12,7 @@
 	}
 }
 
-// Override modal and datepicker z-index for Bricks Builder.
+// Override modal, datepicker and tooltip z-index for Bricks Builder.
 // Bricks uses high z-index values, so we need to go higher.
 .aioseo-modal {
 	--aioseo-modal-z-index: 10198;
@@ -20,4 +20,9 @@
 
 .el-popper {
 	--aioseo-datepicker-z-index: 10199;
+}
+
+// Tooltips render in a body-level portal, so keep them above the modal too.
+.popper {
+	--aioseo-popper-z-index: 10199;
 }

@@ -2,7 +2,7 @@ import { registerBlock } from '../utils'
 
 import metadata from './block.json'
 import edit from './edit'
-import save from './save'
+import save, { deprecatedSave } from './save'
 import icon from './icon'
 import { __ } from '@/vue/plugins/translations'
 
@@ -37,6 +37,13 @@ export const settings = {
 		]
 	},
 	supports,
+	deprecated : [
+		{
+			attributes,
+			supports,
+			save : deprecatedSave
+		}
+	],
 	edit,
 	save
 }

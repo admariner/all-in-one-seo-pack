@@ -6,7 +6,7 @@
 		:iconColor="classOnSentiment"
 	>
 		<div class="aioseo-headline-analyzer-panel-first-block">
-			<h4>{{ sentiment }}</h4>
+			<h4 :class="classOnSentiment">{{ sentiment }}</h4>
 			<p v-if="'neu' === currentResult.result?.sentiment">
 				<strong>{{ textNeutralSentiment }}</strong><br />{{ textNeutralSentimentGuideline }}
 			</p>

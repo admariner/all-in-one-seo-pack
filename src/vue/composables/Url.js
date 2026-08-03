@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import {
 	useNotificationsStore,
 	useRootStore
-} from '@/vue/stores'
+} from '$/vue/stores'
 
 export const useUrl = () => {
 	const button1Loading = ref(false)

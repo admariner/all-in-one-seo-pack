@@ -436,7 +436,7 @@ const initFetch = (args = {}) => {
 			audience     : audienceOptions.find(a => a.value === getBlock().attributes.audience).label,
 			postContent  : getPostContent(),
 			postTitle    : (getPostEditedTitle() || '').trim(),
-			focusKeyword : (postEditorStore.currentPost?.keyphrases?.focus?.keyphrase || '').trim()
+			focusKeyword : (postEditorStore.truseoData?.focusKeyword || '').trim()
 		}),
 		cache          : 'no-store',
 		openWhenHidden : true,

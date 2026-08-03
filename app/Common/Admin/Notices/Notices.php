@@ -21,7 +21,7 @@ class Notices {
 	 *
 	 * @var string
 	 */
-	private $url = 'https://plugin-cdn.aioseo.com/wp-content/notifications.json';
+	private $url = 'https://plugin-cdn.aioseo.com/notifications.json';
 
 	/**
 	 * Review class instance.

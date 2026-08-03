@@ -1,5 +1,6 @@
 {
-	"$schema": "https://schemas.wp.org/wp/5.8/block.json",
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
 	"name": "aioseo/breadcrumbs",
 	"title": "AIOSEO - Breadcrumbs",
 	"description": "Displays the breadcrumb trail for the current page.",

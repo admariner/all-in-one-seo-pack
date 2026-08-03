@@ -1,4 +1,4 @@
-import { html } from '@/vue/standalone/blocks/utils'
+import { html, useBlockPropsSave } from '@/vue/standalone/blocks/utils'
 
 const { RawHTML } = window.wp.element
 
@@ -9,6 +9,18 @@ const { RawHTML } = window.wp.element
  * @returns {WPElement} Element to render.
  */
 export const save = ({ attributes: { headings, listStyle } }) => {
+	const blockProps = useBlockPropsSave()
+
+	if (!headings) {
+		return ''
+	}
+
+	const htmlString = getNestedHeadings(headings, listStyle)
+
+	return html`<div ...${blockProps}><${RawHTML}>${htmlString}</${RawHTML}></div>`
+}
+
+export const deprecatedSave = ({ attributes: { headings, listStyle } }) => {
 	if (!headings) {
 		return ''
 	}

@@ -85,6 +85,8 @@ import {
 	useSettingsStore
 } from '$/vue/stores'
 
+import { getInitialParams } from '@/vue/utils/params'
+
 import CoreTooltip from '@/vue/components/common/core/Tooltip'
 import SvgCaret from '@/vue/components/common/svg/Caret'
 import SvgCircleQuestionMark from '@/vue/components/common/svg/circle/QuestionMark'
@@ -132,7 +134,13 @@ export default {
 				return {}
 			}
 		},
-		cardId : String
+		cardId      : String,
+		deepLinkIds : {
+			type : Array,
+			default () {
+				return []
+			}
+		}
 	},
 	watch : {
 		toggles (value) {
@@ -146,7 +154,27 @@ export default {
 		toggleCard () {
 			this.settingsStore.toggleCard({ slug: this.slug, shouldSave: this.saveToggleStatus })
 			this.$emit('toggle-card')
+		},
+		// A deep link that targets this card (or a row inside it) would land on nothing while
+		// collapsed — the slide keeps its content out of the DOM.
+		maybeOpenForDeepLink () {
+			if (!this.toggles || this.noSlide || this.settingsStore.settings.toggledCards?.[this.slug]) {
+				return
+			}
+
+			const params = getInitialParams()
+			const linked = [ params['aioseo-scroll'], params['aioseo-highlight'] ]
+				.filter(Boolean)
+				.flatMap(value => decodeURIComponent(value).split(','))
+
+			const targets = [ this.cardId ? `aioseo-card-${this.cardId}` : null, ...this.deepLinkIds ].filter(Boolean)
+			if (linked.some(id => targets.includes(id))) {
+				this.settingsStore.openCard(this.slug)
+			}
 		}
+	},
+	mounted () {
+		this.maybeOpenForDeepLink()
 	}
 }
 </script>

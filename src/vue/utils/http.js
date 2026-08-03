@@ -2,7 +2,7 @@ import superagent from 'superagent'
 import links from '@/vue/utils/links'
 
 export default superagent.agent()
-	.set('X-WP-Nonce', window?.aioseo?.nonce)
+	.set('X-WP-Nonce', 'undefined' !== typeof window ? window?.aioseo?.nonce : '')
 	.use(req => {
 		if ('/' === req.url[0]) {
 			req.url = links.unTrailingSlashIt(links.restUrl(req.url))

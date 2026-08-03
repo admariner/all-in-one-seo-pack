@@ -1,13 +1,9 @@
 import {
-	useOptionsStore,
 	usePostEditorStore,
-	useRootStore,
 	useSchemaStore
 } from '@/vue/stores'
 
 import { debounce } from '@/vue/utils/debounce'
-
-import { shouldShowMetaBox } from '@/vue/utils/metabox'
 
 // Importing these directly to avoid circular dependencies.
 import { maybeUpdatePostTitle } from './postTitle'
@@ -20,33 +16,31 @@ import { maybeUpdateTaxonomies } from './taxonomies'
 import { maybeUpdateTerm } from './term'
 import { maybeUpdateAttachment } from './attachments'
 
-import TruSeo from '@/vue/plugins/tru-seo'
+import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
+import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
+import { setPostUpdater } from '@/vue/plugins/tru-seo/spellingSuggestions'
 
-export const truSeoShouldAnalyze = () => {
-	const postEditorStore = usePostEditorStore()
-	if (!postEditorStore?.currentPost?.id) {
-		return false
+// Re-export getter/utility functions from utils for backward compatibility.
+export {
+	truSeoShouldAnalyze,
+	supportsPageAnalysis,
+	shouldShowTruSeoScore,
+	normalizeWhitespaces,
+	getClosestNodeByPropertyValue,
+	createHighlightPopoverNode
+} from '@/vue/utils/postData/helpers'
+
+export const maybeUpdatePost = async (time = 900, run = true, notifyContentChanging = true) => {
+	// Notify listeners synchronously so stale UI (e.g. the TruSEO highlight
+	// popover) can hide immediately, without waiting for the debounced analysis
+	// to finish. The Classic editor's `isDirty()` poll passes false: TinyMCE
+	// reports "dirty" for transient DOM churn (e.g. caret/bogus-node insertion
+	// when clicking near a mark) that isn't a real edit, and firing this on
+	// every poll tick would close the highlight popover the instant it opens.
+	if (notifyContentChanging) {
+		window.aioseoBus.$emit('aioseo-content-changing')
 	}
 
-	return !!postEditorStore.currentPost?.isTruSeoEligible || false
-}
-
-export const shouldShowTruSeoScore = () => {
-	const rootStore = useRootStore()
-	if (!rootStore.aioseo.screen?.postType || 'web-story' === rootStore.aioseo.screen?.postType) {
-		return false
-	}
-
-	const postEditorStore = usePostEditorStore()
-	const optionsStore    = useOptionsStore()
-	return !!(
-		optionsStore.options.advanced?.truSeo &&
-		shouldShowMetaBox(rootStore.aioseo.screen.postType) &&
-		!postEditorStore.currentPost.isStaticPostsPage
-	)
-}
-
-export const maybeUpdatePost = async (time = 900, run = true) => {
 	debounce(async () => {
 		const schemaStore     = useSchemaStore()
 		const postEditorStore = usePostEditorStore()
@@ -66,95 +60,21 @@ export const maybeUpdatePost = async (time = 900, run = true) => {
 		window.aioseoBus.$emit('aioseo-content-changed')
 
 		if (run) {
-			(new TruSeo()).runAnalysis({ postId: postEditorStore.currentPost.id })
+			try {
+				const truSeo = await getTruSeoInstance()
+				const results = await truSeo?.runAnalysis({ postId: postEditorStore.currentPost.id })
+
+				if (results) {
+					updateStoreWithResults(results)
+				}
+			} catch (error) {
+				console.error('TruSEO analysis failed:', error)
+			}
 		}
 	}, time)
 }
 
-/**
- * Reverses a Selection object in order to modify it from left to right.
- *
- * @since 4.4.6
- *
- * @param   {Object} selection The Selection object.
- * @returns {Object}           The reversed Selection object.
- */
-export const reverseWindowSelection = (selection) => {
-	const selectionRange = selection.getRangeAt(0)
-	const cloneRange     = selectionRange.cloneRange()
-
-	cloneRange.collapse(false)
-	selection.removeAllRanges()
-	selection.addRange(cloneRange)
-	selection.extend(selectionRange.startContainer, selectionRange.startOffset)
-
-	return selection
-}
-
-/**
- * Normalizes whitespace characters.
- *
- * @since 4.4.6
- *
- * @param   {string} string The string.
- * @returns {string}        The normalized string.
- */
-export const normalizeWhitespaces = (string) => {
-	const NBSP = new RegExp(String.fromCharCode(160), 'g')
-
-	return string
-		.replace(/&nbsp;/g, ' ')
-		.replace(NBSP, ' ')
-}
-
-/**
- * Finds the closest parent node of a given element that has a specific property value.
- *
- * @since 4.4.6
- *
- * @param   {Object}  options          The options for finding the node.
- * @param   {Element} options.element  The element from which to start searching.
- * @param   {string}  options.property The CSS property to compare against.
- * @param   {string}  options.value    The value to match against the property value.
- * @returns {Element}                  The closest element with the specified property value, or the html root element if not found.
- */
-export const getClosestNodeByPropertyValue = ({ element, property, value }) => {
-	const ownerDoc = element?.ownerDocument || document
-
-	if (!element) {
-		return ownerDoc.documentElement
-	}
-
-	let parent = element.parentElement
-	while (parent) {
-		if (
-			parent.isEqualNode(ownerDoc.documentElement) ||
-			value === ownerDoc.defaultView?.getComputedStyle(parent).getPropertyValue(property)
-		) {
-			return parent
-		}
-
-		parent = parent.parentElement
-	}
-
-	return ownerDoc.documentElement
-}
-
-/**
- * Creates a highlight popover container node.
- *
- * @since 4.4.6
- *
- * @returns {HTMLElement} The created popover node element wrapper.
- */
-export const createHighlightPopoverNode = () => {
-	const el = document.createElement('div')
-
-	el.classList.add('aioseo-app')
-	el.style.position = 'absolute'
-	el.style.zIndex   = '999'
-	el.style.display  = 'flex'
-	el.setAttribute('tabindex', -1)
-
-	return el
-}
+// Expose the post-update handler to editor DOM utilities via the worker-free
+// bridge, so they can trigger re-analysis without statically importing this
+// module (which pulls the TruSEO worker into addon bundles).
+setPostUpdater(maybeUpdatePost)

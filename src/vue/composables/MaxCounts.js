@@ -13,7 +13,18 @@ export const useMaxCounts = () => {
 		)
 	}
 
+	const maxRecommendedPixels = (current, max) => {
+		const error = current > max ? ' class="error"' : ''
+		return sprintf(
+			// Translators: 1 - A number, 2 - A number.
+			__('%1$s out of %2$s max recommended pixels.', td),
+			`<strong${error}>${current}</strong>`,
+			`<strong>${max}</strong>`
+		)
+	}
+
 	return {
-		maxRecommendedCount
+		maxRecommendedCount,
+		maxRecommendedPixels
 	}
 }

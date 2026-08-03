@@ -33,6 +33,7 @@ import { useSeoPreviewStore } from '@/vue/stores/SeoPreviewStore'
 import { useSeoRevisionsStore } from '@/vue/stores/SeoRevisionsStore'
 import { useSettingsStore } from '@/vue/stores/SettingsStore'
 import { useSetupWizardStore } from '@/vue/stores/SetupWizardStore'
+import { useSpellCheckerDictionaryStore } from '@/vue/stores/SpellCheckerDictionaryStore'
 import { useTagsStore } from '@/vue/stores/TagsStore'
 import { useToolsStore } from '@/vue/stores/ToolsStore'
 import { useTruSeoHighlighterStore } from '@/vue/stores/TruSeoHighlighterStore'
@@ -91,6 +92,7 @@ const loadPiniaStores = (app, router = null, loadStoresCallback = () => {}) => {
 	const seoChecklistStore             = useSeoChecklistStore()
 	const seoRevisionsStore             = useSeoRevisionsStore()
 	const settingsStore                 = useSettingsStore()
+	const spellCheckerDictionaryStore   = useSpellCheckerDictionaryStore()
 	const tagsStore                     = useTagsStore()
 	const wpCodeStore                   = useWpCodeStore()
 	const writingAssistantSettingsStore = useWritingAssistantSettingsStore()
@@ -142,6 +144,7 @@ const loadPiniaStores = (app, router = null, loadStoresCallback = () => {}) => {
 	seoRevisionsStore.$state             = merge({ ...seoRevisionsStore.$state }, { ...aioseo.seoRevisions || {} })
 	settingsStore.settings               = merge({ ...settingsStore.settings }, { ...aioseo.settings || {} })
 	settingsStore.userProfile            = merge({ ...settingsStore.userProfile }, { ...aioseo.userProfile || {} })
+	spellCheckerDictionaryStore.hydrate()
 	tagsStore.$state                     = merge({ ...tagsStore.$state }, { ...aioseo.tags || {} })
 	writingAssistantSettingsStore.$state = merge({ ...writingAssistantSettingsStore.$state }, { ...aioseo.writingAssistantSettings || {} })
 
@@ -182,8 +185,7 @@ const loadPiniaStores = (app, router = null, loadStoresCallback = () => {}) => {
 	delete aioseo.userProfile
 
 	// Add additional properties.
-	aioseo.publicPath   = '/'
-	aioseo.translations = {}
+	aioseo.publicPath = '/'
 
 	rootStore.aioseo = merge({ ...rootStore.aioseo }, { ...aioseo || {} })
 
@@ -290,6 +292,7 @@ export {
 	useSeoRevisionsStore,
 	useSettingsStore,
 	useSetupWizardStore,
+	useSpellCheckerDictionaryStore,
 	useTableOfContentsStore,
 	useRecipeStore,
 	useProductStore,

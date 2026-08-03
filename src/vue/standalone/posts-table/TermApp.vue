@@ -6,120 +6,42 @@
 				editing: showEditTitle || showEditDescription
 			}"
 		>
-			<div>
-				<div v-if="showTitle">
-					<core-tooltip class="aioseo-details-column__tooltip">
-						<div class="edit-row edit-title">
-							<strong>{{ strings.title }} </strong>
+			<details-field
+				v-if="showTitle"
+				v-model="title"
+				:parsed="titleParsed"
+				:label="strings.seoTitle"
+				:is-custom="isCustomTitle"
+				:editing="showEditTitle"
+				:loading="termLoading"
+				single
+				:length="showLengthBadges ? titleLength : null"
+				:tags-context="getTagText('taxonomy', term?.taxonomy, 'Title')"
+				:default-tags="[ 'taxonomy_title' ]"
+				:custom-tooltip="strings.customTitle"
+				:default-tooltip="strings.defaultTitle"
+				@edit="editTitle"
+				@save="save"
+				@cancel="cancel"
+			/>
 
-							<span v-if="!showEditTitle">
-								<strong>:</strong>
-								{{ truncate(titleParsed, 100) }}
-							</span>
-
-							<core-loader v-if="termLoading" dark />
-
-							<svg-pencil
-								v-if="!showEditTitle"
-								class="pencil-icon"
-								@click.prevent="editTitle"
-							/>
-						</div>
-
-						<template #tooltip>
-							<strong>{{ strings.title }}:</strong>
-							{{ titleParsed }}
-						</template>
-					</core-tooltip>
-				</div>
-
-				<div
-					v-if="showEditTitle"
-					class="edit-row"
-				>
-					<core-html-tags-editor
-						v-model="title"
-						:line-numbers="false"
-						single
-						:tags-context="getTagText('taxonomy', term?.taxonomy, 'Title')"
-						defaultMenuOrientation="bottom"
-						tagsDescription=''
-						:default-tags="[ 'taxonomy_title' ]"
-					/>
-
-					<base-button
-						type="gray"
-						size="small"
-						@click.prevent="cancel"
-					>
-						{{ strings.discardChanges }}
-					</base-button>
-
-					<base-button
-						type="blue"
-						size="small"
-						@click.prevent="save"
-					>
-						{{ strings.saveChanges }}
-					</base-button>
-				</div>
-
-				<div v-if="showDescription">
-					<core-tooltip class="aioseo-details-column__tooltip">
-						<div class="edit-row edit-description">
-							<strong>{{ strings.description }}</strong>
-
-							<span v-if="!showEditDescription">
-								<strong>:</strong>
-								{{ truncate(descriptionParsed) }}
-							</span>
-
-							<core-loader v-if="termLoading" dark />
-
-							<svg-pencil
-								v-if="!showEditDescription"
-								class="pencil-icon"
-								@click.prevent="editDescription"
-							/>
-						</div>
-
-						<template #tooltip>
-							<strong>{{ strings.description }}:</strong>
-							{{ descriptionParsed }}
-						</template>
-					</core-tooltip>
-				</div>
-
-				<div
-					v-if="showEditDescription"
-					class="edit-row"
-				>
-					<core-html-tags-editor
-						v-model="termDescription"
-						:line-numbers="false"
-						:tags-context="getTagText('taxonomy', term?.taxonomy, 'Description')"
-						defaultMenuOrientation="bottom"
-						tagsDescription=''
-						:default-tags="[ 'taxonomy_description' ]"
-					/>
-
-					<base-button
-						type="gray"
-						size="small"
-						@click.prevent="cancel"
-					>
-						{{ strings.discardChanges }}
-					</base-button>
-
-					<base-button
-						type="blue"
-						size="small"
-						@click.prevent="save"
-					>
-						{{ strings.saveChanges }}
-					</base-button>
-				</div>
-			</div>
+			<details-field
+				v-if="showDescription"
+				v-model="termDescription"
+				:parsed="descriptionParsed"
+				:label="strings.metaDescription"
+				:is-custom="isCustomDescription"
+				:editing="showEditDescription"
+				:loading="termLoading"
+				:length="showLengthBadges ? descriptionLength : null"
+				:tags-context="getTagText('taxonomy', term?.taxonomy, 'Description')"
+				:default-tags="[ 'taxonomy_description' ]"
+				:custom-tooltip="strings.customDescription"
+				:default-tooltip="strings.defaultDescription"
+				@edit="editDescription"
+				@save="save"
+				@cancel="cancel"
+			/>
 		</div>
 	</div>
 </template>
@@ -134,14 +56,10 @@ import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 
 import { useTruSeoScore } from '@/vue/composables/TruSeoScore'
 
-import { truncate } from '@/vue/utils/html'
+import { MIN_WIDTH_FOR_BADGES, useDetailsFieldLength } from '@/vue/composables/DetailsFieldLength'
 import { truSeoShouldAnalyze } from '@/vue/plugins/tru-seo/components/helpers'
 
-import BaseButton from '@/vue/components/common/base/Button'
-import CoreHtmlTagsEditor from '@/vue/components/common/core/HtmlTagsEditor'
-import CoreLoader from '@/vue/components/common/core/Loader'
-import CoreTooltip from '@/vue/components/common/core/Tooltip'
-import SvgPencil from '@/vue/components/common/svg/Pencil'
+import DetailsField from '@/vue/components/common/core/DetailsField'
 import '@/vue/assets/scss/main.scss'
 
 import { __ } from '@/vue/plugins/translations'
@@ -150,21 +68,18 @@ const td = import.meta.env.VITE_TEXTDOMAIN
 
 export default {
 	setup () {
-		const {
-			strings
-		} = useTruSeoScore()
+		const { strings }                              = useTruSeoScore()
+		const { getTitleLength, getDescriptionLength } = useDetailsFieldLength()
 
 		return {
 			composableStrings : strings,
-			getTagText        : tags.getTagText
+			getTagText        : tags.getTagText,
+			getTitleLength,
+			getDescriptionLength
 		}
 	},
 	components : {
-		BaseButton,
-		CoreHtmlTagsEditor,
-		CoreLoader,
-		CoreTooltip,
-		SvgPencil
+		DetailsField
 	},
 	props : {
 		term  : Object,
@@ -185,15 +100,65 @@ export default {
 			termLoading         : false,
 			showTitle           : true,
 			showDescription     : true,
+			columnWidth         : 0,
+			resizeObserver      : null,
 			strings             : merge(this.composableStrings, {
-				title          : __('Title', td),
-				description    : __('Description', td),
-				saveChanges    : __('Save Changes', td),
-				discardChanges : __('Discard Changes', td)
+				seoTitle           : __('SEO Title', td),
+				metaDescription    : __('Meta Description', td),
+				customTitle        : __('Custom SEO title written for this term', td),
+				defaultTitle       : __('Default SEO title generated from your template', td),
+				customDescription  : __('Custom meta description written for this term', td),
+				defaultDescription : __('Default meta description generated from your template', td)
 			})
 		}
 	},
+	computed : {
+		// Custom means "differs from the taxonomy template", not "has a value". The editors
+		// open pre-filled with that template, so presence alone marks untouched fields custom.
+		isCustomTitle () {
+			return !!this.term.title && this.term.title !== this.term.defaultTitle
+		},
+		isCustomDescription () {
+			return !!this.term.description && this.term.description !== this.term.defaultDescription
+		},
+		titleLength () {
+			return this.getTitleLength(this.titleParsed)
+		},
+		descriptionLength () {
+			return this.getDescriptionLength(this.descriptionParsed)
+		},
+		showLengthBadges () {
+			return !this.columnWidth || this.columnWidth >= MIN_WIDTH_FOR_BADGES
+		}
+	},
 	methods : {
+		// An editor left at the template means "keep using the default", which is stored empty.
+		storedValue (value, template) {
+			return value === template ? '' : value
+		},
+		refreshParsedValues () {
+			this.termLoading = true
+
+			http.post(links.restUrl('terms-list/load-details-column'))
+				.send({ ids: [ this.term.id ] })
+				.then(response => {
+					const fresh = response.body?.terms?.find(t => t.id === this.term.id)
+					if (!fresh) {
+						return
+					}
+
+					this.titleParsed            = fresh.titleParsed
+					this.descriptionParsed      = fresh.descriptionParsed
+					this.term.titleParsed       = fresh.titleParsed
+					this.term.descriptionParsed = fresh.descriptionParsed
+				})
+				.catch(error => {
+					console.error(`Unable to refresh term ${this.term.id}: ${error}`)
+				})
+				.finally(() => {
+					this.termLoading = false
+				})
+		},
 		save () {
 			if (!allowed('aioseo_page_general_settings')) {
 				return
@@ -201,8 +166,10 @@ export default {
 
 			this.showEditTitle       = false
 			this.showEditDescription = false
-			this.term.title          = this.title
-			this.term.description    = this.termDescription
+			// Both editors post together, so an untouched field would be saved as the term's
+			// own copy of the template and stop following it if the taxonomy default changes.
+			this.term.title          = this.storedValue(this.title, this.term.defaultTitle)
+			this.term.description    = this.storedValue(this.termDescription, this.term.defaultDescription)
 			this.termLoading         = true
 
 			http.post(links.restUrl('terms-list/update-details-column'))
@@ -236,23 +203,43 @@ export default {
 		},
 		editDescription () {
 			this.showEditDescription  = true
-		},
-		truncate
+		}
 	},
 	mounted () {
 		this.termId            = this.term.id
 		this.columnName        = this.term.columnName
-		this.title             = this.term.title
+		// Fall back to the taxonomy's template so the editor opens with the smart tags to
+		// tweak rather than an empty box, matching the posts column.
+		this.title             = this.term.title || this.term.defaultTitle
 		this.titleParsed       = this.term.titleParsed
-		this.termDescription   = this.term.description
+		this.termDescription   = this.term.description || this.term.defaultDescription
 		this.descriptionParsed = this.term.descriptionParsed
 		this.showTitle         = this.term.showTitle
 		this.showDescription   = this.term.showDescription
 
 		// If the term data changed, we need to parse the title and description again.
 		// This can happen after using the quick-edit feature.
+		// Re-read the parsed values rather than re-saving: save() would post the editor's
+		// values, which fall back to the taxonomy template.
 		if (this.term.reload) {
-			this.save()
+			this.refreshParsedValues()
+		}
+
+		// Watch the cell so the length counters drop out when the column narrows, matching
+		// the posts column.
+		if (window.ResizeObserver) {
+			this.resizeObserver = new window.ResizeObserver(entries => {
+				entries.forEach(entry => {
+					this.columnWidth = Math.round(entry.contentRect.width)
+				})
+			})
+
+			this.resizeObserver.observe(this.$el.parentNode || this.$el)
+		}
+	},
+	beforeUnmount () {
+		if (this.resizeObserver) {
+			this.resizeObserver.disconnect()
 		}
 	},
 	async created () {

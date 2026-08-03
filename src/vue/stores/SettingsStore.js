@@ -22,6 +22,15 @@ export const useSettingsStore = defineStore('SettingsStore', {
 		closeCard (slug) {
 			this.settings.toggledCards[slug] = false
 		},
+		// Persists, unlike closeCard: the toggle endpoint flips whatever it has stored, so leaving
+		// the server on the old value would make the user's next click invert the card instead.
+		openCard (slug) {
+			if (this.settings.toggledCards[slug]) {
+				return
+			}
+
+			this.toggleCard({ slug, shouldSave: true })
+		},
 		changeTabSettings ({ setting, value }) {
 			this.metaBoxTabs[setting] = value
 		},

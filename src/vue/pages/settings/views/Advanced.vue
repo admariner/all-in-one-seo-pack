@@ -5,32 +5,6 @@
 			:header-text="strings.advanced"
 		>
 			<core-settings-row
-				:name="strings.truSeo"
-			>
-				<template #content>
-					<base-toggle
-						v-model="optionsStore.options.advanced.truSeo"
-					/>
-
-					<div class="aioseo-description">
-						{{ strings.truSeoDescription }}
-					</div>
-				</template>
-			</core-settings-row>
-
-			<core-settings-row
-				:name="strings.headlineAnalyzer"
-			>
-				<template #content>
-					<base-toggle v-model="optionsStore.options.advanced.headlineAnalyzer"/>
-
-					<div class="aioseo-description">
-						{{ strings.headlineAnalyzerDescription }}
-					</div>
-				</template>
-			</core-settings-row>
-
-			<core-settings-row
 				:name="strings.postTypeColumns"
 			>
 				<template #content>
@@ -336,18 +310,26 @@ export default {
 		return {
 			openAiKeyInvalid : false,
 			strings          : {
-				advanced                    : __('Advanced Settings', td),
-				truSeo                      : __('TruSEO Score & Content', td),
-				truSeoDescription           : __('Enable our TruSEO score to help you optimize your content for maximum traffic.', td),
-				headlineAnalyzer            : __('Headline Analyzer', td),
-				headlineAnalyzerDescription : __('Enable our Headline Analyzer to help you write irresistible headlines and rank better in search results.', td),
-				seoAnalysis                 : __('SEO Analysis', td),
-				postTypeColumns             : __('Post Type Columns', td),
-				includeAllPostTypes         : __('Include All Post Types', td),
-				selectPostTypes             : sprintf(
+				advanced            : __('Advanced Settings', td),
+				postTypeColumns     : __('Post Type Columns', td),
+				includeAllPostTypes : __('Include All Post Types', td),
+				selectPostTypes     : sprintf(
 					// Translators: 1 - Plugin Short Name ("AIOSEO").
 					__('Select which Post Types you want to use the %1$s columns with.', td),
 					import.meta.env.VITE_SHORT_NAME
+				),
+				taxonomyColumns      : __('Taxonomy Columns', td),
+				includeAllTaxonomies : __('Include All Taxonomies', td),
+				selectTaxonomies     : sprintf(
+					// Translators: 1 - Plugin Short Name ("AIOSEO").
+					__('Select which Taxonomies you want to use the %1$s columns with.', td),
+					import.meta.env.VITE_SHORT_NAME
+				),
+				taxonomyColumnsUpsell : sprintf(
+					// Translators: 1 - "PRO", 2 - "Learn more".
+					__('Taxonomy Columns is a %1$s feature. %2$s', td),
+					'PRO',
+					links.getUpsellLink('general-settings', 'taxonomy-columns', GLOBAL_STRINGS.learnMore, 'liteUpgrade', true)
 				),
 				usageTracking           : __('Usage Tracking', td),
 				adminBarMenu            : __('Admin Bar Menu', td),
@@ -392,19 +374,6 @@ export default {
 					__('Dashboard Widgets is a %1$s feature. %2$s', td),
 					'PRO',
 					links.getUpsellLink('general-settings', 'dashboard-widget', GLOBAL_STRINGS.learnMore, 'liteUpgrade', true)
-				),
-				taxonomyColumns      : __('Taxonomy Columns', td),
-				includeAllTaxonomies : __('Include All Taxonomies', td),
-				selectTaxonomies     : sprintf(
-					// Translators: 1 - Plugin Short Name ("AIOSEO").
-					__('Select which Taxonomies you want to use the %1$s columns with.', td),
-					import.meta.env.VITE_SHORT_NAME
-				),
-				taxonomyColumnsUpsell : sprintf(
-					// Translators: 1 - "PRO", 2 - "Learn more".
-					__('Taxonomy Columns is a %1$s feature. %2$s', td),
-					'PRO',
-					links.getUpsellLink('general-settings', 'taxonomy-columns', GLOBAL_STRINGS.learnMore, 'liteUpgrade', true)
 				),
 				uninstallAioseo : sprintf(
 					// Translators: 1 - Plugin Short Name ("AIOSEO").

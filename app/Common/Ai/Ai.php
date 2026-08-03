@@ -617,6 +617,19 @@ class Ai {
 			: null;
 		$errorDetails = array_filter( [ "Service response code: $responseCode", $serviceError ] );
 
+		// `insufficient_credits` arrives with a 402, so detect it before the generic
+		// non-200 guard below — otherwise the credit-specific detail is never added.
+		if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
+			aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
+
+			$errorDetails[] = 'Not enough credits';
+
+			return [
+				'success' => false,
+				'message' => implode( ' | ', $errorDetails )
+			];
+		}
+
 		if ( 200 !== $responseCode ) {
 			$errorDetails[] = 'The AI service returned an unexpected response';
 
@@ -631,17 +644,6 @@ class Ai {
 			: [];
 
 		if ( empty( $responseBody->success ) || empty( $results ) ) {
-			if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
-				aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
-
-				$errorDetails[] = 'Not enough credits';
-
-				return [
-					'success' => false,
-					'message' => implode( ' | ', $errorDetails )
-				];
-			}
-
 			$errorDetails[] = "The AI service did not return any $resultKey";
 
 			return [
@@ -673,7 +675,7 @@ class Ai {
 
 		// Get existing orders and append the new ones to prevent 'Indirect modification of overloaded prop' PHP warning.
 		$existingOrders = aioseo()->internalOptions->internal->ai->credits->orders ?? [];
-		$existingOrders = array_merge( $existingOrders, aioseo()->helpers->sanitizeOption( $responseBody->orders ) );
+		$existingOrders = array_merge( $existingOrders, aioseo()->helpers->sanitizeOption( $responseBody->orders ?? [] ) );
 
 		aioseo()->internalOptions->internal->ai->credits->orders = $existingOrders;
 

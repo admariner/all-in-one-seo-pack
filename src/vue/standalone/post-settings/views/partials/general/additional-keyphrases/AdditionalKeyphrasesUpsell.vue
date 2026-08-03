@@ -30,7 +30,7 @@ export default {
 	data () {
 		return {
 			strings : {
-				keyphraseDocumentation : __('Improve your SEO rankings with additional keywords.', td),
+				keyphraseDocumentation : __('Rank higher in Google by optimizing your post for additional keywords.', td),
 				upsell                 : sprintf(
 					// Translators: 1 - "Pro" string, 2 - "Learn more link".
 					__('Additional Keywords are a %1$s feature. %2$s', td),

@@ -5,6 +5,8 @@ import {
 	usePostEditorStore
 } from '@/vue/stores'
 
+import { maybeUpdatePost } from '@/vue/plugins/tru-seo/components/helpers'
+
 const isUnlicensed = () => {
 	const licenseStore = useLicenseStore()
 	return licenseStore?.isUnlicensed || false
@@ -101,7 +103,45 @@ window.addEventListener('DOMContentLoaded', () => {
 	}
 })
 
+/**
+ * Fields the productIdentifier and productSKU assessments read out of `paper.customData`.
+ * `#product-type` matters too — switching simple/variable changes which scoring branch applies.
+ */
+const PRODUCT_DATA_FIELDS = [
+	'#_sku',
+	'#_global_unique_id',
+	'#product-type',
+	'[name^="variable_sku"]',
+	'[name^="variable_global_unique_id"]'
+].join(', ')
+
+/**
+ * Re-runs the analysis when a field the product assessments depend on changes.
+ *
+ * These live in WooCommerce's own metabox, outside the editor content the analysis already
+ * watches, so without this nothing triggers a fresh run and the check appears stuck until the
+ * next unrelated edit or a save.
+ *
+ * @returns {void}
+ */
+const watchProductDataFields = () => {
+	// Delegated: Woo renders variation rows only when the Variations tab is opened, so listeners
+	// bound to individual nodes at load time would miss every variation field.
+	const onFieldChange = event => {
+		if (event.target?.matches?.(PRODUCT_DATA_FIELDS)) {
+			// maybeUpdatePost debounces, so keystrokes coalesce into one analysis.
+			maybeUpdatePost(500)
+		}
+	}
+
+	document.addEventListener('input', onFieldChange)
+	document.addEventListener('change', onFieldChange)
+}
+
 export const watchWooCommerce = () => {
+	// Runs regardless of license: the product assessments ship in both builds.
+	watchProductDataFields()
+
 	if (isUnlicensed()) {
 		return
 	}

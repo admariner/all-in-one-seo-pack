@@ -1,6 +1,7 @@
 import {
 	usePostEditorStore,
-	useRootStore
+	useRootStore,
+	useSpellCheckerDictionaryStore
 } from '@/vue/stores'
 
 import { shouldShowMetaBox } from '@/vue/utils/metabox'
@@ -23,6 +24,10 @@ export default (app, populateHiddenField = true) => {
 	if (!shouldShowMetaBox()) {
 		return
 	}
+
+	// Kick off background install of the user-language dictionary so the
+	// analysis below can await its completion (success or failure).
+	useSpellCheckerDictionaryStore().ensureDownloaded()
 
 	// Update post analysis on initial page load.
 	maybeUpdatePost()

@@ -1,107 +1,114 @@
 <template>
 	<div class="aioseo-tab-content aioseo-localseo-info">
-		<core-settings-row
-			:name="strings.name"
-			class="info-name-row"
-			align
+		<core-card
+			slug="localSeoMetaboxBusinessInfo"
+			:noSlide="true"
+			:hideHeader="true"
 		>
-			<template #content>
-				<local-business-name />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.name"
+				class="info-name-row"
+				align
+			>
+				<template #content>
+					<local-business-name />
+				</template>
+			</core-settings-row>
 
-		<core-settings-row
-			:name="strings.businessType"
-			class="info-business-type"
-			align
-		>
-			<template #content>
-				<local-business-business-type />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.businessType"
+				class="info-business-type"
+				align
+			>
+				<template #content>
+					<local-business-business-type />
+				</template>
+			</core-settings-row>
 
-		<core-settings-row
-			class="info-business-image"
-			:name="strings.image"
-			align
-		>
-			<template #content>
-				<local-business-image />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				class="info-business-image"
+				:name="strings.image"
+				align
+			>
+				<template #content>
+					<local-business-image />
+				</template>
+			</core-settings-row>
 
-		<!--core-settings-row
-			:name="strings.urls"
-			class="info-urls-row"
-			align
-		>
-			<template #content>
-				<local-business-urls />
-			</template>
-		</core-settings-row-->
+			<!--core-settings-row
+				:name="strings.urls"
+				class="info-urls-row"
+				align
+			>
+				<template #content>
+					<local-business-urls />
+				</template>
+			</core-settings-row-->
 
-		<core-settings-row
-			:name="strings.businessAddress"
-			class="info-businessaddress-row"
-			align
-		>
-			<template #content>
-				<local-business-business-address />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.businessAddress"
+				class="info-businessaddress-row"
+				align
+			>
+				<template #content>
+					<local-business-business-address />
+				</template>
+			</core-settings-row>
 
-		<core-settings-row
-			:name="strings.map"
-			align
-		>
-			<template #content>
-				<local-business-map />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.map"
+				align
+			>
+				<template #content>
+					<local-business-map />
+				</template>
+			</core-settings-row>
 
-		<core-settings-row
-			:name="strings.businessContact"
-			class="info-businesscontact-row"
-			align
-		>
-			<template #content>
-				<local-business-business-contact />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.businessContact"
+				class="info-businesscontact-row"
+				align
+			>
+				<template #content>
+					<local-business-business-contact />
+				</template>
+			</core-settings-row>
 
-		<core-settings-row
-			:name="strings.businessIDs"
-			class="info-businessids-row"
-			align
-		>
-			<template #content>
-				<local-business-business-ids />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.businessIDs"
+				class="info-businessids-row"
+				align
+			>
+				<template #content>
+					<local-business-business-ids />
+				</template>
+			</core-settings-row>
 
-		<core-settings-row
-			:name="strings.paymentInfo"
-			class="info-paymentinfo-row"
-			align
-		>
-			<template #content>
-				<local-business-payment-info />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.paymentInfo"
+				class="info-paymentinfo-row"
+				align
+			>
+				<template #content>
+					<local-business-payment-info />
+				</template>
+			</core-settings-row>
 
-		<core-settings-row
-			:name="strings.areaServed"
-			class="info-area-row"
-			align
-		>
-			<template #content>
-				<local-business-area-served />
-			</template>
-		</core-settings-row>
+			<core-settings-row
+				:name="strings.areaServed"
+				class="info-area-row"
+				align
+			>
+				<template #content>
+					<local-business-area-served />
+				</template>
+			</core-settings-row>
+		</core-card>
 	</div>
 </template>
 
 <script>
+import CoreCard from '@/vue/components/common/core/Card'
 import CoreSettingsRow from '@/vue/components/common/core/SettingsRow'
 import LocalBusinessAreaServed from '@/vue/components/AIOSEO_VERSION/local-business/AreaServed'
 import LocalBusinessBusinessAddress from '@/vue/components/AIOSEO_VERSION/local-business/business/Address'
@@ -120,6 +127,7 @@ const td = import.meta.env.VITE_TEXTDOMAIN
 
 export default {
 	components : {
+		CoreCard,
 		CoreSettingsRow,
 		LocalBusinessAreaServed,
 		LocalBusinessBusinessAddress,

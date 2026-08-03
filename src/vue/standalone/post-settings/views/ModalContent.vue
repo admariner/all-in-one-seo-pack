@@ -62,12 +62,12 @@ export default {
 				{
 					slug : 'general',
 					icon : 'svg-settings',
-					name : __('General', td)
+					name : __('Search Appearance', td)
 				},
 				{
 					slug : 'social',
 					icon : 'svg-share',
-					name : __('Social', td)
+					name : __('Social Appearance', td)
 				}
 			]
 		}

@@ -90,6 +90,8 @@
 					<svg-rephrase />
 
 					{{ aiContent.strings.rephrase }}
+
+					<credit-badge :cost="aiContent.getRephraseCost()" />
 				</base-button>
 
 				<credit-counter parent-component-context="modal" />
@@ -115,6 +117,8 @@
 					:disabled="!aiContent.hasEnoughCredits(aiContent.getFeatureCost('faqs'))"
 				>
 					{{ strings.generateButtonText }}
+
+					<credit-badge :cost="aiContent.getFeatureCost('faqs')" />
 				</base-button>
 
 				<base-button
@@ -165,6 +169,7 @@ import { copyContent } from './utils'
 
 import BaseCheckbox from '@/vue/components/common/base/Checkbox'
 import CoreModal from '@/vue/components/common/core/modal/Index'
+import CreditBadge from '@/vue/components/common/ai/CreditBadge'
 import CreditCounter from '@/vue/components/common/ai/CreditCounter'
 
 import Loader from './Loader'
@@ -178,7 +183,7 @@ import SvgCircleCheckSolid from '@/vue/components/common/svg/circle/CheckSolid'
 import SvgFaq from '@/vue/components/common/svg/ai/Faq'
 import SvgRephrase from '@/vue/components/common/svg/ai/Rephrase'
 
-import { __, _n, sprintf } from '@/vue/plugins/translations'
+import { __, _n } from '@/vue/plugins/translations'
 const td = import.meta.env.VITE_TEXTDOMAIN
 
 export default {
@@ -314,11 +319,7 @@ export default {
 			copy               : __('Copy', td),
 			copied             : __('Copied!', td),
 			settingsHeader     : __('Select tone and audience', td),
-			generateButtonText : sprintf(
-				// Translators: 1 - Number of credits.
-				__('Generate FAQs (%1$d credits)', td),
-				aiContent.getFeatureCost('faqs')
-			)
+			generateButtonText : __('Generate FAQs', td)
 		}
 
 		const loaders = [
@@ -363,6 +364,7 @@ export default {
 	components : {
 		BaseCheckbox,
 		CoreModal,
+		CreditBadge,
 		CreditCounter,
 		Loader,
 		StepHeader,

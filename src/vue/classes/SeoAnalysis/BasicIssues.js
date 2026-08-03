@@ -254,7 +254,7 @@ class BasicIssues {
 	}
 
 	get keywordCannibalization () {
-		const fixActionParams = '&aioseo-scroll=aioseo-post-settings-snippet-focus-keyphrase-row&aioseo-highlight=aioseo-post-settings-snippet-focus-keyphrase-row'
+		const fixActionParams = '&aioseo-tab=analysis&aioseo-scroll=aioseo-post-content-analysis&aioseo-highlight=aioseo-post-content-analysis'
 
 		return {
 			'keyword-cannibalization' : {

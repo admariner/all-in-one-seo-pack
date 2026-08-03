@@ -1,5 +1,6 @@
 {
-	"$schema": "https://schemas.wp.org/wp/5.8/block.json",
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
 	"name": "aioseo/faq",
 	"title": "AIOSEO - FAQ",
 	"description": "Easily add an SEO-friendly Frequently Asked Question (FAQ) to your content.",

@@ -426,7 +426,7 @@ export default {
 				homePageDisabledDescription   : sprintf(
 					// Translators: 1 - Opening HTML link tag, 2 - Closing HTML link tag.
 					__('You are using a static home page which is found under Pages. You can %1$sedit your home page settings%2$s directly to change the title, meta description and image.', td),
-					`<a href="${this.rootStore.aioseo.urls.staticHomePage}&aioseo-tab=social&social-tab=twitter&aioseo-scroll=aioseo-post-settings-twitter&aioseo-highlight=aioseo-post-settings-twitter">`,
+					`<a href="${this.rootStore.aioseo.urls.staticHomePage}&aioseo-tab=general&social-tab=twitter&aioseo-scroll=aioseo-post-settings-twitter&aioseo-highlight=aioseo-post-settings-twitter">`,
 					'</a>'
 				),
 				cardType                     : __('Card Type', td),

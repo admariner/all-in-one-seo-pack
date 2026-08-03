@@ -844,6 +844,23 @@ trait Wp {
 	}
 
 	/**
+	 * Whether the current admin list table is filtered to the Trash view.
+	 * Mirrors how WordPress core determines the trash view in WP_Posts_List_Table and WP_Media_List_Table.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @return bool Whether the current list view shows trashed items.
+	 */
+	public function isTrashListView() {
+		// phpcs:disable HM.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Recommended
+		$postStatus       = sanitize_text_field( wp_unslash( $_REQUEST['post_status'] ?? '' ) );
+		$attachmentFilter = sanitize_text_field( wp_unslash( $_REQUEST['attachment-filter'] ?? '' ) );
+		// phpcs:enable HM.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Recommended
+
+		return 'trash' === $postStatus || 'trash' === $attachmentFilter;
+	}
+
+	/**
 	 * Only register a legacy widget if the WP version is lower than 5.8 or the widget is being used.
 	 * The "Block-based Widgets Editor" was released in WP 5.8, so for WP versions below 5.8 it's okay to register them.
 	 * The main purpose here is to avoid blocks and widgets with the same name to be displayed on the Customizer,

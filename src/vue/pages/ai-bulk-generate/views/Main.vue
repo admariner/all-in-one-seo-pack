@@ -25,10 +25,7 @@
 							v-html="strings.description"
 						/>
 
-						<credit-counter
-							tooltip-placement="left"
-							show-purchase-only-when-low
-						/>
+						<credit-counter tooltip-placement="left" />
 					</div>
 
 					<div
@@ -309,7 +306,7 @@ const strings = computed(() => {
 		goToPostsList : isAlt.value
 			? __('Back to Media Library', td)
 			: sprintf(
-				// Translators: 1 - The post type plural label (e.g. "Posts", "Pages").
+				// Translators: 1 - The plural label of the post type (e.g. "Posts", "Pages").
 				__('Back to %1$s', td),
 				postTypePluralLabel.value
 			),

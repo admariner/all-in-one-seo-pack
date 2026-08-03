@@ -26,6 +26,7 @@
 					<core-add-redirection-url
 						v-for="(url, index) in sourceUrls"
 						:key="index"
+						ref="sourceUrlComponents"
 						:url="url"
 						:allow-delete="1 < sourceUrls.length"
 						@remove-url="removeUrl(index)"
@@ -302,6 +303,9 @@ const editingRedirect   = ref({
 	customRules  : [],
 	comment      : ''
 })
+
+// Template refs
+const sourceUrlComponents = ref([])
 
 const strings = {
 	redirectType         : __('Redirect Type', td),
@@ -708,6 +712,10 @@ function reset () {
 
 	const newRedirectType = REDIRECT_TYPES.find(t => t.value === props.type) || getDefaultRedirectType.value
 	const newQueryParam   = REDIRECT_QUERY_PARAMS.find(t => t.value === props.query) || getDefaultQueryParam.value
+
+	// The advanced options panel is state inside each source URL row, and those rows are keyed
+	// by index, so replacing the URLs below never remounts them into a collapsed state.
+	sourceUrlComponents.value.forEach(sourceUrl => sourceUrl?.collapseOptions())
 
 	sourceUrls.value        = [ JSON.parse(JSON.stringify(getDefaultSourceUrl.value)) ]
 	targetUrl.value         = null

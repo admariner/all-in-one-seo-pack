@@ -1,6 +1,6 @@
 import htm from 'htm'
 import { useTagsStore } from '@/vue/stores'
-import { customFieldValue } from '@/vue/plugins/tru-seo/components/customFields'
+import { customFieldValue } from '@/vue/utils/postData/customFields'
 import { canLoadBlocks } from '@/vue/utils/context'
 import { decodeHTMLEntities } from '@/vue/utils/helpers'
 
@@ -256,12 +256,21 @@ const {
 	registerBlockType
 } = window.wp.blocks
 
+export const useBlockProps     = window.wp.blockEditor?.useBlockProps || (() => ({}))
+export const useBlockPropsSave = window.wp.blockEditor?.useBlockProps?.save || (() => ({}))
+
 export const registerBlock = (block) => {
 	if (!block || !canLoadBlocks()) {
 		return
 	}
 
 	const { name, settings } = block
+
+	// Set API version 3 for iframe editor compatibility (WordPress 6.3+).
+	// Older WordPress versions will simply ignore this value.
+	if (!settings.apiVersion) {
+		settings.apiVersion = 3
+	}
 
 	if (settings?.icon && !settings?.icon?.foreground) {
 		const colorIcon = {

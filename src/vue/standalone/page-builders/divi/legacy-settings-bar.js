@@ -14,7 +14,11 @@ const safeModalSelectors = [
 	'.aioseo-pagebuilder-modal',
 	'.aioseo-app.aioseo-post-settings-modal',
 	'.el-popper',
-	'.media-modal'
+	'.media-modal',
+	// Keyword/language menus and tooltips teleport into this body-level portal, so
+	// a click on a menu item lands outside the modal — treat the portal as inside,
+	// otherwise picking an option (e.g. Edit) closes the whole panel.
+	'#aioseo-popper-portal'
 ]
 
 const mediaQuery = window.matchMedia('(min-width: 768px)')
@@ -206,6 +210,16 @@ const hideModalOnOutsideClick = (event) => {
 	}
 
 	const { target } = event
+
+	// Removing a keyword unmounts its row, and the popper tears its teleported menu
+	// out of #aioseo-popper-portal on the same click — so by the time this bubbled
+	// handler runs the clicked node is already detached and closest() can no longer
+	// see the portal. A detached target is always our own UI reacting to this very
+	// click, never a genuine outside click, so treat it as inside.
+	if (!target.isConnected) {
+		return
+	}
+
 	const isSafe = safeModalSelectors.some(s => target.closest(s)) ||
 		target === settingsBarRoot ||
 		target.classList?.contains('aioseo')

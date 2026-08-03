@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import { sortHelper } from '@/vue/utils/sort'
-import escapeRegex from '@/app/tru-seo/analyzer/researches/helpers/escapeRegex'
-import { getPostEditedTitle } from '@/vue/plugins/tru-seo/components/postTitle'
-import { getPostExcerpt } from '@/vue/plugins/tru-seo/components/postExcerpt'
+import { getPostEditedTitle } from '@/vue/utils/postData/postTitle'
+import { getPostExcerpt } from '@/vue/utils/postData/postExcerpt'
 import http from '@/vue/utils/http'
 import { __ } from '@/vue/plugins/translations'
 
@@ -218,7 +217,7 @@ export const useWritingAssistantStore = defineStore('WritingAssistantStore', {
 
 			this.getKeywords.forEach((keyword) => {
 				// Pattern searches for the keyword without any boundaries before or after it.
-				keyword.contentCount = payload.match(new RegExp('\\b' + escapeRegex(keyword.text) + '\\b', 'gmi'))?.length || 0
+				keyword.contentCount = payload.match(new RegExp('\\b' + keyword.text.replace(/[\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'gmi'))?.length || 0
 			})
 
 			// Sort the keywords again.

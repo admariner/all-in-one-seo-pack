@@ -4,7 +4,7 @@ import {
 	useRootStore
 } from '@/vue/stores'
 
-import { getPostEditedContent } from '@/vue/plugins/tru-seo/components/postContent'
+import { getPostEditedContent } from '@/vue/utils/postData/postContent'
 
 import { GLOBAL_STRINGS } from '@/vue/plugins/constants'
 import links from '@/vue/utils/links'
@@ -12,15 +12,51 @@ import links from '@/vue/utils/links'
 import { __, sprintf } from '@wordpress/i18n'
 const td = import.meta.env.VITE_TEXTDOMAIN
 
+// Keys must match the licensing server's `costPerFeature` map — a key it doesn't
+// publish can never be overridden and silently freezes at the value below.
 export const defaultFeatureCosts = {
-	titles       : 10,
-	descriptions : 10,
-	socialPosts  : 10,
-	keyPoints    : 10,
-	faqs         : 10,
-	schemas      : 25,
-	aiAssistant  : 50,
-	imageAltText : 10
+	titles             : 10,
+	descriptions       : 10,
+	socialPosts        : 10,
+	keyPoints          : 10,
+	faqs               : 10,
+	schemas            : 25,
+	aiAssistant        : 50,
+	imageAltText       : 10,
+	imageGenerator     : 250,
+	truseoSuggest      : 5,
+	truseoSpelling     : 5,
+	truseoOptimizePost : 25
+}
+
+// The Image Generator is priced as a nested map of model and quality tiers rather than a
+// single figure, so collapse whatever shape the API sent to its numeric leaves.
+const flattenCosts = value => {
+	if (null === value || 'object' !== typeof value) {
+		// Number('') is 0, and an unpublished price is not a free one.
+		return [ '' === value ? NaN : Number(value) ]
+	}
+
+	return Object.values(value).flatMap(flattenCosts)
+}
+
+/**
+ * Returns the credit cost of an AI feature, preferring the price the licensing
+ * server published over the local default.
+ *
+ * @param {string} featureName The `costPerFeature` key.
+ * @returns {number} The cost in credits.
+ */
+export const getFeatureCost = (featureName) => {
+	const optionsStore   = useOptionsStore()
+	const costPerFeature = optionsStore.internalOptions?.internal?.ai?.costPerFeature || {}
+
+	// Prices arrive as strings and callers add them together, so always hand back a
+	// number. A published 0 is meaningful — the feature is bundled into another charge.
+	// Features priced per model advertise their cheapest tier.
+	const costs = flattenCosts(costPerFeature[featureName]).filter(Number.isFinite)
+
+	return costs.length ? Math.min(...costs) : (defaultFeatureCosts[featureName] ?? 10)
 }
 
 export const useAiContent = () => {
@@ -127,13 +163,11 @@ export const useAiContent = () => {
 
 	const rephraseCost = 5
 
-	const getFeatureCost = (featureName) => {
+	const getRephraseCost = () => {
 		const costPerFeature = optionsStore.internalOptions?.internal?.ai?.costPerFeature || {}
 
-		return costPerFeature[featureName] || defaultFeatureCosts[featureName] || 10
+		return Number(costPerFeature.rephrase || rephraseCost)
 	}
-
-	const getRephraseCost = () => rephraseCost
 
 	const hasEnoughCredits = (amountOfCredits) => {
 		return optionsStore.internalOptions.internal.ai.credits.remaining >= amountOfCredits
@@ -150,7 +184,7 @@ export const useAiContent = () => {
 	const strings = {
 		credits    : __('Credits', td),
 		disclaimer : sprintf(
-			// translators: %1$s - A "Learn more" link.
+			// Translators: %1$s - Link to the AI Content disclaimer documentation.
 			__('AI-generated content could be inaccurate or biased. %1$s', td),
 			links.getDocLink(GLOBAL_STRINGS.learnMore, 'aiDisclaimer', true)
 		),
@@ -170,11 +204,7 @@ export const useAiContent = () => {
 			__('Your post is too short to generate AI content. Please add more content. For the best results, we recommend adding at least %1$d characters.', td),
 			minContentLength
 		),
-		rephrase : sprintf(
-			// Translators: 1 - Number of credits.
-			__('Regenerate (%1$d credits)', td),
-			rephraseCost
-		),
+		rephrase            : __('Regenerate', td),
 		somethingWrong      : __('We ran into an error. Please try again or contact support if it persists.', td),
 		viewPreviousResults : __('View Previous Results', td)
 	}

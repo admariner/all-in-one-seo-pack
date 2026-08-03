@@ -11,7 +11,7 @@ import SelectMode from './vue/SelectMode.vue'
 
 import { Sidebar } from './vue/Sidebar'
 
-import { deepCopy, cleanHtml } from '@/vue/standalone/blocks/utils'
+import { deepCopy, cleanHtml, useBlockProps } from '@/vue/standalone/blocks/utils'
 import { observeElement } from '@/vue/utils/helpers'
 import { getEditorDocument } from '@/vue/utils/editor'
 import { cleanForSlug } from '@/vue/utils/cleanForSlug'
@@ -129,7 +129,8 @@ const findNextTocIndex = (allBlockClientIds, tableOfContentsIndex, getBlockName)
 	return -1 === nextIndex ? -1 : tableOfContentsIndex + 1 + nextIndex
 }
 
-export const edit = ({ setAttributes, attributes, clientId, className, isSelected }) => {
+export const edit = ({ setAttributes, attributes, clientId, isSelected }) => {
+	const blockProps = useBlockProps()
 	const { headings = [] } = attributes
 	// State to track headings locally
 	const [ localHeadings, setLocalHeadings ] = useState(attributes?.headings || [])
@@ -469,14 +470,14 @@ export const edit = ({ setAttributes, attributes, clientId, className, isSelecte
 		})
 
 		return (
-			<div className={className}>
+			<div {...blockProps}>
 				<div id={`aioseo-mode-selection-${clientId}`}></div>
 			</div>
 		)
 	}
 
 	return (
-		<div className={className}>
+		<div {...blockProps}>
 			<div id={`aioseo-${clientId}`}></div>
 			<InspectorControls>
 				<PanelBody title={__('Table of Contents Settings', td)}>

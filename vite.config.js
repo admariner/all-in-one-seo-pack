@@ -320,14 +320,14 @@ export default ({ mode }) => {
 							from : `dist/${version}/assets/.vite/manifest.json`,
 							to   : `dist/${version}/manifest.php`
 						}
-					])
-					// visualizer({
-					// 	open       : true,              // Opens in browser automatically
-					// 	filename   : 'dist/stats.html',  // Output file
-					// 	gzipSize   : true,          // Show gzipped sizes
-					// 	brotliSize : true,        // Show brotli sizes
-					// 	template   : 'treemap'      // or 'sunburst', 'network'
-					// })
+					]),
+					/* visualizer({
+						open       : true,
+						filename   : 'dist/stats.html',
+						gzipSize   : true,
+						brotliSize : true,
+						template   : 'treemap'
+					}) */
 				],
 				// This is a workaround for an issue with rollup that won't be fixed any time soon. See: https://github.com/vitejs/vite/issues/15012
 				onLog (level, log, handler) {

@@ -119,6 +119,7 @@ import {
 
 import Quill from 'quill'
 import 'quill/dist/quill.snow.css'
+import bindQuillSelectionToOwnerDocument from '@/vue/plugins/quill/iframe-selection'
 import '@/vue/plugins/quill/mention'
 import '@/vue/plugins/quill/auto-link'
 import '@/vue/plugins/quill/character-counter'
@@ -370,6 +371,14 @@ export default {
 				mention.hideMentionList()
 			}
 		},
+		// Clicks inside the block editor iframe never reach the top-level document,
+		// so the menu has to listen on both.
+		menuCloseDocuments () {
+			const ownerDoc = this.$refs.quill?.ownerDocument
+			return ownerDoc && ownerDoc !== document
+				? [ document, ownerDoc ]
+				: [ document ]
+		},
 		maybeCloseMenu (event) {
 			const element = event.target
 			if (
@@ -469,7 +478,7 @@ export default {
 					})
 				})
 
-				document.addEventListener('click', this.maybeCloseMenu)
+				this.menuCloseDocuments().forEach(doc => doc.addEventListener('click', this.maybeCloseMenu))
 
 				if (this.disabled) {
 					QuillEditor[this.$.uid].disable()
@@ -485,7 +494,7 @@ export default {
 				return null
 			}
 
-			return new Quill(this.$refs.quill, {
+			const quill = new Quill(this.$refs.quill, {
 				modules : {
 					toolbar     : !this.showToolbar ? [] : [ 'bold', 'italic', 'underline', 'autoLink'/* , { list: 'bullet' }, { list: 'ordered' } */ ],
 					lineNumbers : this.lineNumbers
@@ -563,6 +572,12 @@ export default {
 				theme   : 'snow',
 				formats : !this.showToolbar ? [ 'mention' ] : [ 'bold', 'underline', 'italic', 'link', 'list', 'aioseoInline' ]
 			})
+
+			// Rebind selection to the editor's own document so Smart Tags work
+			// inside the block editor iframe (WordPress 6.3+). No-op otherwise.
+			bindQuillSelectionToOwnerDocument(quill)
+
+			return quill
 		},
 		setPhrase (value) {
 			// We are caching the phrase at this point, so we can use it later to undo the next few lines.
@@ -609,7 +624,7 @@ export default {
 		}
 	},
 	beforeUnmount () {
-		document.removeEventListener('click', this.maybeCloseMenu)
+		this.menuCloseDocuments().forEach(doc => doc.removeEventListener('click', this.maybeCloseMenu))
 	},
 	unmounted () {
 		if (this.tagsContext) {

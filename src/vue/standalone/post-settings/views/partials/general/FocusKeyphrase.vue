@@ -1,25 +1,39 @@
 <template>
 	<div class="aioseo-focus-keyphrase-panel">
-		<focus-keyphrase-input v-if="!hasFocusKeyphrase" :screen-context="$root.$data.screenContext"
-			@add="handleAddKeyphrase" />
+		<focus-keyphrase-input
+			v-if="!hasFocusKeyphrase"
+			:screen-context="$root.$data.screenContext"
+			@add="handleAddKeyphrase"
+		/>
 
-		<focus-keyphrase-display v-if="hasFocusKeyphrase"
-			:keyphrase="postEditorStore.currentPost.keyphrases.focus.keyphrase"
-			:score="postEditorStore.currentPost.keyphrases.focus.score" :loading="postEditorStore.currentPost.loading.focus"
-			:analysis-items="postEditorStore.currentPost.keyphrases.focus.analysis" @saved="handleKeyphraseSaved"
-			@deleted="handleKeyphraseDeleted" />
+		<focus-keyphrase-display
+			v-if="hasFocusKeyphrase"
+			:keyphrase="postEditorStore.truseoData?.focusKeyword"
+			:score="postEditorStore.truseoData?.truseo?.focus_keyword?.score || 0" :loading="postEditorStore.currentPost.loading.focus"
+			:analysis-items="postEditorStore.truseoData?.truseo?.focus_keyword?.items"
+			@saved="handleKeyphraseSaved"
+			@deleted="handleKeyphraseDeleted"
+		/>
 
-		<semrush-keywords-button :has-focus-keyphrase="hasFocusKeyphrase"
+		<semrush-keywords-button
+			:has-focus-keyphrase="hasFocusKeyphrase"
 			:loading="postEditorStore.currentPost.loading.focus" :is-pro="rootStore.isPro"
 			:is-unlicensed="licenseStore.isUnlicensed" :show-tooltip="showSemrushTooltip"
-			:settings-url="rootStore.aioseo.urls.aio.settings" @click="handleSemrushButtonClick" />
+			:settings-url="rootStore.aioseo.urls.aio.settings" @click="handleSemrushButtonClick"
+		/>
 
-		<semrush-keywords-modal :show="semrushShowModal" :keywords="semrushStore.results" :loading="loadingResults"
-			:error="semrushStore.error" :focus-keyphrase="postEditorStore.currentPost.keyphrases.focus?.keyphrase || ''"
-			:additional-keyphrases="postEditorStore.currentPost.keyphrases.additional"
-			:adding-index="addingAdditionalKeyphrase" :removing-index="removingAdditionalKeyphrase"
+		<semrush-keywords-modal
+			:show="semrushShowModal"
+			:keywords="semrushStore.results"
+			:loading="loadingResults"
+			:error="semrushStore.error"
+			:focus-keyphrase="postEditorStore.truseoData?.focusKeyword"
+			:additional-keyphrases="postEditorStore.truseoData?.additionalKeywords || []"
+			:adding-index="addingAdditionalKeyphrase"
+			:removing-index="removingAdditionalKeyphrase"
 			:max-additional-keyphrases="postEditorStore.currentPost.maxAdditionalKeyphrases"
-			:is-unlicensed="licenseStore.isUnlicensed" :country-value="semrushCountry" @close="semrushShowModal = false"
+			:is-unlicensed="licenseStore.isUnlicensed"
+			:country-value="semrushCountry" @close="semrushShowModal = false"
 			@add="handleAddAdditionalKeyphrase" @remove="handleRemoveAdditionalKeyphrase"
 			@navigate="handleNavigateToAdditionalKeyphrase" @country-changed="handleCountryChanged" />
 	</div>
@@ -37,7 +51,7 @@ import {
 	useSensitiveOptionsStore
 } from '@/vue/stores'
 
-import TruSeo from '@/vue/plugins/tru-seo'
+import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
 
 import { openSemrushOAuthPopup, getSemrushAuthRequirement } from '@/vue/utils/semrushOAuth'
 import { openConnectOAuthPopup } from '@/vue/utils/connectOAuth'
@@ -65,7 +79,7 @@ export default {
 			semrushStore          : useSemrushStore(),
 			settingsStore         : useSettingsStore(),
 			sensitiveOptionsStore : useSensitiveOptionsStore(),
-			truSeo                : new TruSeo()
+			truSeo                : null
 		}
 	},
 	components : {
@@ -249,8 +263,11 @@ export default {
 			})
 		}
 	},
-	created () {
+	async mounted () {
 		const countryOptions = getSemrushDatabaseOptions()
+
+		this.truSeo = await getTruSeoInstance()
+
 		this.semrushCountry = {
 			value : this.settingsStore.settings.semrushCountry,
 			label : countryOptions.find(country => country.value === this.settingsStore.settings.semrushCountry)?.label || this.settingsStore.settings.semrushCountry
@@ -263,6 +280,10 @@ export default {
 .aioseo-focus-keyphrase-panel {
 	.add-focus-keyphrase-metabox-button {
 		display: flex;
+	}
+
+	.aioseo-analysis-detail {
+		padding: 20px 0 !important;
 	}
 
 	.add-focus-keyphrase-sidebar-button {

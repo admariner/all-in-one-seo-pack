@@ -416,7 +416,8 @@ class PostSeoService {
 	 * may patch one half of at a time. We have to merge with the existing model state so that
 	 * passing only `focus_keyphrase` doesn't wipe `additional`, and vice versa.
 	 *
-	 * @since 4.9.8
+	 * @since   4.9.8
+	 * @version 5.0.0.1 Also writes the focus_keyword and additional_keywords columns.
 	 *
 	 * @param  array        $fields The input fields.
 	 * @param  array        $data   The save payload; mutated in place.
@@ -458,6 +459,11 @@ class PostSeoService {
 		}
 
 		$data['keyphrases'] = $existing;
+
+		// The editor reads only the dedicated columns, so a legacy-only write would be invisible.
+		$columns                     = Models\Post::getKeywordColumnsFromKeyphrases( $existing );
+		$data['focus_keyword']       = $columns['focus_keyword'];
+		$data['additional_keywords'] = $columns['additional_keywords'];
 	}
 
 	/**

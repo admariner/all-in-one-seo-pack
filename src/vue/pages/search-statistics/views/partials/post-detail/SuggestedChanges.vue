@@ -83,7 +83,6 @@ export default {
 
 <style lang="scss">
 .aioseo-search-statistics-suggested-changes {
-
 	ul {
 		margin: 0;
 
@@ -103,9 +102,8 @@ export default {
 
 			.aioseo-circle-close {
 				position: absolute;
-				top: 50%;
+				top: 2px;
 				left: 0;
-				margin-top: -10px;
 				color: $red;
 			}
 

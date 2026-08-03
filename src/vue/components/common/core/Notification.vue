@@ -69,7 +69,7 @@
 <script>
 import {
 	useNotificationsStore
-} from '@/vue/stores'
+} from '$/vue/stores'
 
 import {
 	dateSqlToLocalRelative

@@ -1,11 +1,16 @@
 <template>
 	<accordion
-		:title="previousScoresText"
+		v-if="previousScores.length"
+		:title="strings.previousScores"
 		componentClass="aioseo-headline-analyzer-panel-previous-scores"
 	>
 		<div class="aioseo-headline-analyzer-panel-first-block">
-			<ul v-if="previousScores.length > 0" class='aioseo-headline-analyzer-previous-scores'>
-				<li v-for="(item, index) in previousScores" :key="index" @click.stop="fetchPrevScoreHeadline(item.headline)">
+			<ul class="aioseo-headline-analyzer-previous-scores">
+				<li
+					v-for="item in previousScores"
+					:key="item.headline"
+					@click.stop="selectHeadline(item.headline)"
+				>
 					<span class="aioseo-headline-analyzer-score" :class="classOnScore(item.score)">{{ item.score || 'N/A' }}</span>
 					<span class="aioseo-headline-analyzer-score-text">{{ decodeHtml(item.headline) }}</span>
 				</li>
@@ -14,82 +19,46 @@
 	</accordion>
 </template>
 
-<script>
-import Accordion from './partials/Accordion'
-import { fetchData } from '../assets/js/initAnalyzerData'
+<script setup>
+import { computed } from 'vue'
+
 import { usePostEditorStore } from '@/vue/stores'
-
+import { useHeadlineAnalyzer } from '@/vue/composables/HeadlineAnalyzer'
 import { decodeHtml } from '../assets/js/functions'
-
 import { __ } from '@/vue/plugins/translations'
+
+import Accordion from './partials/Accordion'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
 
-export default {
-	components : {
-		Accordion
-	},
-	data () {
-		return {
-			previousScoresText : __('Previous Scores', td),
-			postEditorStore    : usePostEditorStore()
-		}
-	},
-	computed : {
-		postTitle () {
-			return this.postEditorStore.currentPost?.headlineAnalyzer?.headline ? this.postEditorStore.currentPost.headlineAnalyzer.headline : ''
-		},
-		previousScores () {
-			const headlines = JSON.parse(JSON.stringify(this.postEditorStore?.currentPost?.headlineAnalyzer?.previousHeadlines || []))
-			headlines.pop()
-			return headlines.reverse()
-		}
-	},
-	methods : {
-		classOnScore (score) {
-			if (!score) {
-				return 'gray-bg'
-			}
+const postEditorStore    = usePostEditorStore()
+const { selectHeadline } = useHeadlineAnalyzer()
 
-			return 40 > score
-				? 'red-bg'
-				: 70 > score
-					? 'orange-bg'
-					: 'green-bg'
-		},
-		async fetchPrevScoreHeadline (headline) {
-			let newHeadlineData = null
+const strings = {
+	previousScores : __('Previous Scores', td)
+}
 
-			// Check if data already exists (memoization).
-			newHeadlineData = this.postEditorStore.currentPost.headlineAnalyzer.previousHeadlines.find(item => item.headline === headline)
+// Every headline scored this session, newest first, minus the one the headline
+// editor above is already showing — a previewed headline while the field is
+// edited, otherwise the applied post title.
+const previousScores = computed(() => {
+	const analyzer = postEditorStore.currentPost?.headlineAnalyzer
+	const shown    = decodeHtml(analyzer?.newData?.headline || analyzer?.headline || '')
 
-			if (!newHeadlineData) {
-				// Fetch new headline data.
-				const fetchedData = await fetchData(headline)
+	return (analyzer?.previousHeadlines || [])
+		.filter(item => decodeHtml(item.headline) !== shown)
+		.reverse()
+})
 
-				if (fetchedData?.data) {
-					// Save new data to store.
-					this.postEditorStore.updateNewHeadlineAnalyzerData(fetchedData.data, fetchedData.headline)
-					// Show new data.
-					this.postEditorStore.toggleShowNewHeadlineAnalyzerData(true)
-				}
-			} else {
-				const result = {
-					data : {
-						[newHeadlineData.headline] : JSON.stringify(newHeadlineData.result)
-					},
-					headline : newHeadlineData.headline
-				}
-
-				// Save new data to store.
-				this.postEditorStore.updateNewHeadlineAnalyzerData(result.data, result.headline)
-				// Show new data.
-				this.postEditorStore.toggleShowNewHeadlineAnalyzerData(true)
-			}
-		},
-		decodeHtml (html) {
-			return decodeHtml(html)
-		}
+const classOnScore = (score) => {
+	if (!score) {
+		return 'gray-bg'
 	}
+
+	return 40 > score
+		? 'red-bg'
+		: 70 > score
+			? 'orange-bg'
+			: 'green-bg'
 }
 </script>

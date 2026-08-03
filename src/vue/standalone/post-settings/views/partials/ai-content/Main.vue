@@ -5,14 +5,10 @@
 			'aioseo-ai-content-main--sidebar': 'sidebar' === parentComponentContext
 		}"
 	>
-		<div class="aioseo-ai-content-main-header">
-			<div
-				v-if="'sidebar' !== parentComponentContext"
-				class="aioseo-ai-content-main-header-title"
-			>
-				{{ strings.aiContentGeneration }}
-			</div>
-
+		<div
+			v-if="!heroFeature"
+			class="aioseo-ai-content-main-header"
+		>
 			<credit-counter
 				:parent-component-context="parentComponentContext"
 				:tooltip-placement="'bottom'"
@@ -21,29 +17,37 @@
 		</div>
 
 		<div class="aioseo-ai-content-main-body">
-			<core-alert
-				class="aioseo-ai-content-no-content-warning"
-				v-if="postContentLength < minContentLength"
-				type="red"
-			>
-				{{ noContentWarning }}
-			</core-alert>
-
-			<core-alert
-				v-if="sensitiveOptionsStore.hasAiAccessToken && optionsStore.internalOptions.internal.ai.isTrialAccessToken"
-				class="aioseo-ai-content-trial-warning"
-				type="blue"
-				v-html="strings.trialWarning"
+			<feature-card
+				v-if="heroFeature"
+				:feature="heroFeature"
+				variant="hero"
+				:buttonDisabled="isButtonDisabled(heroFeature)"
+				:parent-component-context="parentComponentContext"
+				class="aioseo-ai-content-hero"
 			/>
 
-			<div class="aioseo-ai-content-features">
-				<feature-card
-					v-for="(feature, index) in features"
-					:key="index"
-					:feature="feature"
-					:buttonDisabled="isButtonDisabled(feature)"
-					:parent-component-context="parentComponentContext"
-				/>
+			<p
+				v-if="isTrial"
+				class="aioseo-ai-content-trial-note"
+				v-html="strings.trialNote"
+			/>
+
+			<div
+				v-for="group in groups"
+				:key="group.key"
+				class="aioseo-ai-content-group"
+			>
+				<div class="aioseo-ai-content-group__label">{{ group.label }}</div>
+
+				<div class="aioseo-ai-content-group__items">
+					<feature-card
+						v-for="(feature, index) in group.features"
+						:key="index"
+						:feature="feature"
+						:buttonDisabled="isButtonDisabled(feature)"
+						:parent-component-context="parentComponentContext"
+					/>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -57,7 +61,6 @@ import {
 	useSensitiveOptionsStore
 } from '@/vue/stores'
 
-import CoreAlert from '@/vue/components/common/core/alert/Index'
 import CreditCounter from '@/vue/components/common/ai/CreditCounter'
 import FeatureCard from './FeatureCard'
 
@@ -83,7 +86,6 @@ export default {
 		}
 	},
 	components : {
-		CoreAlert,
 		CreditCounter,
 		FeatureCard
 	},
@@ -95,25 +97,41 @@ export default {
 			features          : getAiFeatures(),
 			postContentLength : 0,
 			strings           : {
-				aiContentGeneration : __('AI Content Generation', td),
-				trialWarning        : sprintf(
-					// Translators: 1 - "upgrade to Pro" link, 2 - "purchase PAYG credits" link.
-					__('You can try out our AI features for free, enjoy! To unlock additional AI credits, %1$s or %2$s.', td),
+				groupContent : __('Generate Content', td),
+				groupListing : __('Improve Search Listing', td),
+				trialNote    : sprintf(
+					// Translators: 1 - "upgrade to Pro" link, 2 - "buy a credit bundle" link.
+					__('You\'re using trial credits — %1$s or %2$s for more.', td),
 					sprintf(
 						'<a href="%1$s" target="_blank">%2$s</a>',
-						links.getUpsellUrl('ai-content', 'trial-warning', 'pricing'),
+						links.getUpsellUrl('ai-content', 'trial-note', 'pricing'),
 						__('upgrade to Pro', td)
 					),
 					sprintf(
 						'<a href="%1$s" target="_blank">%2$s</a>',
-						links.getUpsellUrl('ai-content', 'trial-warning', 'aiCredits'),
-						__('purchase PAYG credits', td)
+						links.getUpsellUrl('ai-content', 'trial-note', 'aiCredits'),
+						__('buy a credit bundle', td)
 					)
 				)
 			}
 		}
 	},
 	computed : {
+		isTrial () {
+			return this.sensitiveOptionsStore.hasAiAccessToken &&
+				this.optionsStore.internalOptions.internal.ai.isTrialAccessToken
+		},
+		heroFeature () {
+			return this.features.find(feature => feature.hero)
+		},
+		groups () {
+			return [
+				{ key: 'content', label: this.strings.groupContent },
+				{ key: 'listing', label: this.strings.groupListing }
+			]
+				.map(group => ({ ...group, features: this.features.filter(feature => group.key === feature.group) }))
+				.filter(group => group.features.length)
+		},
 		minContentLength () {
 			return this.aiContent.minContentLength
 		},
@@ -123,6 +141,9 @@ export default {
 	},
 	methods : {
 		isButtonDisabled (feature) {
+			// Image Generator and AI Assistant create content from scratch, so they
+			// don't need existing post content. Every other feature — Auto-Optimize
+			// included — rewrites what's already there and needs the minimum length.
 			if (
 				'image-generator' === feature.slug ||
 				'ai-assistant' === feature.slug
@@ -186,31 +207,65 @@ export default {
 </script>
 
 <style lang="scss">
-.aioseo-ai-content-no-content-warning,
-.aioseo-ai-content-trial-warning {
-	margin-bottom: 12px;
+// Deliberately not an alert: the hero sits right above it in nearly the same blue, and a
+// trial balance is context rather than something blocking.
+// NOTE: `.aioseo-app p` is 0-1-1, so a lone class loses on font-size.
+.aioseo-ai-content-main .aioseo-ai-content-trial-note {
+	margin: 10px 0 0;
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: $black2;
+
+	a {
+		font-weight: 600;
+	}
 }
 
 .aioseo-ai-content-main {
-	&--sidebar {
-		--main-header-padding: 12px 16px;
-	}
-
+	// The fallback for screens with no hero, so the balance still shows somewhere: a
+	// hairline toolbar rather than a filled slab. The counter is the row's only child, so it
+	// starts at the content edge — right-aligned it read as a number floating over a gutter.
 	.aioseo-ai-content-main-header {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		background-color: #F3F4F5;
-		padding: var(--main-header-padding, 16px 20px);
-		border-radius: 4px;
-		margin-bottom: 12px;
 		flex-wrap: wrap;
-        gap: 12px;
+		gap: 12px;
+		padding-bottom: 11px;
+		margin-bottom: 14px;
+		border-bottom: 1px solid $border;
 	}
 
-	.aioseo-ai-content-main-header-title {
-		font-weight: 700;
-		font-size: 18px;
+	.aioseo-ai-content-hero {
+		margin-bottom: 4px;
+	}
+
+	.aioseo-ai-content-group {
+		&__label {
+			margin: 18px 0 8px;
+			font-size: 11px;
+			font-weight: 700;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			color: $placeholder-color;
+		}
+
+		&__items {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 9px;
+		}
+	}
+
+	// The sidebar is roughly a third of the metabox's width, so two per line would leave
+	// the hint with nowhere to go.
+	&--sidebar .aioseo-ai-content-group__items {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media screen and (max-width: 782px) {
+	.aioseo-ai-content-main .aioseo-ai-content-group__items {
+		grid-template-columns: minmax(0, 1fr);
 	}
 }
 </style>

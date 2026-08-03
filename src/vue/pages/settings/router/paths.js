@@ -78,12 +78,12 @@ export default [
 		}
 	},
 	{
-		path      : '/writing-assistant',
-		name      : 'writing-assistant',
+		path      : '/content-optimization',
+		name      : 'content-optimization',
 		component : loadView('Main'),
 		meta      : {
 			access : 'aioseo_page_writing_assistant_settings',
-			name   : __('Writing Assistant', td)
+			name   : __('Content Optimization', td)
 		}
 	},
 	{

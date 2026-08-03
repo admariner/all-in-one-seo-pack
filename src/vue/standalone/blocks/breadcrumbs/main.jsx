@@ -5,7 +5,7 @@ import {
 	usePostEditorStore,
 	loadPiniaStores
 } from '@/vue/stores'
-import { registerBlock } from '../utils'
+import { registerBlock, useBlockProps } from '../utils'
 import { Sidebar } from './Sidebar'
 
 import icon from './icon'
@@ -69,6 +69,7 @@ export const settings = {
 		const postEditorStore = usePostEditorStore()
 		const blockRef = useRef(null)
 		const hasRenderedRef = useRef(false)
+		const blockProps = useBlockProps({ ref: blockRef })
 
 		const postTitle = useSelect((select) =>
 			select('core/editor').getEditedPostAttribute('title')
@@ -172,7 +173,7 @@ export const settings = {
 						<Sidebar clientId={clientId} />
 					</InspectorControls>
 				)}
-				<div ref={blockRef}>
+				<div {...blockProps}>
 					{window.aioseo.options.breadcrumbs.enable
 						? (
 							<Disabled>

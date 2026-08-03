@@ -133,6 +133,11 @@
 					:disabled="aiStore.socialPosts.selected.length < 1 || !aiContent.hasEnoughCredits(aiContent.getFeatureCost('socialPosts') * aiStore.socialPosts.selected.length)"
 				>
 					{{ generateButtonText }}
+
+					<credit-badge
+						v-if="socialPostsCost > 0"
+						:cost="socialPostsCost"
+					/>
 				</base-button>
 
 				<base-button
@@ -172,6 +177,7 @@ import { sanitizeString } from '@/vue/utils/strings'
 import BaseHighlightToggle from '@/vue/components/common/base/HighlightToggle'
 import CoreMainTabs from '@/vue/components/common/core/main/Tabs'
 import CoreModal from '@/vue/components/common/core/modal/Index'
+import CreditBadge from '@/vue/components/common/ai/CreditBadge'
 import CreditCounter from '@/vue/components/common/ai/CreditCounter'
 
 import Loader from './Loader'
@@ -193,7 +199,7 @@ import SvgTwitter from '@/vue/components/common/svg/ai/social/Twitter'
 import Generic from './social-posts/Generic'
 import Email from './social-posts/Email'
 
-import { __, _n, sprintf } from '@/vue/plugins/translations'
+import { __ } from '@/vue/plugins/translations'
 const td = import.meta.env.VITE_TEXTDOMAIN
 
 export default {
@@ -243,27 +249,10 @@ export default {
 			return tabs
 		})
 
-		const generateButtonText = computed(() => {
-			if (!aiStore.socialPosts.selected.length) {
-				return __('Generate Social Posts', td)
-			}
+		const generateButtonText = computed(() => __('Generate Social Posts', td))
 
-			const totalCredits = aiStore.socialPosts.selected.length * aiContent.getFeatureCost('socialPosts')
-
-			return sprintf(
-				'%1$s (%2$s)',
-				__('Generate Social Posts', td),
-				sprintf(
-					// Translators: 1 - Number of credits.
-					_n(
-						'%1$d credit',
-						'%1$d credits',
-						totalCredits,
-						td
-					),
-					totalCredits
-				)
-			)
+		const socialPostsCost = computed(() => {
+			return aiStore.socialPosts.selected.length * aiContent.getFeatureCost('socialPosts')
 		})
 
 		const shouldShowViewPreviousResults = computed(() => {
@@ -332,6 +321,7 @@ export default {
 			activeTab,
 			tabs,
 			generateButtonText,
+			socialPostsCost,
 			getActiveTabObject,
 			processChangeTab,
 			justCopied,
@@ -349,6 +339,7 @@ export default {
 		BaseHighlightToggle,
 		CoreMainTabs,
 		CoreModal,
+		CreditBadge,
 		CreditCounter,
 		Generic,
 		Email,

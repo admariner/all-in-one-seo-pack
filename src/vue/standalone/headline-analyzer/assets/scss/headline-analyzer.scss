@@ -5,6 +5,13 @@
 	position: relative;
 	font-size: 14px;
 
+	// No bottom margin: the border doubles as the first accordion's top rule, so
+	// the rows below keep an even rhythm.
+	.aioseo-headline-analyzer-editor {
+		padding: 16px;
+		border-bottom: 1px solid $border;
+	}
+
 	.aioseo-headline-analyzer-pie-chart-container {
 		position: relative;
 		width: 200px;
@@ -50,7 +57,7 @@
 	}
 
 	.orange {
-		color: #f18200;
+		color: $orange2;
 	}
 
 	.red {
@@ -62,7 +69,7 @@
 	}
 
 	.orange-bg {
-		background: #f18200;
+		background: $orange2;
 	}
 
 	.red-bg {
@@ -352,19 +359,19 @@
 
 		&.red {
 			.components-panel__body-toggle .components-panel__icon path {
-				fill: #df2a4a;
+				fill: $red;
 			}
 		}
 
 		&.orange {
 			.components-panel__body-toggle .components-panel__icon path {
-				fill: #f18200;
+				fill: $orange2;
 			}
 		}
 
 		&.green {
 			.components-panel__body-toggle .components-panel__icon path {
-				fill: #00aa63;
+				fill: $green;
 				}
 			}
 		}
@@ -394,6 +401,24 @@
 					color: #141B38;
 					font-weight: $font-bold;
 					margin: 0 0 12px 0;
+
+					// Status labels (Word Balance verdict, Sentiment, Headline Type)
+					// mirror the metabox: colored by state, not a flat navy.
+					&.green {
+						color: $green;
+					}
+
+					&.orange {
+						color: $orange2;
+					}
+
+					&.red {
+						color: $red;
+					}
+
+					&.blue {
+						color: $blue;
+					}
 				}
 			}
 		}
@@ -501,10 +526,12 @@
 		> span {
 			width: 34px;
 			height: 50px;
-			display: inline-block;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			vertical-align: top;
 			background: #e8e8eb;
-			text-align: center;
-			line-height: 50px;
+			line-height: 1;
 			font-size: 24px;
 			color: #2c324c;
 			font-weight: $font-bold;
@@ -524,6 +551,18 @@
 		font-size: 14px;
 		color: #141b38;
 		margin-bottom: 12px;
+
+		&.green {
+			color: $green;
+		}
+
+		&.orange {
+			color: $orange2;
+		}
+
+		&.red {
+			color: $red;
+		}
 	}
 
 	.aioseo-headline-analyzer-character-count-container,
@@ -710,148 +749,6 @@
 	}
 }
 
-button.has-icon[aria-label="Headline Analyzer"],
-button.has-icon[aria-label="Headline Analyzer"]:hover {
-	background: none !important;
-	box-shadow: none !important;
-
-	&[aria-pressed="false"] {
-		display: none; // We'll make it visible once the score has been calculated.
-	}
-
-	#aioseo-headline-analyzer-sidebar-button {
-		display: none;
-		align-items: center;
-		justify-content: center;
-		gap: 4px;
-		background: #fff;
-		border-radius: 3px;
-		height: 36px;
-		min-width: 36px;
-		width: 100% !important;
-		padding: 6px !important;
-		max-width: 160px;
-		min-width: 82px !important;
-		font-weight: bold;
-
-		svg {
-			path {
-				fill: #fff
-			}
-		}
-
-		svg {
-			max-width: 22px;
-			max-height: 20px;
-		}
-
-		span {
-			color: #fff;
-			font-weight: $font-bold;
-		}
-
-		&[aioseo-button-color="red"] {
-			border: 1px solid #df2a4a;
-
-			svg {
-				path {
-					fill: #df2a4a;
-				}
-			}
-
-			span {
-				color: #df2a4a;
-			}
-		}
-
-		&[aioseo-button-color="orange"] {
-			border: 1px solid #f18200;
-
-			svg {
-				path {
-					fill: #f08629;
-				}
-			}
-
-			span {
-				color: #f18200;
-			}
-		}
-
-		&[aioseo-button-color="green"] {
-			border: 1px solid #1ec185;
-
-			svg {
-				path {
-					fill: #1ec185;
-				}
-			}
-
-			span {
-				color: #1bb17a;
-			}
-		}
-
-		&[aioseo-button-color="gray"] {
-			border: 1px solid #a1a1a1;
-
-			svg {
-				path {
-					fill: #a1a1a1;
-				}
-			}
-
-			span {
-				color: #a1a1a1;
-			}
-		}
-	}
-
-	&:focus {
-		#aioseo-headline-analyzer-sidebar-button[aioseo-button-color="red"] {
-			box-shadow: none !important;
-		}
-	}
-
-	&:active,
-	&.is-pressed {
-		#aioseo-headline-analyzer-sidebar-button {
-			&[aioseo-button-color="red"],
-			&[aioseo-button-color="green"],
-			&[aioseo-button-color="orange"],
-			&[aioseo-button-color="gray"] {
-					box-shadow: none !important;
-
-					svg {
-						path {
-							fill: #fff !important;
-						}
-					}
-
-					span {
-						color: #fff;
-					}
-				}
-
-			&[aioseo-button-color="red"] {
-				background: #df2a4a !important;
-			}
-
-			&[aioseo-button-color="orange"] {
-				background: #f18200 !important;
-			}
-
-			&[aioseo-button-color="green"] {
-				background: #1ec185 !important;
-			}
-
-			&[aioseo-button-color="gray"] {
-				background: #a1a1a1 !important;
-			}
-		}
-	}
-}
-
 .edit-post-sidebar,
 .editor-sidebar {
 	scroll-behavior: smooth;
@@ -900,11 +797,5 @@ button.has-icon[aria-label="Headline Analyzer"]:hover {
 .interface-pinned-items {
 	button.components-button {
 		height: 36px;
-
-		&.is-compact.has-icon {
-			&[aria-label*="Headline Analyzer"] {
-				width: auto;
-			}
-		}
 	}
 }

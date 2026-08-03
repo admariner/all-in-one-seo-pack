@@ -558,25 +558,31 @@ trait WpContext {
 			return $isPostEligible[ $postId ];
 		}
 
-		// Set the default to true.
-		$isPostEligible[ $postId ] = true;
+		$isPostEligible[ $postId ] = $this->supportsPageAnalysis( $postId );
 
+		return $isPostEligible[ $postId ];
+	}
+
+	/**
+	 * Returns whether the post's type supports on-page analysis (TruSEO and the
+	 * Headline Analyzer), regardless of whether the TruSEO master toggle is on.
+	 *
+	 * NOTE: Unlike {@see isTruSeoEligible()}, this ignores the TruSEO toggle so the
+	 * Optimization tab can still surface the Headline Analyzer when TruSEO is off.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  int  $postId Post ID.
+	 * @return bool         Whether the post's type supports on-page analysis.
+	 */
+	public function supportsPageAnalysis( $postId ) {
 		$wpPost = $this->getPost( $postId );
 		if ( ! is_a( $wpPost, 'WP_Post' ) ) {
-			$isPostEligible[ $postId ] = false;
-
 			return false;
 		}
 
-		$eligiblePostTypes = $this->getTruSeoEligiblePostTypes();
-		if (
-			! in_array( $wpPost->post_type, $eligiblePostTypes, true ) ||
-			$this->isSpecialPage( $wpPost->ID )
-		) {
-			$isPostEligible[ $postId ] = false;
-		}
-
-		return $isPostEligible[ $postId ];
+		return in_array( $wpPost->post_type, $this->getTruSeoEligiblePostTypes(), true ) &&
+			! $this->isSpecialPage( $wpPost->ID );
 	}
 
 	/**

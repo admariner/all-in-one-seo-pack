@@ -1,6 +1,6 @@
 import { cleanForSlug } from '@/vue/utils/cleanForSlug'
 import { getText } from '@/vue/utils/html'
-import { getVideos, getImages } from '@/app/tru-seo/analyzer/analysis/contentHasAssets'
+import { getImages, getVideos } from '@/vue/standalone/page-builders/helpers/index'
 
 /**
  * Gets the post content.

@@ -3,6 +3,7 @@
 		<el-date-picker
 			v-model="value"
 			ref="picker"
+			:append-to="appendTo"
 			:type="type"
 			:size="size"
 			:range-separator="separator"
@@ -141,9 +142,10 @@ export default {
 	},
 	data () {
 		return {
-			rolling : null,
-			value   : null,
-			strings : {
+			appendTo : null,
+			rolling  : null,
+			value    : null,
+			strings  : {
 				startDate : __('Start Date', td),
 				endDate   : __('End Date', td)
 			}
@@ -178,6 +180,14 @@ export default {
 		}
 	},
 	mounted () {
+		// Element Plus teleports the panel to the body of the top-level document. When we live inside the
+		// block editor iframe that splits the input and the panel across documents, and the cross-document
+		// focus change on mousedown reads as a blur, closing the panel before the click reaches a date.
+		const ownerDocument = this.$el?.ownerDocument
+		if (ownerDocument && ownerDocument !== document) {
+			this.appendTo = ownerDocument.body
+		}
+
 		this.$nextTick(() => {
 			if (!this.value && this.defaultValue) {
 				this.value = this.defaultValue

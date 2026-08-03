@@ -1,4 +1,4 @@
-import { registerBlock } from '../utils'
+import { registerBlock, useBlockProps } from '../utils'
 import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 
 import { h, createApp } from 'vue'
@@ -56,6 +56,12 @@ export const settings = {
 		}
 	}
 	)(function (props) {
+		const blockProps = useBlockProps()
+		// All React hooks must run unconditionally, before any early return below.
+		// `core/edit-post` is absent in the Site Editor (FSE uses `core/edit-site`).
+		const generalSidebarName = wp.data.useSelect(
+			select => select('core/edit-post')?.getActiveGeneralSidebarName()
+		)
 		const optionsStore      = useOptionsStore()
 		const multipleLocations = optionsStore.options.localBusiness?.locations.general.multiple
 		const { setAttributes, attributes, clientId, isSelected, toggleSelection } = props
@@ -68,7 +74,7 @@ export const settings = {
 
 		if (multipleLocations && null === locations) {
 			return (
-				<div>{ __('Loading...', td) }</div>
+				<div {...blockProps}>{ __('Loading...', td) }</div>
 			)
 		}
 
@@ -76,14 +82,14 @@ export const settings = {
 
 		if (!multipleLocations && attributes.locationId) {
 			return (
-				<div>{ __('Please enable multiple locations before using this block.', td) }</div>
+				<div {...blockProps}>{ __('Please enable multiple locations before using this block.', td) }</div>
 			)
 		}
 
 		const rootStore = useRootStore()
 		if (multipleLocations && 0 === locations.length) {
 			return (
-				<div>{ sprintf(
+				<div {...blockProps}>{ sprintf(
 					// Translators: 1 - The plural label of the custom post type.
 					__('No %1$s found', td),
 					rootStore.aioseo.localBusiness.postTypePluralLabel
@@ -141,9 +147,6 @@ export const settings = {
 			observeElement(observeElementArgs)
 		}
 
-		const generalSidebarName = wp.data.useSelect(
-			select => select('core/edit-post').getActiveGeneralSidebarName()
-		)
 		if ('edit-post/block' === generalSidebarName) {
 			'function' !== typeof toggleSelection || toggleSelection(true)
 		}
@@ -189,7 +192,7 @@ export const settings = {
 							<div id={vueAioseoId}></div>
 						</PanelBody>
 					</InspectorControls>
-					<div>{ sprintf(
+					<div {...blockProps}>{ sprintf(
 						// Translators: 1 - The singular label of the custom post type.
 						__('Select a %1$s', td),
 						rootStore.aioseo.localBusiness.postTypeSingleLabel
@@ -205,10 +208,12 @@ export const settings = {
 						<div id={vueAioseoId}></div>
 					</PanelBody>
 				</InspectorControls>
-				<ServerSideRender
-					block={name}
-					attributes={{ ...attributes }}
-				/>
+				<div {...blockProps}>
+					<ServerSideRender
+						block={name}
+						attributes={{ ...attributes }}
+					/>
+				</div>
 			</>
 		)
 	}),

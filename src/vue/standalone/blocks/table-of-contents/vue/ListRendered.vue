@@ -6,10 +6,7 @@
 		>
 			<li
 				class="aioseo-toc-list-item--rendered"
-				:class="[
-					{ 'hidden' : heading.hidden }
-				]"
-				v-for="(heading, index) in headings"
+				v-for="(heading, index) in visibleHeadings"
 				:key="index"
 			>
 				<a :href="`#${heading.anchor}`">{{ heading.editedContent || heading.content }}</a>
@@ -26,7 +23,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { computed, ref, onMounted, nextTick } from 'vue'
 
 const props = defineProps({
 	headings : {
@@ -40,6 +37,9 @@ const props = defineProps({
 })
 
 const blockAttributes = ref(window.wp.data.select('core/block-editor').getBlockAttributes(props.clientId) || {})
+
+// The frontend omits hidden headings entirely, so the preview has to drop them instead of styling them away.
+const visibleHeadings = computed(() => props.headings.filter(heading => !heading.hidden))
 
 onMounted(() => {
 	nextTick(() => {

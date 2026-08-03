@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import http from '@/vue/utils/http'
 import links from '@/vue/utils/links'
+import { getAllResultsGrouped } from '@/app/tru-seo/helpers/resultsFilter'
+import { decodeSpecialChars } from '@/vue/utils/helpers'
 
 import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 
@@ -8,7 +10,13 @@ let cachedCurrentPost = null
 
 const prepareCachedCurrentPost = (currentPost) => {
 	// Ignore UI state and analysis-related properties at any nesting level.
-	const ignore = new Set([ 'modalOpen', 'seo_score', 'page_analysis', 'headlineAnalyzer', 'loading', 'score', 'analysis', 'ai' ])
+	// `truseo`/`additional_keywords` are analysis output regenerated on every load —
+	// truseo re-adds the highlightSentences/marks that are stripped before saving, so
+	// a fresh scan never matches the persisted copy — and must not count as an unsaved
+	// change. The user's keyword text is tracked via `keyphrases`.
+	// `highlightingEnabled` is a per-post viewing preference persisted on its own
+	// endpoint — excluded so toggling the highlighter never trips an unsaved-changes prompt.
+	const ignore = new Set([ 'modalOpen', 'seo_score', 'page_analysis', 'truseo', 'additional_keywords', 'headlineAnalyzer', 'loading', 'score', 'analysis', 'ai', 'highlightingEnabled' ])
 
 	return JSON.stringify(currentPost, (key, value) => ignore.has(key) ? undefined : value)
 }
@@ -29,6 +37,48 @@ export const usePostEditorStore = defineStore('PostEditorStore', {
 				newTitle,
 				newResult
 			}
+		},
+		truseoData () {
+			const {
+				truseo,
+				focus_keyword: focusKeyword,
+				additional_keywords: additionalKeywords
+			} = this.currentPost
+
+			const focusKeywordAnalysis = truseo?.focus_keyword || null
+			const generalAnalysis      = truseo?.general || null
+
+			// Collect identifiers already shown under the focus/additional keyword rows so
+			// they are not displayed again in the basic/readability lists. Scores are
+			// computed from the raw `general` map, so excluding here does not affect them.
+			const excludeIds = new Set()
+			if (focusKeyword && focusKeywordAnalysis?.items) {
+				Object.keys(focusKeywordAnalysis.items).forEach(id => excludeIds.add(id))
+			}
+			additionalKeywords?.forEach(keyword => {
+				if (keyword?.items) {
+					Object.keys(keyword.items).forEach(id => excludeIds.add(id))
+				}
+			})
+
+			const allResults = generalAnalysis ? getAllResultsGrouped(generalAnalysis, excludeIds) : null
+
+			// Synonyms still live on the keyphrases column (out of scope for the focus_keyword/truseo split).
+			const focusKeywordSynonyms = this.currentPost.keyphrases?.focus?.synonyms || ''
+
+			return {
+				focusKeyword,
+				focusKeywordSynonyms,
+				additionalKeywords,
+				truseo : {
+					focus_keyword : focusKeywordAnalysis,
+					general       : {
+						basic       : allResults?.basic,
+						readability : allResults?.readability,
+						spelling    : allResults?.spelling
+					}
+				}
+			}
 		}
 	},
 	actions : {
@@ -46,35 +96,44 @@ export const usePostEditorStore = defineStore('PostEditorStore', {
 			this.currentPost.headlineAnalyzer = this.currentPost.headlineAnalyzer || {}
 			this.currentPost.headlineAnalyzer.data = data
 			this.currentPost.headlineAnalyzer.headline = headline
+			this.currentPost.headlineAnalyzer.previousHeadlines = this.currentPost.headlineAnalyzer.previousHeadlines || []
 
-			if (!this.currentPost.headlineAnalyzer.previousHeadlines) {
-				this.currentPost.headlineAnalyzer.previousHeadlines = []
+			const rawResult = data?.[Object.keys(data || {})?.[0]]
+			if (!rawResult) {
+				return
 			}
 
-			// Add previous scores but don't add duplicates
-			if (this.currentPost.headlineAnalyzer.data[Object.keys(this.currentPost.headlineAnalyzer.data)?.[0]]) {
-				let currentResult = this.currentPost.headlineAnalyzer.data[Object.keys(this.currentPost.headlineAnalyzer.data)?.[0]]
-				currentResult = JSON.parse(currentResult)
+			const result = JSON.parse(rawResult)
 
-				const headlineExists = this.currentPost.headlineAnalyzer.previousHeadlines.some(item => item.headline === headline)
-
-				if (!headlineExists) {
-					this.currentPost.headlineAnalyzer.previousHeadlines.push({
-						headline : headline,
-						result   : currentResult,
-						score    : currentResult.score
-					})
-
-					// save latest score
-					this.currentPost.headlineAnalyzer.latestScore = currentResult.score
-				}
+			this.recordAnalyzedHeadline(headline, result)
+			this.currentPost.headlineAnalyzer.latestScore = result.score
+		},
+		// Keeps the list of headlines scored for this post, newest last. A headline
+		// belongs here as soon as it has a score — the user doesn't have to apply it —
+		// so they can pick it up again from the sidebar's "Previous Scores" list.
+		// Headlines reach us both entity-encoded (from the analyzer API) and decoded
+		// (from the headline editor field), so dedupe on the decoded text.
+		recordAnalyzedHeadline (headline, result) {
+			if (!headline || !result) {
+				return
 			}
+
+			this.currentPost.headlineAnalyzer = this.currentPost.headlineAnalyzer || {}
+			this.currentPost.headlineAnalyzer.previousHeadlines = this.currentPost.headlineAnalyzer.previousHeadlines || []
+
+			const decoded = decodeSpecialChars(headline)
+			if (this.currentPost.headlineAnalyzer.previousHeadlines.some(item => decodeSpecialChars(item.headline) === decoded)) {
+				return
+			}
+
+			this.currentPost.headlineAnalyzer.previousHeadlines.push({
+				headline : headline,
+				result   : result,
+				score    : result.score
+			})
 		},
 		updateLatestScore (score) {
 			this.currentPost.headlineAnalyzer.latestScore = score
-		},
-		shouldShowPrevScores () {
-			this.currentPost.headlineAnalyzer.showPrevScores = true
 		},
 		updateNewHeadlineAnalyzerData (data, headline) {
 			this.currentPost.headlineAnalyzer.newData = this.currentPost.headlineAnalyzer.newData || {}
@@ -108,6 +167,27 @@ export const usePostEditorStore = defineStore('PostEditorStore', {
 		},
 		toggleShowNewHeadlineAnalyzerPreview (show) {
 			this.currentPost.headlineAnalyzer.newData.showPreview = show
+		},
+		// Mirror the Content Analysis card's live headline preview into the shared
+		// state the sidebar reads, so both surfaces analyze the same headline. Unlike
+		// updateNewHeadlineAnalyzerData, this skips previousHeadlines — a transient
+		// preview shouldn't land in the "Previous Scores" list on every keystroke.
+		setNewHeadlineAnalyzerPreview (data, headline) {
+			this.currentPost.headlineAnalyzer = this.currentPost.headlineAnalyzer || {}
+			this.currentPost.headlineAnalyzer.newData = {
+				data,
+				headline,
+				showPreview : true
+			}
+			this.currentPost.headlineAnalyzer.showNewData = true
+		},
+		clearNewHeadlineAnalyzerPreview () {
+			if (!this.currentPost.headlineAnalyzer) {
+				return
+			}
+
+			this.currentPost.headlineAnalyzer.newData     = null
+			this.currentPost.headlineAnalyzer.showNewData = false
 		},
 		changeGeneralPreview (value) {
 			this.currentPost.generalMobilePrev = value
@@ -180,6 +260,26 @@ export const usePostEditorStore = defineStore('PostEditorStore', {
 			this.currentPost.options.linkFormat.linkAssistantDismissed = true
 
 			return http.post(links.restUrl(`post/${this.currentPost.id}/disable-link-format-education`))
+		},
+		saveTruSeoHighlighting (enabled) {
+			const post = this.currentPost
+
+			// Post-only, permission-gated preference. Terms carry no options.truSeo and
+			// the endpoint is post-specific; users who can't persist post settings keep a
+			// working session-only toggle. In every skipped case the in-memory toggle stands.
+			if ('term' === post?.context || !post?.options?.truSeo || !allowed('aioseo_page_general_settings')) {
+				return Promise.resolve()
+			}
+
+			post.options.truSeo.highlightingEnabled = enabled
+
+			// The toggle calls this fire-and-forget. superagent requests are lazy — they
+			// only dispatch once a .then/.catch is attached — so chain here to guarantee
+			// the request is actually sent; a bare return would never reach the server.
+			return http.post(links.restUrl(`post/${post.id}/tru-seo-highlighting`))
+				.send({ enabled })
+				.then(() => true)
+				.catch(() => false)
 		},
 		incrementInternalLinkCount () {
 			if (!allowed('aioseo_page_general_settings')) {

@@ -7,10 +7,10 @@ import {
 	useSettingsStore
 } from '@/vue/stores'
 
-import { getPostEditedAuthor } from '../plugins/tru-seo/components/postAuthor'
-import { getPostEditedFeaturedImage } from '../plugins/tru-seo/components/postFeaturedImage'
-import { getPostEditedContent } from '../plugins/tru-seo/components/postContent'
-import { customFieldValue } from '../plugins/tru-seo/components/customFields'
+import { getPostEditedAuthor } from '@/vue/utils/postData/postAuthor'
+import { getPostEditedFeaturedImage } from '@/vue/utils/postData/postFeaturedImage'
+import { getPostEditedContent } from '@/vue/utils/postData/postContent'
+import { customFieldValue } from '@/vue/utils/postData/customFields'
 
 import { __ } from '@/vue/plugins/translations'
 

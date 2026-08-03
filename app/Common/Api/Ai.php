@@ -334,6 +334,19 @@ class Ai {
 		$serviceError = isset( $responseBody->success ) && false === $responseBody->success && ! empty( $responseBody->message ) ? 'Service error: ' . $responseBody->message : null;
 		$errorDetails = array_filter( [ "Service response code: $responseCode", $serviceError ] );
 
+		// `insufficient_credits` arrives with a 402, so detect it before the generic
+		// non-200 guard below — otherwise the credit-specific detail is never added.
+		if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
+			aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
+
+			$errorDetails[] = 'Not enough credits';
+
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => implode( ' | ', $errorDetails )
+			], 400 );
+		}
+
 		if ( 200 !== $responseCode ) {
 			$errorDetails[] = 'The AI service returned an unexpected response';
 
@@ -344,17 +357,6 @@ class Ai {
 		}
 
 		if ( empty( $responseBody->success ) || empty( $responseBody->snippets ) ) {
-			if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
-				aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
-
-				$errorDetails[] = 'Not enough credits';
-
-				return new \WP_REST_Response( [
-					'success' => false,
-					'message' => implode( ' | ', $errorDetails )
-				], 400 );
-			}
-
 			$errorDetails[] = 'The AI service did not return any social post suggestions';
 
 			return new \WP_REST_Response( [
@@ -723,6 +725,19 @@ class Ai {
 		$serviceError = isset( $responseBody->success ) && false === $responseBody->success && ! empty( $responseBody->message ) ? 'Service error: ' . $responseBody->message : null;
 		$errorDetails = array_filter( [ "Service response code: $responseCode", $serviceError ] );
 
+		// `insufficient_credits` arrives with a 402, so detect it before the generic
+		// non-200 guard below — otherwise the credit-specific detail is never added.
+		if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
+			aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
+
+			$errorDetails[] = 'Not enough credits';
+
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => implode( ' | ', $errorDetails )
+			], 400 );
+		}
+
 		if ( 200 !== $responseCode ) {
 			$errorDetails[] = 'The AI service returned an unexpected response';
 
@@ -734,17 +749,6 @@ class Ai {
 
 		$faqs = ! empty( $responseBody->faqs ) ? aioseo()->helpers->sanitizeOption( $responseBody->faqs ) : [];
 		if ( empty( $responseBody->success ) || empty( $faqs ) ) {
-			if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
-				aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
-
-				$errorDetails[] = 'Not enough credits';
-
-				return new \WP_REST_Response( [
-					'success' => false,
-					'message' => implode( ' | ', $errorDetails )
-				], 400 );
-			}
-
 			$errorDetails[] = 'The AI service did not return any FAQ suggestions';
 
 			return new \WP_REST_Response( [
@@ -891,6 +895,19 @@ class Ai {
 		$serviceError = isset( $responseBody->success ) && false === $responseBody->success && ! empty( $responseBody->message ) ? 'Service error: ' . $responseBody->message : null;
 		$errorDetails = array_filter( [ "Service response code: $responseCode", $serviceError ] );
 
+		// `insufficient_credits` arrives with a 402, so detect it before the generic
+		// non-200 guard below — otherwise the credit-specific detail is never added.
+		if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
+			aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
+
+			$errorDetails[] = 'Not enough credits';
+
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => implode( ' | ', $errorDetails )
+			], 400 );
+		}
+
 		if ( 200 !== $responseCode ) {
 			$errorDetails[] = 'The AI service returned an unexpected response';
 
@@ -902,17 +919,6 @@ class Ai {
 
 		$keyPoints = ! empty( $responseBody->keyPoints ) ? aioseo()->helpers->sanitizeOption( $responseBody->keyPoints ) : [];
 		if ( empty( $responseBody->success ) || empty( $keyPoints ) ) {
-			if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
-				aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
-
-				$errorDetails[] = 'Not enough credits';
-
-				return new \WP_REST_Response( [
-					'success' => false,
-					'message' => implode( ' | ', $errorDetails )
-				], 400 );
-			}
-
 			$errorDetails[] = 'The AI service did not return any key point suggestions';
 
 			return new \WP_REST_Response( [
@@ -990,5 +996,530 @@ class Ai {
 			'credits'             => aioseo()->internalOptions->internal->ai->credits->all(),
 			'costPerFeature'      => aioseo()->internalOptions->internal->ai->costPerFeature
 		];
+	}
+
+	/**
+	 * Generates AI suggestions for a batch of same-type TruSEO Highlighter issues.
+	 *
+	 * Proxies the flagged items (each with bounded local context) plus shared context
+	 * (analyzer/scope/keyphrase/locale/options) to the remote AI Generator endpoint at
+	 * `{aiGeneratorApiUrl}/truseo/suggest/` in a single request. The remote service owns
+	 * the per-analyzer prompt construction and returns a `results` envelope keyed by issue
+	 * id that the frontend fans out into its per-item suggestion cache.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  \WP_REST_Request  $request The REST Request.
+	 * @return \WP_REST_Response          The response.
+	 */
+	public static function generateTruSeoSuggestion( $request ) {
+		$body           = $request->get_json_params();
+		$postId         = ! empty( $body['postId'] ) ? (int) $body['postId'] : 0;
+		$analyzer       = ! empty( $body['analyzer'] ) ? sanitize_text_field( $body['analyzer'] ) : '';
+		$scope          = ! empty( $body['scope'] ) ? sanitize_key( $body['scope'] ) : '';
+		$focusKeyphrase = ! empty( $body['focusKeyphrase'] ) ? sanitize_text_field( $body['focusKeyphrase'] ) : '';
+		$focusSynonyms  = ! empty( $body['focusSynonyms'] ) ? sanitize_text_field( $body['focusSynonyms'] ) : '';
+		$locale         = ! empty( $body['locale'] ) ? sanitize_text_field( $body['locale'] ) : get_locale();
+		$rephrase       = isset( $body['rephrase'] ) ? boolval( $body['rephrase'] ) : false;
+		$options        = $body['options'] ?? [];
+		$issues         = isset( $body['issues'] ) && is_array( $body['issues'] ) ? $body['issues'] : [];
+
+		$allowedAnalyzers = [
+			'passiveVoice',
+			'textSentenceLength',
+			'textParagraphTooLong',
+			'sentenceBeginnings',
+			'textTransitionWords',
+			'wordComplexity',
+			'textCompetingLinks',
+			'keyphraseDistribution',
+			'keyphraseDensity'
+		];
+		$allowedScopes = [
+			'word',
+			'sentence',
+			'paragraph',
+			'section',
+			'anchor'
+		];
+
+		if ( ! $postId || ! $analyzer || ! $scope || empty( $issues ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Missing required parameters.'
+			], 400 );
+		}
+
+		if ( ! in_array( $analyzer, $allowedAnalyzers, true ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Unsupported analyzer.'
+			], 400 );
+		}
+
+		if ( ! in_array( $scope, $allowedScopes, true ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Unsupported scope.'
+			], 400 );
+		}
+
+		if ( ! current_user_can( 'edit_post', $postId ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Unauthorized.'
+			], 401 );
+		}
+
+		// Sanitize options.
+		foreach ( $options as $k => $option ) {
+			$options[ $k ] = aioseo()->helpers->sanitizeOption( $option );
+		}
+
+		// Normalize and sanitize the issue batch, dropping empties/duplicates and
+		// capping the count so one remote LLM call stays bounded.
+		$maxIssues       = 25;
+		$sanitizedIssues = [];
+		$seenIds         = [];
+		foreach ( $issues as $issue ) {
+			$issue      = (array) $issue;
+			$id         = isset( $issue['id'] ) ? sanitize_text_field( (string) $issue['id'] ) : '';
+			$targetText = ! empty( $issue['targetText'] ) ? wp_kses_post( wp_unslash( $issue['targetText'] ) ) : '';
+
+			if ( '' === $id || '' === $targetText || isset( $seenIds[ $id ] ) ) {
+				continue;
+			}
+			$seenIds[ $id ] = true;
+
+			$metadata = isset( $issue['metadata'] ) && is_array( $issue['metadata'] ) ? $issue['metadata'] : [];
+			foreach ( $metadata as $k => $value ) {
+				$metadata[ $k ] = is_scalar( $value ) ? sanitize_text_field( (string) $value ) : '';
+			}
+
+			$sanitizedIssues[] = [
+				'id'          => $id,
+				'targetText'  => $targetText,
+				'contextText' => ! empty( $issue['contextText'] ) ? wp_kses_post( wp_unslash( $issue['contextText'] ) ) : '',
+				'metadata'    => $metadata
+			];
+
+			if ( count( $sanitizedIssues ) >= $maxIssues ) {
+				break;
+			}
+		}
+
+		if ( empty( $sanitizedIssues ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Missing required parameters.'
+			], 400 );
+		}
+
+		$response = aioseo()->helpers->wpRemotePost( untrailingslashit( aioseo()->ai->getAiGeneratorApiUrl() ) . '/truseo/suggest/', [
+			'timeout' => 60,
+			'headers' => aioseo()->ai->getRequestHeaders(),
+			'body'    => wp_json_encode( [
+				'analyzer'       => $analyzer,
+				'scope'          => $scope,
+				'focusKeyphrase' => $focusKeyphrase,
+				'focusSynonyms'  => $focusSynonyms,
+				'locale'         => $locale,
+				'tone'           => $options['tone'] ?? '',
+				'audience'       => $options['audience'] ?? '',
+				'rephrase'       => $rephrase,
+				'issues'         => $sanitizedIssues
+			] )
+		] );
+
+		$responseCode = wp_remote_retrieve_response_code( $response );
+		$responseBody = json_decode( wp_remote_retrieve_body( $response ) );
+
+		// `insufficient_credits` arrives with a 402, so detect it before the generic
+		// non-200 guard below — otherwise the actionable message is never reached.
+		if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
+			aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
+
+			return new \WP_REST_Response( [
+				'success'   => false,
+				'code'      => 'insufficient_credits',
+				'message'   => 'Not enough AI credits to generate suggestions.',
+				'aiOptions' => self::getAiOptionsPayload()
+			], 402 );
+		}
+
+		if ( 200 !== $responseCode || empty( $responseBody ) || empty( $responseBody->success ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Failed to generate AI suggestions.'
+			], 400 );
+		}
+
+		$results = [];
+		if ( ! empty( $responseBody->results ) && is_array( $responseBody->results ) ) {
+			foreach ( $responseBody->results as $result ) {
+				$id = isset( $result->id ) ? sanitize_text_field( (string) $result->id ) : '';
+				if ( '' === $id ) {
+					continue;
+				}
+
+				$suggestions = [];
+				if ( ! empty( $result->suggestions ) && is_array( $result->suggestions ) ) {
+					foreach ( $result->suggestions as $suggestion ) {
+						$text = isset( $suggestion->text ) ? (string) $suggestion->text : '';
+
+						// Preserve heading markers and paragraph breaks the frontend depends on.
+						if ( in_array( $scope, [ 'section', 'paragraph' ], true ) ) {
+							$text = wp_strip_all_tags( $text );
+						} else {
+							$text = sanitize_text_field( $text );
+						}
+
+						$suggestions[] = [
+							'text'            => aioseo()->helpers->decodeHtmlEntities( $text ),
+							'rationale'       => isset( $suggestion->rationale ) ? sanitize_text_field( (string) $suggestion->rationale ) : '',
+							'replaceStrategy' => isset( $suggestion->replaceStrategy ) ? sanitize_key( $suggestion->replaceStrategy ) : ''
+						];
+					}
+				}
+
+				$results[] = [
+					'id'          => $id,
+					'suggestions' => $suggestions
+				];
+			}
+		}
+
+		aioseo()->ai->updateAiOptions( $responseBody );
+
+		return new \WP_REST_Response( [
+			'success'   => true,
+			'results'   => $results,
+			'aiOptions' => self::getAiOptionsPayload()
+		], 200 );
+	}
+
+	/**
+	 * Optimizes an entire post — SEO title, meta description, focus keyword, headline (H1),
+	 * and body text blocks — via the AI Generator's `{aiGeneratorApiUrl}/truseo/optimize-post/`
+	 * endpoint. The body is sent as an ordered list of text blocks; the service rewrites the
+	 * blocks that need work and returns the replacement block(s) per id. This proxies the request,
+	 * syncs credits, and returns the optimized fields plus the per-block content changes.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  \WP_REST_Request  $request The REST Request.
+	 * @return \WP_REST_Response          The response.
+	 */
+	public static function generateTruSeoOptimizePost( $request ) {
+		$body           = $request->get_json_params();
+		$postId         = ! empty( $body['postId'] ) ? (int) $body['postId'] : 0;
+		$seoTitle       = isset( $body['seo_title'] ) ? sanitize_text_field( (string) $body['seo_title'] ) : '';
+		$seoDescription = isset( $body['seo_description'] ) ? sanitize_text_field( (string) $body['seo_description'] ) : '';
+		$focusKeyword   = isset( $body['focus_keyword'] ) ? sanitize_text_field( (string) $body['focus_keyword'] ) : '';
+		$postTitle      = isset( $body['post_title'] ) ? sanitize_text_field( (string) $body['post_title'] ) : '';
+		$locale         = ! empty( $body['locale'] ) ? sanitize_text_field( $body['locale'] ) : get_locale();
+		$options        = is_array( $body['options'] ?? null ) ? $body['options'] : [];
+		$content        = self::sanitizeOptimizePostContent( $body['content'] ?? null );
+
+		if ( ! $postId || empty( $content ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Missing required parameters.'
+			], 400 );
+		}
+
+		if ( ! current_user_can( 'edit_post', $postId ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Unauthorized.'
+			], 401 );
+		}
+
+		foreach ( $options as $k => $option ) {
+			$options[ $k ] = aioseo()->helpers->sanitizeOption( $option );
+		}
+
+		$response = aioseo()->helpers->wpRemotePost( untrailingslashit( aioseo()->ai->getAiGeneratorApiUrl() ) . '/truseo/optimize-post/', [
+			'timeout' => 60,
+			'headers' => aioseo()->ai->getRequestHeaders(),
+			'body'    => wp_json_encode( [
+				'seo_title'       => $seoTitle,
+				'seo_description' => $seoDescription,
+				'focus_keyword'   => $focusKeyword,
+				'post_title'      => $postTitle,
+				'locale'          => $locale,
+				'options'         => $options,
+				'content'         => $content
+			] )
+		] );
+
+		$responseCode = wp_remote_retrieve_response_code( $response );
+		$responseBody = json_decode( wp_remote_retrieve_body( $response ) );
+
+		// The service signals an exhausted balance with HTTP 402 and an
+		// `insufficient_credits` code, so this must run before the generic non-200
+		// guard below — otherwise the actionable message is never reached.
+		if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
+			aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
+
+			return new \WP_REST_Response( [
+				'success'   => false,
+				'code'      => 'insufficient_credits',
+				'message'   => 'Not enough AI credits to optimize this post.',
+				'aiOptions' => self::getAiOptionsPayload()
+			], 402 );
+		}
+
+		if ( 200 !== $responseCode || empty( $responseBody ) || empty( $responseBody->success ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'We couldn\'t optimize your post right now. Please try again in a moment.'
+			], 400 );
+		}
+
+		aioseo()->ai->updateAiOptions( $responseBody );
+
+		return new \WP_REST_Response( [
+			'success'         => true,
+			'seo_title'       => isset( $responseBody->seo_title ) ? sanitize_text_field( (string) $responseBody->seo_title ) : $seoTitle,
+			'seo_description' => isset( $responseBody->seo_description ) ? sanitize_text_field( (string) $responseBody->seo_description ) : $seoDescription,
+			'focus_keyword'   => isset( $responseBody->focus_keyword ) ? sanitize_text_field( (string) $responseBody->focus_keyword ) : $focusKeyword,
+			'headline'        => isset( $responseBody->headline ) ? sanitize_text_field( (string) $responseBody->headline ) : $postTitle,
+			'content'         => self::sanitizeOptimizePostResponseContent( $responseBody->content ?? null ),
+			'aiOptions'       => self::getAiOptionsPayload()
+		], 200 );
+	}
+
+	/**
+	 * Corrects a batch of misspelled words via the AI Generator's
+	 * `{aiGeneratorApiUrl}/truseo/spelling/` endpoint. Each flagged word is sent with its
+	 * Hunspell suggestions (and optional context); the service returns the best correction
+	 * per word, or flags legitimate brand/technical words for the dictionary. This proxies
+	 * the request, syncs credits, handles `insufficient_credits`, and returns the sanitized
+	 * results. An empty `correction` with `addToDictionary` false means leave the word as-is.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  \WP_REST_Request  $request The REST Request.
+	 * @return \WP_REST_Response          The response.
+	 */
+	public static function generateTruSeoSpelling( $request ) {
+		$body    = $request->get_json_params();
+		$postId  = ! empty( $body['postId'] ) ? (int) $body['postId'] : 0;
+		$locale  = ! empty( $body['locale'] ) ? sanitize_text_field( $body['locale'] ) : get_locale();
+		$options = is_array( $body['options'] ?? null ) ? $body['options'] : [];
+		$words   = isset( $body['words'] ) && is_array( $body['words'] ) ? $body['words'] : [];
+
+		if ( ! $postId || empty( $words ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Missing required parameters.'
+			], 400 );
+		}
+
+		if ( ! current_user_can( 'edit_post', $postId ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Unauthorized.'
+			], 401 );
+		}
+
+		foreach ( $options as $k => $option ) {
+			$options[ $k ] = aioseo()->helpers->sanitizeOption( $option );
+		}
+
+		// Normalize the word batch: drop empties/duplicates and cap the count and each
+		// word's suggestion list so one remote fan-out stays bounded.
+		$maxWords         = 50;
+		$maxSuggestions   = 15;
+		$sanitizedWords   = [];
+		$seenWords        = [];
+		foreach ( $words as $entry ) {
+			$entry = (array) $entry;
+			$word  = isset( $entry['word'] ) ? sanitize_text_field( (string) $entry['word'] ) : '';
+			if ( '' === $word || isset( $seenWords[ $word ] ) ) {
+				continue;
+			}
+			$seenWords[ $word ] = true;
+
+			$cleanSuggestions = [];
+			$suggestions      = isset( $entry['suggestions'] ) && is_array( $entry['suggestions'] ) ? $entry['suggestions'] : [];
+			foreach ( $suggestions as $suggestion ) {
+				$suggestion = sanitize_text_field( (string) $suggestion );
+				if ( '' === $suggestion ) {
+					continue;
+				}
+
+				$cleanSuggestions[] = $suggestion;
+				if ( count( $cleanSuggestions ) >= $maxSuggestions ) {
+					break;
+				}
+			}
+
+			$context = isset( $entry['context'] ) ? sanitize_textarea_field( (string) $entry['context'] ) : '';
+
+			$sanitizedWords[] = [
+				'word'        => $word,
+				'suggestions' => $cleanSuggestions,
+				'context'     => mb_substr( $context, 0, 1000 )
+			];
+
+			if ( count( $sanitizedWords ) >= $maxWords ) {
+				break;
+			}
+		}
+
+		if ( empty( $sanitizedWords ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Missing required parameters.'
+			], 400 );
+		}
+
+		$response = aioseo()->helpers->wpRemotePost( untrailingslashit( aioseo()->ai->getAiGeneratorApiUrl() ) . '/truseo/spelling/', [
+			'timeout' => 60,
+			'headers' => aioseo()->ai->getRequestHeaders(),
+			'body'    => wp_json_encode( [
+				'words'    => $sanitizedWords,
+				'locale'   => $locale,
+				'tone'     => $options['tone'] ?? '',
+				'audience' => $options['audience'] ?? ''
+			] )
+		] );
+
+		$responseCode = wp_remote_retrieve_response_code( $response );
+		$responseBody = json_decode( wp_remote_retrieve_body( $response ) );
+
+		// `insufficient_credits` arrives with a 402, so detect it before the generic
+		// non-200 guard below — otherwise the actionable message is never reached.
+		if ( ! empty( $responseBody->code ) && 'insufficient_credits' === $responseBody->code ) {
+			aioseo()->internalOptions->internal->ai->credits->remaining = $responseBody->remaining ?? 0;
+
+			return new \WP_REST_Response( [
+				'success'   => false,
+				'code'      => 'insufficient_credits',
+				'message'   => 'Not enough AI credits to correct spelling.',
+				'aiOptions' => self::getAiOptionsPayload()
+			], 402 );
+		}
+
+		if ( 200 !== $responseCode || empty( $responseBody ) || empty( $responseBody->success ) ) {
+			return new \WP_REST_Response( [
+				'success' => false,
+				'message' => 'Failed to correct spelling.'
+			], 400 );
+		}
+
+		$results = [];
+		if ( ! empty( $responseBody->results ) && is_array( $responseBody->results ) ) {
+			foreach ( $responseBody->results as $result ) {
+				$word = isset( $result->word ) ? sanitize_text_field( (string) $result->word ) : '';
+				if ( '' === $word ) {
+					continue;
+				}
+
+				$results[] = [
+					'word'            => $word,
+					'correction'      => isset( $result->correction ) ? sanitize_text_field( (string) $result->correction ) : '',
+					'addToDictionary' => isset( $result->addToDictionary ) ? (bool) $result->addToDictionary : false
+				];
+			}
+		}
+
+		aioseo()->ai->updateAiOptions( $responseBody );
+
+		return new \WP_REST_Response( [
+			'success'   => true,
+			'results'   => $results,
+			'aiOptions' => self::getAiOptionsPayload()
+		], 200 );
+	}
+
+	/**
+	 * Validates + sanitizes the incoming post-body blocks for optimize-post.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  mixed $content The raw content value from the request.
+	 * @return array          The sanitized blocks ( id, type, level, text ), or [] if invalid.
+	 */
+	private static function sanitizeOptimizePostContent( $content ) {
+		if ( ! is_array( $content ) ) {
+			return [];
+		}
+
+		$blocks = [];
+		foreach ( $content as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+
+			$id   = isset( $item['id'] ) ? sanitize_text_field( (string) $item['id'] ) : '';
+			$text = isset( $item['text'] ) ? sanitize_textarea_field( (string) $item['text'] ) : '';
+			if ( '' === $id || '' === trim( $text ) ) {
+				continue;
+			}
+
+			$type  = 'heading' === ( $item['type'] ?? '' ) ? 'heading' : 'paragraph';
+			$level = (int) ( $item['level'] ?? 0 );
+
+			$blocks[] = [
+				'id'    => $id,
+				'type'  => $type,
+				'level' => 'heading' === $type ? min( 4, max( 2, $level ) ) : 0,
+				'text'  => mb_substr( $text, 0, 10000 )
+			];
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Sanitizes the optimizer's per-block results before returning them to the client.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  mixed $content The `content` array from the service response (stdClass items).
+	 * @return array          The sanitized results ( id, blocks[] ).
+	 */
+	private static function sanitizeOptimizePostResponseContent( $content ) {
+		if ( ! is_array( $content ) ) {
+			return [];
+		}
+
+		$results = [];
+		foreach ( $content as $result ) {
+			$id     = isset( $result->id ) ? sanitize_text_field( (string) $result->id ) : '';
+			$blocks = isset( $result->blocks ) && is_array( $result->blocks ) ? $result->blocks : [];
+			if ( '' === $id || empty( $blocks ) ) {
+				continue;
+			}
+
+			$cleanBlocks = [];
+			foreach ( $blocks as $block ) {
+				$text = isset( $block->text ) ? (string) $block->text : '';
+				if ( '' === trim( $text ) ) {
+					continue;
+				}
+
+				$type  = 'heading' === ( $block->type ?? '' ) ? 'heading' : 'paragraph';
+				$level = (int) ( $block->level ?? 0 );
+
+				$cleanBlocks[] = [
+					'type'  => $type,
+					'level' => 'heading' === $type ? min( 4, max( 2, $level ) ) : 0,
+					'text'  => wp_kses_post( $text )
+				];
+			}
+
+			if ( ! empty( $cleanBlocks ) ) {
+				$results[] = [
+					'id'     => $id,
+					'blocks' => $cleanBlocks
+				];
+			}
+		}
+
+		return $results;
 	}
 }

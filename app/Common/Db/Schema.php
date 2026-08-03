@@ -100,8 +100,10 @@ class Schema {
 	 * - 4.8.4: ai
 	 * - 4.8.6: seo_analyzer_scan_date
 	 * - 4.8.7: Added index on pillar_content
+	 * - 5.0.0: focus_keyword (varchar(255)), truseo, additional_keywords, truseo_locale; index on focus_keyword
 	 *
-	 * @since 4.9.7
+	 * @since   4.9.7
+	 * @version 5.0.0 Added focus_keyword (varchar(255)), truseo, additional_keywords, truseo_locale columns and the focus_keyword index.
 	 *
 	 * @return string SQL CREATE TABLE statement.
 	 */
@@ -116,6 +118,10 @@ class Schema {
 			description text DEFAULT NULL,
 			keywords mediumtext DEFAULT NULL,
 			keyphrases longtext DEFAULT NULL,
+			focus_keyword varchar(255) DEFAULT NULL,
+			truseo longtext DEFAULT NULL,
+			additional_keywords text DEFAULT NULL,
+			truseo_locale varchar(20) DEFAULT NULL,
 			page_analysis longtext DEFAULT NULL,
 			primary_term longtext DEFAULT NULL,
 			canonical_url text DEFAULT NULL,
@@ -173,7 +179,8 @@ class Schema {
 			updated datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY ndx_aioseo_posts_post_id (post_id),
-			KEY ndx_aioseo_posts_pillar_content (pillar_content)
+			KEY ndx_aioseo_posts_pillar_content (pillar_content),
+			KEY ndx_aioseo_posts_focus_keyword (focus_keyword(255))
 		) {$charsetCollate};";
 	}
 

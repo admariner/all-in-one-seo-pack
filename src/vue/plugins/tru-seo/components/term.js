@@ -3,10 +3,11 @@ import {
 	useTagsStore
 } from '@/vue/stores'
 
-import TruSeo from '@/vue/plugins/tru-seo'
+import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
+import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
 import { cleanForSlug } from '@/vue/utils/cleanForSlug'
 
-export const maybeUpdateTerm = (run = false) => {
+export const maybeUpdateTerm = async (run = false) => {
 	const postEditorStore = usePostEditorStore()
 	if ('term' !== postEditorStore.currentPost.context) {
 		return
@@ -50,6 +51,15 @@ export const maybeUpdateTerm = (run = false) => {
 	postEditorStore.savePostState()
 
 	if (run) {
-		TruSeo.runAnalysis({ postId: postEditorStore.currentPost.id })
+		try {
+			const truSeo = await getTruSeoInstance()
+			const results = await truSeo?.runAnalysis({ postId: postEditorStore.currentPost.id })
+
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
 	}
 }

@@ -31,6 +31,11 @@ export const useToolsSettings = () => {
 				access : 'aioseo_general_settings'
 			},
 			{
+				value  : 'contentOptimization',
+				label  : __('Content Optimization', td),
+				access : 'aioseo_general_settings'
+			},
+			{
 				value  : 'searchAppearance',
 				label  : __('Search Appearance', td),
 				access : 'aioseo_search_appearance_settings'
@@ -116,8 +121,9 @@ export const useToolsSettings = () => {
 		return addon && addon.isActive && !addon.requiresUpgrade
 	}
 
+	// Content Optimization is a reset-only entry; its options export/import as part of the `advanced` group.
 	const toolsExportSettings = computed(() => {
-		return toolsSettings.value.filter(setting => 'redirects' !== setting.value)
+		return toolsSettings.value.filter(setting => ![ 'redirects', 'contentOptimization' ].includes(setting.value))
 	})
 
 	return {

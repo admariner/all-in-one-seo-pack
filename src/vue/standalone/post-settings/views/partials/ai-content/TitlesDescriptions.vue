@@ -42,7 +42,7 @@ import {
 import { getAssetUrl } from '@/vue/utils/helpers'
 import { getPostEditedContent } from '@/vue/plugins/tru-seo/components/postContent'
 import { getPostEditedExcerpt } from '@/vue/plugins/tru-seo/components/postExcerpt'
-import { stripFullTags } from '@/app/tru-seo/analyzer/researches/stringProcessing/stripHTMLTags'
+import { stripFullTags } from '@/app/tru-seo/languageProcessing/helpers/sanitize/stripHTMLTags.js'
 import SvgCirclePlus from '@/vue/components/common/svg/circle/Plus'
 
 export default {

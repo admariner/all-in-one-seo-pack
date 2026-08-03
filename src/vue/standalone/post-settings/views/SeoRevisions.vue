@@ -1,5 +1,5 @@
 <template>
-	<div class="aioseo-seo-revisions aioseo-tab-content">
+	<div>
 		<seo-revisions
 			v-if="!licenseStore.isUnlicensed && license.hasCoreFeature('seo-revisions')"
 			:parentComponentContext="parentComponentContext"

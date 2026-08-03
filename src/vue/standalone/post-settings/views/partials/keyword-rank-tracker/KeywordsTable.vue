@@ -125,6 +125,7 @@ import { ref, computed } from 'vue'
 
 import {
 	useKeywordRankTrackerStore,
+	usePostEditorStore,
 	useRootStore
 } from '@/vue/stores'
 
@@ -142,6 +143,7 @@ import SvgEye from '@/vue/components/common/svg/Eye'
 
 const td                      = import.meta.env.VITE_TEXTDOMAIN
 const keywordRankTrackerStore = useKeywordRankTrackerStore()
+const postEditorStore         = usePostEditorStore()
 const rootStore               = useRootStore()
 const tableId                 = 'keyword-rank-tracker-keywords-table'
 const strings                 = {
@@ -181,7 +183,12 @@ const {
 	wpTableKey,
 	wpTableLoading
 } = useWpTable({
-	fetchData      : keywordRankTrackerStore.fetchKeywords,
+	// Keep every table request scoped to this post (sort/paginate/search) instead of
+	// falling back to site-wide stats, which would show data that isn't about this post.
+	fetchData : (payload = {}) => keywordRankTrackerStore.fetchKeywords({
+		...payload,
+		postId : postEditorStore.currentPost?.id
+	}),
 	tableId,
 	tableRef       : table.value,
 	resultsPerPage : props.itemsPerPage
@@ -295,9 +302,10 @@ const toggleTracking = async (row, index) => {
 		}
 
 		// Pass the paginated keywords to prevent the toggle from being unchecked.
-		await keywordRankTrackerStore.fetchKeywords({ rows: props.paginatedKeywords.rows })
+		const postId = postEditorStore.currentPost?.id
+		await keywordRankTrackerStore.fetchKeywords({ rows: props.paginatedKeywords.rows, postId })
 			.then(() => {
-				keywordRankTrackerStore.maybeFetchStatistics({ context: 'keywords' })
+				keywordRankTrackerStore.maybeFetchStatistics({ context: 'keywords', postId })
 			})
 	} catch (error) {
 		console.error(error)

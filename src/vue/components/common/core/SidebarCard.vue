@@ -158,11 +158,16 @@ export default {
 	},
 	methods : {
 		openCard (card) {
+			if ('undefined' === typeof card) {
+				return
+			}
+
 			for (const toggledCard in this.settingsStore.settings.toggledCards) {
 				if (this.settingsStore.settings.toggledCards[toggledCard]) {
 					this.settingsStore.toggleCard({ slug: toggledCard })
 				}
 			}
+
 			this.settingsStore.toggleCard({ slug: card })
 		}
 	},

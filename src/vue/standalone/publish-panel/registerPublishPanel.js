@@ -55,11 +55,7 @@ import { isBlockEditor } from '@/vue/utils/context'
 				wp.element.createElement(
 					PluginPrePublishPanel,
 					{
-						title : [
-							import.meta.env.VITE_SHORT_NAME,
-							':',
-							wp.element.createElement('span', { key: 'scoreDescription', className: 'editor-post-publish-panel__link' })
-						],
+						title       : import.meta.env.VITE_SHORT_NAME,
 						className   : 'aioseo-pre-publish aioseo-seo-overview',
 						initialOpen : true,
 						icon        : wp.element.Fragment

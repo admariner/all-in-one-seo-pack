@@ -3,7 +3,7 @@ import {
 	useRootStore
 } from '@/vue/stores'
 
-if (!window.wp?.blockEditor && window.wp?.blocks && window.wp.oldEditor) {
+if ('undefined' !== typeof window && !window.wp?.blockEditor && window.wp?.blocks && window.wp.oldEditor) {
 	window.wp.blockEditor = window.wp.editor
 }
 

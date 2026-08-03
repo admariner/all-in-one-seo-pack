@@ -61,21 +61,36 @@
 
 					<span
 						class="round"
+						:title="strings.openNotifications"
 						@click.stop="notificationsStore.toggleNotifications"
 					>
-						<span class="round number"
+						<span
 							v-if="notificationsStore.activeNotificationsCount"
-						>
-							{{ notificationsStore.activeNotificationsCount > 9 ? '!' : notificationsStore.activeNotificationsCount }}
-						</span>
+							class="round dot"
+						/>
 
-						<svg-notifications
+						<svg-bell
 							@click.stop="notificationsStore.toggleNotifications"
 						/>
 					</span>
 
 					<span
+						v-if="newsroomItems.length"
 						class="round"
+						:title="strings.openNewsroom"
+						@click.stop="openNewsroom"
+					>
+						<span
+							v-if="newsroomUnread"
+							class="round dot"
+						/>
+
+						<svg-megaphone />
+					</span>
+
+					<span
+						class="round"
+						:title="strings.openHelp"
 						@click.stop="toggleModal"
 						v-if="helpPanelStore.docs && Object.keys(helpPanelStore.docs).length"
 					>
@@ -84,6 +99,11 @@
 				</div>
 			</div>
 		</grid-container>
+
+		<core-newsroom-drawer
+			:show="showNewsroom"
+			@close="showNewsroom = false"
+		/>
 	</div>
 </template>
 
@@ -113,12 +133,45 @@ import CoreProcessingPopup from '@/vue/components/common/core/ProcessingPopup'
 import CoreUpgradeBar from '@/vue/components/AIOSEO_VERSION/core/UpgradeBar'
 import GridContainer from '@/vue/components/common/grid/Container'
 import SvgAioseoLogo from '@/vue/components/common/svg/aioseo/Logo'
+import SvgBell from '@/vue/components/common/svg/Bell'
+import CoreNewsroomDrawer from '@/vue/components/common/core/NewsroomDrawer'
 import SvgCircleQuestionMark from '@/vue/components/common/svg/circle/QuestionMark'
-import SvgNotifications from '@/vue/components/common/svg/Notifications'
+import SvgMegaphone from '@/vue/components/common/svg/Megaphone'
 
 import { __ } from '@/vue/plugins/translations'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
+
+const SEEN_KEY = 'aioseoNewsroomSeen'
+
+const showNewsroom  = ref(false)
+const newsroomUnread = ref(false)
+
+const newsroomItems = computed(() => rootStore.aioseo.newsroom?.items || [])
+
+const newestNewsroomStamp = () => newsroomItems.value.reduce((newest, item) => {
+	const stamp = Date.parse(item.date)
+
+	return isNaN(stamp) ? newest : Math.max(newest, stamp)
+}, 0)
+
+const openNewsroom = () => {
+	showNewsroom.value = true
+
+	const newest = newestNewsroomStamp()
+	if (newest) {
+		window.localStorage.setItem(SEEN_KEY, String(newest))
+	}
+
+	newsroomUnread.value = false
+}
+
+onMounted(() => {
+	const newest = newestNewsroomStamp()
+	const seen   = parseInt(window.localStorage.getItem(SEEN_KEY) || '0', 10)
+
+	newsroomUnread.value = Boolean(newest) && newest > seen
+})
 
 // We just need to call this to make sure the composable is used.
 useScrollAndHighlight()
@@ -152,6 +205,9 @@ defineProps({
 const activeScan = ref(null)
 
 const strings = {
+	openNotifications  : __('Open Notification Center', td),
+	openNewsroom       : __('Open Newsroom', td),
+	openHelp           : __('Open Help Center', td),
 	linkAssistantPopup : {
 		header      : __('Link suggestions are being processed.', td),
 		description : __('Depending on the number of posts being scanned, this process can take some time. You can safely leave this page and check back later.', td)
@@ -340,8 +396,35 @@ html:not([data-scroll='0']) {
 					height: 20px;
 				}
 
+				// The megaphone sits lower and wider in its viewBox than the bell, so at a
+				// matched 20px it reads noticeably smaller.
+				svg.aioseo-megaphone {
+					width: 23px;
+					height: 23px;
+				}
+
 				&:hover {
 					background-color: color.adjust($background, $lightness: -5%);
+				}
+			}
+
+			.dot {
+				position: absolute;
+				top: -3px;
+				left: 50%;
+				width: 9px;
+				height: 9px;
+				min-width: 0;
+				margin: 0;
+				border: 2px solid #fff;
+				border-radius: 50%;
+				background-color: $red;
+				transform: translate(-50%, 0);
+				animation: bounce 2s 5;
+				will-change: transform;
+
+				&:hover {
+					background-color: $red;
 				}
 			}
 

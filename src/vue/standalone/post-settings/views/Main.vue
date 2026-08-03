@@ -67,27 +67,46 @@
 					v-if="'sidebar' === screenContext"
 					class="aioseo-tab-title"
 				>
-					<span>{{ getTabName(activeTab) }}</span>
+					<template v-if="showHeadlinePanel">
+						<span>{{ strings.headlineAnalyzer }}</span>
 
-					<svg-close @click="processChangeTab(null)"/>
+						<svg-close @click="closeHeadlineAnalyzer" />
+					</template>
+
+					<template v-else>
+						<span>{{ getTabName(activeTab) }}</span>
+
+						<base-score-badge
+							v-if="'analysis' === activeTab && isTruSeoDataReady"
+							class="aioseo-tab-title__score"
+							:score="postEditorStore.currentPost.seo_score"
+							:loading="postEditorStore.currentPost.loading.score"
+						/>
+
+						<svg-close @click="processChangeTab(null)" />
+					</template>
 				</div>
 
-				<alert v-if="'sidebar' === screenContext" />
+				<alert v-if="'sidebar' === screenContext && !showHeadlinePanel" />
 
-				<Suspense>
-					<template #default>
-						<component
-							:is="turnSlugIntoComponent(activeTab)"
-							:parent-component-context="'sidebar' === screenContext ? 'sidebar' : 'metabox'"
-							@changeTab="newTab => processChangeTab(newTab)"
-						/>
-					</template>
-					<template #fallback>
-						<div class="aioseo-loading-placeholder">
-							<core-loader dark />
-						</div>
-					</template>
-				</Suspense>
+				<headline-analyzer-panel v-if="showHeadlinePanel" />
+
+				<div v-show="!showHeadlinePanel">
+					<Suspense>
+						<template #default>
+							<component
+								:is="turnSlugIntoComponent(activeTab)"
+								:parent-component-context="'sidebar' === screenContext ? 'sidebar' : 'metabox'"
+								@changeTab="newTab => processChangeTab(newTab)"
+							/>
+						</template>
+						<template #fallback>
+							<div class="aioseo-loading-placeholder">
+								<core-loader dark />
+							</div>
+						</template>
+					</Suspense>
+				</div>
 			</div>
 		</transition>
 
@@ -111,6 +130,13 @@
 			@update:modal-open="keywordRankTrackerStore.toggleModal({modal:'modalOpenPostEdit', open: $event})"
 			modal-name="keyword-rank-tracker-modal"
 		/>
+
+		<optimize-modal />
+
+		<safe-words-modal
+			:show="truSeoHighlighterStore.safeWordsModalOpen"
+			@close="handleSafeWordsClose"
+		/>
 	</div>
 </template>
 
@@ -125,15 +151,20 @@ import {
 	useRedirectsStore,
 	useRootStore,
 	useSeoRevisionsStore,
-	useSettingsStore
+	useSettingsStore,
+	useTruSeoHighlighterStore
 } from '@/vue/stores'
 
 import { __ } from '@/vue/plugins/translations'
 import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 import { getParams, removeParam } from '@/vue/utils/params'
-import { debounceContext } from '@/vue/utils/debounce'
+import { useScrollTo } from '@/vue/composables/ScrollTo'
+import { useTruSeoHighlighter } from '@/vue/composables/TruSeoHighlighter'
+import { useHeadlineAnalyzer } from '@/vue/composables/HeadlineAnalyzer'
+import { createDebounce, debounceContext } from '@/vue/utils/debounce'
 import { preloadOnIdle } from '@/vue/utils/preload'
 import { isBlockEditor, isPageBuilderEditor } from '@/vue/utils/context'
+import { truSeoShouldAnalyze, supportsPageAnalysis } from '@/vue/utils/postData/helpers'
 import { maybeUpdateTaxonomies } from '@/vue/plugins/tru-seo/components/taxonomies'
 import {
 	extendParagraphPlaceholder,
@@ -142,10 +173,14 @@ import {
 } from '@/vue/standalone/blocks/extend-paragraph-block'
 
 import Alert from './partials/Alert'
+import BaseScoreBadge from '@/vue/components/common/base/ScoreBadge'
 import CoreLoader from '@/vue/components/common/core/Loader'
 import CoreMainTabs from '@/vue/components/common/core/main/Tabs'
 import CoreModal from '@/vue/components/common/core/modal/Index'
 import ModalContent from './ModalContent'
+import OptimizeModal from '@/vue/components/common/tru-seo/OptimizeModal'
+import SafeWordsModal from '@/vue/components/common/tru-seo/SafeWordsModal'
+import HeadlineAnalyzerPanel from '@/vue/standalone/headline-analyzer/components/HeadlineAnalyzerPanel'
 import SeoRevisionsCountBadge from './pro/partials-seo-revisions/CountBadge'
 import SvgAiContent from '@/vue/components/common/svg/ai/AiContent'
 import SvgBackup from '@/vue/components/common/svg/Backup'
@@ -157,17 +192,17 @@ import SvgLinkSuggestion from '@/vue/components/common/svg/link/Suggestion'
 import SvgReceipt from '@/vue/components/common/svg/Receipt'
 import SvgRedirectCrossedArrows from '@/vue/components/common/svg/redirect/CrossedArrows'
 import SvgSettings from '@/vue/components/common/svg/Settings'
-import SvgShare from '@/vue/components/common/svg/Share'
+import SvgSpeed from '@/vue/components/common/svg/Speed'
 
 const Advanced            = defineAsyncComponent(() => import('./Advanced'))
 const KeywordRankTracker  = defineAsyncComponent(() => import('./KeywordRankTracker'))
 const AiContent           = defineAsyncComponent(() => import('./AiContent'))
+const Analysis            = defineAsyncComponent(() => import('./Analysis'))
 const General             = defineAsyncComponent(() => import('./General'))
 const LinkAssistant       = defineAsyncComponent(() => import('./Links'))
 const Redirects           = defineAsyncComponent(() => import('./Redirects'))
 const Schema              = defineAsyncComponent(() => import('./Schema'))
 const SeoRevisions        = defineAsyncComponent(() => import('./SeoRevisions'))
-const Social              = defineAsyncComponent(() => import('./Social'))
 
 const td = import.meta.env.VITE_TEXTDOMAIN
 
@@ -179,6 +214,42 @@ const redirectsStore          = useRedirectsStore()
 const rootStore               = useRootStore()
 const seoRevisionsStore       = useSeoRevisionsStore()
 const settingsStore           = useSettingsStore()
+const truSeoHighlighterStore  = useTruSeoHighlighterStore()
+
+const { scrollTo } = useScrollTo()
+const { headlineAnalyzerEnabled, headlineAnalyzerOpen, closeHeadlineAnalyzer } = useHeadlineAnalyzer()
+
+// Mirror Analysis.vue's readiness gate so the tab-header score only appears once
+// real TruSEO analysis data exists.
+const isTruSeoDataReady = computed(() => {
+	const basic = postEditorStore.truseoData?.truseo?.general?.basic
+	if (!basic || 'object' !== typeof basic) {
+		return false
+	}
+
+	const basicResults = Object.values(basic)
+
+	return 0 < basicResults.length && basicResults.some(item => item && item.title)
+})
+
+// The highlighter must work regardless of the active tab, so its highlight-sentence
+// watcher lives here (Main is always mounted) rather than in the Optimization tab,
+// which unmounts when another tab is active.
+const { watchHighlightSentences } = useTruSeoHighlighter()
+const debouncedWatchHighlightSentences = createDebounce((value, oldValue) => watchHighlightSentences(value, oldValue), 300)
+watch(() => truSeoHighlighterStore.allHighlightSentences, (value, oldValue) => {
+	debouncedWatchHighlightSentences(value, oldValue)
+}, { deep: true, immediate: true })
+
+// Seed the painted analyzer set as soon as analysis lands, regardless of the
+// active tab, so highlights show on page load when highlighting is on instead
+// of only after opening the Optimization tab. Both seeders are additive,
+// idempotent, and gated on the master toggle; spelling is picked up once its
+// dictionary finishes loading and the store gains its results.
+watch(() => truSeoHighlighterStore.availableHighlightAnalyzers, () => {
+	truSeoHighlighterStore.syncNewHighlightAnalyzers()
+	truSeoHighlighterStore.ensureSpellingHighlightPainted()
+}, { immediate: true })
 
 const updatingSeoRevisions = ref(false)
 const activeTab            = ref('general')
@@ -187,28 +258,37 @@ const activeMainSidebarTab = ref('')
 const watchBlockEditor     = ref(null)
 
 const strings = {
-	pageName   : 'General',
-	modalTitle : __('Preview Snippet Editor', td),
-	new        : __('NEW!', td)
+	pageName         : 'Appearance',
+	modalTitle       : __('Preview Snippet Editor', td),
+	new              : __('NEW!', td),
+	headlineAnalyzer : __('Headline Analyzer', td)
 }
 
 const screenContext = computed(() => {
 	return getCurrentInstance().root.data.screenContext
 })
 
+// The Headline Analyzer replaces the Optimization tab content in place (the tab
+// header shows its title + a close). Scoped to the Optimization tab so switching
+// tabs while it's open reveals the new tab instead of the analyzer.
+const showHeadlinePanel = computed(() => headlineAnalyzerOpen.value && 'sidebar' === screenContext.value && 'analysis' === activeTab.value)
+
 const tabs = computed(() => {
 	const tabs = [
 		{
 			slug       : 'general',
 			icon       : 'svg-settings',
-			name       : __('General', td),
-			permission : 'aioseo_page_general_settings'
+			name       : __('Appearance', td),
+			// The Social section lives on this tab too, so show it for either cap;
+			// each section inside gates on its own general/social permission.
+			permission : [ 'aioseo_page_general_settings', 'aioseo_page_social_settings' ]
 		},
 		{
-			slug       : 'social',
-			icon       : 'svg-share',
-			name       : __('Social', td),
-			permission : 'aioseo_page_social_settings'
+			slug       : 'analysis',
+			icon       : 'svg-speed',
+			name       : __('Optimization', td),
+			permission : 'aioseo_page_analysis',
+			label      : 'new'
 		},
 		{
 			slug       : 'schema',
@@ -219,9 +299,8 @@ const tabs = computed(() => {
 		{
 			slug       : 'aiContent',
 			icon       : 'svg-ai-content',
-			name       : __('AI Content', td),
-			permission : 'aioseo_page_ai_content_settings',
-			label      : 'new'
+			name       : __('AI Copilot', td),
+			permission : 'aioseo_page_ai_content_settings'
 		},
 		{
 			slug       : 'redirects',
@@ -264,10 +343,16 @@ const tabs = computed(() => {
 	return tabs
 })
 
+// The Optimization tab hosts TruSEO analysis and the Headline Analyzer. It's
+// hidden on page types that support neither (e.g. media, special pages), and
+// otherwise stays hidden only when both features are off.
+const showOptimizationTab = computed(() => supportsPageAnalysis() && (truSeoShouldAnalyze() || headlineAnalyzerEnabled.value))
+
 const getTabs = computed(() => {
 	if ('term' === postEditorStore.currentPost.context || postEditorStore.currentPost.isWooCommercePageWithoutSchema) {
 		return tabs.value.filter((tab) => {
-			const excludedTabs = [ 'aiContent', 'schema' ]
+			// Analysis is post-only — terms and schema-less WooCommerce pages aren't TruSEO-eligible.
+			const excludedTabs = [ 'aiContent', 'schema', 'analysis' ]
 			if (excludedTabs.includes(tab.slug)) {
 				return false
 			}
@@ -277,17 +362,16 @@ const getTabs = computed(() => {
 	}
 
 	return tabs.value.filter(tab => {
-		if (allowed(getTabPermission(tab.slug), true)) {
-			return true
+		if ('analysis' === tab.slug && !showOptimizationTab.value) {
+			return false
 		}
 
-		return (
-			'general' === tab.slug &&
-			(
-				allowed('aioseo_page_analysis') ||
-				allowed(getTabPermission(tab.slug), true)
-			)
-		)
+		// AI Content isn't applicable to media/attachment pages.
+		if ('aiContent' === tab.slug && 'attachment' === postEditorStore.currentPost?.postType) {
+			return false
+		}
+
+		return allowed(getTabPermission(tab.slug), true)
 	})
 })
 
@@ -298,7 +382,7 @@ const initTab = computed(() => {
 const turnSlugIntoComponent = (slug) => {
 	const map = {
 		general                       : General,
-		social                        : Social,
+		analysis                      : Analysis,
 		schema                        : Schema,
 		redirects                     : Redirects,
 		seoRevisions                  : SeoRevisions,
@@ -307,7 +391,7 @@ const turnSlugIntoComponent = (slug) => {
 		linkAssistant                 : LinkAssistant,
 		'seo-revisions-count-badge'   : SeoRevisionsCountBadge,
 		'svg-settings'                : SvgSettings,
-		'svg-share'                   : SvgShare,
+		'svg-speed'                   : SvgSpeed,
 		'svg-receipt'                 : SvgReceipt,
 		'svg-redirect-crossed-arrows' : SvgRedirectCrossedArrows,
 		'svg-backup'                  : SvgBackup,
@@ -346,6 +430,11 @@ const processChangeTab = async (newTabValue, contextOverride = null) => {
 		return
 	}
 
+	// Social is now a section inside the Appearance (general) tab; redirect legacy callers.
+	if ('social' === newTabValue) {
+		newTabValue = 'general'
+	}
+
 	const newScreenContext = contextOverride || screenContext.value
 	if ('sidebar' === newScreenContext) {
 		// Change the WordPress components panel header to static if there's a tab open.
@@ -370,12 +459,6 @@ const processChangeTab = async (newTabValue, contextOverride = null) => {
 	await nextTick()
 
 	switch (newTabValue) {
-		case 'social':
-			if (!postEditorStore.currentPost.modalOpen) {
-				settingsStore.changeTabSettings({ setting: 'modal', value: 'social' })
-				postEditorStore.currentPost.modalOpen = true
-			}
-			break
 		case 'linkAssistant':
 			if (postEditorStore.currentPost.linkAssistant && !postEditorStore.currentPost.linkAssistant.modalOpen) {
 				postEditorStore.currentPost.linkAssistant.modalOpen = true
@@ -415,6 +498,14 @@ const closeModal = () => {
 	postEditorStore.currentPost.modalOpen = false
 }
 
+const handleSafeWordsClose = ({ dirty } = {}) => {
+	truSeoHighlighterStore.closeSafeWordsModal()
+
+	if (dirty) {
+		truSeoHighlighterStore.refreshAnalysisAfterDictionaryChange()
+	}
+}
+
 const getTabPermission = (slug) => {
 	const tab = tabs.value.find(t => t.slug === slug)
 	return 'undefined' !== typeof tab.permission ? tab.permission : `aioseo_page_${tab.slug}_settings`
@@ -445,6 +536,28 @@ watch(() => postEditorStore.currentPost.redirects?.modalOpen, (isModalOpen) => {
 
 watch(() => seoRevisionsStore.modalOpenSidebar, (isModalOpen) => {
 	maybeResetActiveTab(isModalOpen)
+})
+
+// Auto-Optimize is triggered from the Analysis tab but its results (SEO title,
+// description, SERP preview) render on the Appearance tab — switch there and
+// scroll the refreshed Search Appearance into view once the run completes.
+watch(() => truSeoHighlighterStore.optimizePhase, async (phase) => {
+	if ('done' !== phase || 'sidebar' === screenContext.value) {
+		return
+	}
+
+	if ('general' !== activeTab.value) {
+		processChangeTab('general')
+	}
+
+	await nextTick()
+
+	// The card is collapsible, so open it before scrolling — otherwise the results land out of view.
+	settingsStore.openCard('postSettingsSearchAppearance')
+
+	setTimeout(() => {
+		scrollTo('aioseo-card-postSettingsSearchAppearance', { block: 'start' })
+	}, 500)
 })
 
 watch(() => settingsStore.metaBoxTabs.mainSidebar, (mainSidebar) => {
@@ -524,7 +637,7 @@ onMounted(() => {
 
 	preloadOnIdle([
 		() => import('./General'),
-		() => import('./Social'),
+		() => import('./Analysis'),
 		() => import('./Schema'),
 		() => import('./Advanced'),
 		() => import('./AiContent'),
@@ -570,6 +683,17 @@ window.aioseoBus.$on('standalone-update-post', (param) => {
 	}
 })
 
+// Read the deep-linked Social sub-tab (Facebook/X) synchronously here — the editor
+// strips query params shortly after load, so metabox/Social's mounted hook runs too late.
+const preferredSocialTab = getParams()['social-tab']
+if (preferredSocialTab) {
+	settingsStore.changeTabSettings({ setting: 'social', value: preferredSocialTab })
+	settingsStore.changeTabSettings({ setting: 'socialModal', value: preferredSocialTab })
+	setTimeout(() => {
+		removeParam('social-tab')
+	}, 500)
+}
+
 switch (screenContext.value) {
 	case 'sidebar' :
 		activeTab.value = null
@@ -600,6 +724,7 @@ switch (screenContext.value) {
 .aioseo-metabox .aioseo-app.aioseo-post-settings {
 	background: #fff;
 	color: $black;
+	position: relative;
 
 	&:has(.route-fade-enter-active) {
 		overflow: hidden;
@@ -688,7 +813,11 @@ switch (screenContext.value) {
 		z-index: 1;
 		top: 0;
 
-		svg {
+		&__score {
+			margin-left: 8px;
+		}
+
+		> svg {
 			margin-left: auto;
 			width: 10px;
 			height: 10px;
@@ -697,11 +826,21 @@ switch (screenContext.value) {
 	}
 
 	.aioseo-tab-content {
-		background: #fff;
+		background: $background;
 		border-top: 0;
-		padding: var(--aioseo-gutter);
+		padding: 0 var(--aioseo-gutter);
 		font-size: 14px;
 		position: relative;
+		overflow: hidden;
+
+		&.sidebar {
+			background: #fff;
+			padding: var(--aioseo-gutter);
+		}
+
+		.aioseo-tab-content {
+			padding: var(--aioseo-gutter);
+		}
 	}
 
 	.aioseo-sidebar-content-title {
@@ -751,7 +890,7 @@ switch (screenContext.value) {
 		}
 
 		.aioseo-tab-content {
-			padding: 16px;
+			padding: 0 var(--aioseo-gutter);
 			border: none;
 		}
 

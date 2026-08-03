@@ -138,7 +138,13 @@ export const watchClassicEditor = () => {
 			) {
 				isAnalyzing = true
 
-				maybeUpdatePost()
+				// Re-analyze silently. This is a background dirty-check, not a
+				// user edit — TinyMCE reports "dirty" for transient DOM churn
+				// (e.g. caret placement when clicking a highlight), so emitting
+				// `aioseo-content-changing` here would close the highlight
+				// popover the instant it opens. Real edits still notify via the
+				// keyup/paste handlers above.
+				maybeUpdatePost(900, true, false)
 			}
 		}, 500)
 	}

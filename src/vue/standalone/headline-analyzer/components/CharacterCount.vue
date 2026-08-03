@@ -7,7 +7,10 @@
 	>
 		<div class="aioseo-headline-analyzer-words-block">
 			<div class="aioseo-headline-analyzer-character-count-container">
-				<span class="aioseo-headline-analyzer-status-on-character-length">
+				<span
+					class="aioseo-headline-analyzer-status-on-character-length"
+					:class="classOnLength"
+				>
 					{{ statusOnLength }}
 				</span>
 				<span

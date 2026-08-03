@@ -30,6 +30,7 @@
 					v-if="!disableEmoji"
 				>
 					<button
+						type="button"
 						class="aioseo-show-emoji-button"
 						@click.prevent="showEmojiPicker = !showEmojiPicker"
 					>

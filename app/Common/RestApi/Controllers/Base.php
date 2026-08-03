@@ -34,6 +34,7 @@ abstract class Base {
 	 */
 	protected $internalFields = [
 		'page_analysis',
+		'truseo',
 		'seo_score',
 		'images',
 		'image_scan_date',

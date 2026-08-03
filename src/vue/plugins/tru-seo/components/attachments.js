@@ -3,10 +3,11 @@ import {
 	useTagsStore
 } from '@/vue/stores'
 
-import TruSeo from '@/vue/plugins/tru-seo'
+import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
+import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
 
 // Update post data
-export const maybeUpdateAttachment = (run = false) => {
+export const maybeUpdateAttachment = async (run = false) => {
 	const postEditorStore = usePostEditorStore()
 	if ('attachment' !== postEditorStore.currentPost.postType) {
 		return
@@ -57,6 +58,15 @@ export const maybeUpdateAttachment = (run = false) => {
 	}
 
 	if (run) {
-		(new TruSeo()).runAnalysis({ postId: postEditorStore.currentPost.id })
+		try {
+			const truSeo = await getTruSeoInstance()
+			const results = await truSeo?.runAnalysis({ postId: postEditorStore.currentPost.id })
+
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
 	}
 }

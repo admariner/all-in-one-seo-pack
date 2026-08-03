@@ -852,17 +852,18 @@ const effectivePassword = computed(() => generatedAppPassword.value
 	: '<your-application-password>'
 )
 
+const mcpServerUrl = computed(() => siteUrl.value + '/wp-json/mcp/mcp-adapter-default-server')
+
 const mcpServerEntry = computed(() => ({
 	command : 'npx',
 	args    : [ '-y', '@automattic/mcp-wordpress-remote' ],
 	env     : {
-		WP_API_URL      : siteUrl.value + '/wp-json/',
+		// The bridge POSTs straight to WP_API_URL, so it must be the full MCP endpoint, not the REST base.
+		WP_API_URL      : mcpServerUrl.value,
 		WP_API_USERNAME : currentUsername.value,
 		WP_API_PASSWORD : effectivePassword.value
 	}
 }))
-
-const mcpServerUrl = computed(() => siteUrl.value + '/wp-json/mcp/mcp-adapter-default-server')
 
 const basicAuthHeader = computed(() => {
 	if (!generatedAppPassword.value) {

@@ -30,10 +30,16 @@ if ('post' === window.aioseo.currentPost?.context) {
 		blocks     = blocks.filter(block => block?.attributes?.schemaBlockId)
 
 		// Now, map their type to their attributes so that we can identify their type in the backend.
-		blocks = blocks.map((block) => {
-			block.attributes.type = block.name
-			return block
-		})
+		// NOTE: the attributes are copied because the graphs below decode the JSON ones. Decoding
+		// the editor's own attributes turns them into objects, which their string type rejects on
+		// the next parse, silently dropping whatever the block had stored.
+		blocks = blocks.map(block => ({
+			...block,
+			attributes : {
+				...block.attributes,
+				type : block.name
+			}
+		}))
 
 		const postEditorStore = usePostEditorStore()
 
@@ -79,14 +85,16 @@ if ('post' === window.aioseo.currentPost?.context) {
 		blocks.forEach((block) => {
 			const blockGraphIndex = blockGraphs.findIndex(blockGraph => blockGraph?.schemaBlockId === block?.attributes?.schemaBlockId)
 			if (-1 === blockGraphIndex && block?.attributes) {
+				const blockAttributes = { ...block.attributes }
+
 				// Decode all JSON properties so that we can process them in the backend.
-				Object.keys(block?.attributes).forEach((key) => {
-					if ('string' === typeof block.attributes[key] && block.attributes[key].match(/^({.*}|\[.*\])$/)) {
-						block.attributes[key] = JSON.parse(block.attributes[key])
+				Object.keys(blockAttributes).forEach((key) => {
+					if ('string' === typeof blockAttributes[key] && blockAttributes[key].match(/^({.*}|\[.*\])$/)) {
+						blockAttributes[key] = JSON.parse(blockAttributes[key])
 					}
 				})
 
-				blockGraphs.push(block.attributes)
+				blockGraphs.push(blockAttributes)
 			}
 		})
 

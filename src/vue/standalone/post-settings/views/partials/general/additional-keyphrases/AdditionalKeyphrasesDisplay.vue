@@ -7,7 +7,7 @@
 			v-for="(keyphrase, index) in keyphrases"
 			:key="index"
 			:index="index"
-			:keyphrase="keyphrase.keyphrase"
+			:keyphrase="keyphrase.word"
 			:score="keyphrase.score"
 			@saved="handleSaved"
 			@deleted="handleDeleted"
@@ -64,14 +64,14 @@ export default {
 		isLoading () {
 			return this.loading[this.selectedKeyphrase] &&
 				this.keyphrases[this.selectedKeyphrase] &&
-				this.keyphrases[this.selectedKeyphrase].keyphrase
+				this.keyphrases[this.selectedKeyphrase].word
 		},
 		hasAnalysis () {
 			return this.keyphrases[this.selectedKeyphrase] &&
-				this.keyphrases[this.selectedKeyphrase].keyphrase
+				this.keyphrases[this.selectedKeyphrase].word
 		},
 		analysisItems () {
-			return this.keyphrases[this.selectedKeyphrase]?.analysis || {}
+			return this.keyphrases[this.selectedKeyphrase]?.items || {}
 		}
 	},
 	methods : {

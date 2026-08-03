@@ -6,12 +6,19 @@ import {
 import { debounce } from '@/vue/utils/debounce'
 import { getFieldValue as getAcfFieldValue } from '@/vue/utils/acf'
 import {
-	truSeoShouldAnalyze,
+	truSeoShouldAnalyze
+} from '@/vue/utils/postData/helpers'
+import {
 	maybeUpdatePost
 } from '@/vue/plugins/tru-seo/components/helpers'
 
+// Re-export from utils for backward compatibility.
+export { customFieldValue } from '@/vue/utils/postData/customFields'
+
 /**
  * Get custom fields values used in content.
+ * This version includes TruSEO event listener side effects for triggering re-analysis.
+ *
  * @returns {string} string of field values.
  */
 export const customFieldsContent = () => {
@@ -173,69 +180,4 @@ export const customFieldsContent = () => {
 		}
 	})
 	return fieldsContent
-}
-
-/**
- * Get custom field image URL.
- *
- * @param   {string} fieldKey   The field key.
- * @param   {Array}  inputTypes The valid input types.
- * @returns {string}            URL of the image.
- */
-export const customFieldValue = (fieldKey, inputTypes = [ 'INPUT', 'TEXTAREA', 'IMG' ]) => {
-	if (!fieldKey) {
-		return ''
-	}
-
-	const customField    = document.getElementById(`${fieldKey}`)
-	const wpCustomFields = document.querySelectorAll('#the-list > tr')
-	const acfFields      = document.querySelectorAll('.acf-field')
-	let value            = ''
-
-	if (customField && (-1 !== inputTypes.indexOf(customField.tagName))) {
-		// Make sure it isn't an acf-field
-		if (!customField.closest('.acf-field')) {
-			// We have a meta_box, add the value.
-			value = 'IMG' === customField.tagName ? customField.getAttribute('src') : customField.value
-		}
-	}
-
-	if (wpCustomFields.length) {
-		// Maybe we have a core meta_box, get the value.
-		wpCustomFields.forEach((row) => {
-			const inputKey   = row.querySelector(`#${row.id}-key`)
-			const inputValue = row.querySelector(`#${row.id}-value`)
-
-			if (inputValue && (-1 !== inputTypes.indexOf(inputValue.tagName)) && inputKey.value === fieldKey) {
-				value = 'IMG' === inputValue.tagName ? inputValue.getAttribute('src') : inputValue.value
-			}
-		})
-	}
-
-	if (acfFields.length) {
-		const values = []
-		acfFields.forEach((acfField) => {
-			if (
-				fieldKey !== acfField.dataset.name ||
-				'repeater' === acfField.dataset.type ||
-				acfField.parentNode?.closest('.acf-repeater')
-			) {
-				return
-			}
-
-			let acfFieldElement
-			inputTypes.forEach(type => {
-				const inputTag  = type.toLowerCase()
-				acfFieldElement = acfField.querySelector(`[data-key="${acfField.dataset.key}"] ${inputTag}`) || acfFieldElement
-			})
-
-			if (acfFieldElement) {
-				values.push('IMG' === acfFieldElement.tagName ? acfFieldElement.getAttribute('src') : acfFieldElement.value)
-			}
-		})
-
-		value = values.join(' ')
-	}
-
-	return value
 }

@@ -4,7 +4,7 @@ import icon from './icon'
 import metadata from './block.json'
 
 import { edit } from './edit'
-import { save } from './save'
+import { save, deprecatedSave } from './save'
 
 const {
 	name,
@@ -23,6 +23,13 @@ export const settings = {
 	supports,
 	attributes,
 	icon,
+	deprecated : [
+		{
+			attributes,
+			supports,
+			save : deprecatedSave
+		}
+	],
 	edit,
 	save
 }

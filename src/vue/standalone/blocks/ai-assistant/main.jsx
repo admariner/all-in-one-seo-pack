@@ -1,4 +1,4 @@
-import { registerBlock } from '../utils'
+import { registerBlock, useBlockProps } from '../utils'
 
 import { h, createApp } from 'vue'
 
@@ -57,7 +57,8 @@ export const settings = {
 	supports,
 	attributes,
 	icon,
-	edit : function ({ setAttributes, attributes, clientId, className, isSelected, toggleSelection }) {
+	edit : function ({ setAttributes, attributes, clientId, isSelected, toggleSelection }) {
+		const blockProps = useBlockProps()
 		const optionsStore = useOptionsStore()
 
 		const { toneOptions, audienceOptions } = useAiContent()
@@ -263,7 +264,7 @@ export const settings = {
 					</PanelBody>
 				</InspectorControls>
 
-				<div className={className}>
+				<div {...blockProps}>
 					<div id={blockAppId} />
 				</div>
 			</>

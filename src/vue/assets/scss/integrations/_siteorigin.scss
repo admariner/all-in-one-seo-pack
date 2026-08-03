@@ -22,6 +22,11 @@
 		--aioseo-datepicker-z-index: 999999;
 	}
 
+	// Tooltips render in a body-level portal, so keep them above the modal too.
+	.popper {
+		--aioseo-popper-z-index: 999999;
+	}
+
 	.aioseo-site-origin-sidebar__content {
 		overflow: visible;
 	}

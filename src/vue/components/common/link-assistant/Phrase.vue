@@ -148,15 +148,6 @@ export default {
 					cursor: pointer;
 				}
 			}
-
-			a.tooltip-url {
-				text-decoration: underline;
-				color: white;
-
-				&:hover {
-					text-decoration: none;
-				}
-			}
 		}
 
 		.icons {

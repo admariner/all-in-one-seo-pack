@@ -314,11 +314,16 @@ export default {
 			return this.parseTags(this.postEditorStore.currentPost.og_description || this.postEditorStore.currentPost.description || this.postEditorStore.currentPost.tags.description || '#post_content')
 		},
 		shouldShowArticleSection () {
-			const context = 'term' === this.postEditorStore.currentPost.context ? 'taxonomies' : 'postTypes'
+			const context    = 'term' === this.postEditorStore.currentPost.context ? 'taxonomies' : 'postTypes'
+			const objectName = this.postEditorStore.currentPost.postType || this.postEditorStore.currentPost.termType
+
+			// Lite ships no per-taxonomy Open Graph defaults, so fall back to the shipped default.
+			const objectType = this.optionsStore.dynamicOptions.social.facebook.general[context]?.[objectName]?.objectType ?? 'article'
+
 			return 'article' === this.postEditorStore.currentPost.og_object_type ||
 				(
 					'default' === this.postEditorStore.currentPost.og_object_type &&
-					'article' === this.optionsStore.dynamicOptions.social.facebook.general[context][this.postEditorStore.currentPost.postType || this.postEditorStore.currentPost.termType]?.objectType
+					'article' === objectType
 				)
 		}
 	},

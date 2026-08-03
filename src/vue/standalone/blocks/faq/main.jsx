@@ -1,4 +1,4 @@
-import { registerBlock } from '../utils'
+import { registerBlock, useBlockProps, useBlockPropsSave } from '../utils'
 
 import { generateUniqueSchemaBlockId } from '@/vue/standalone/blocks/utils'
 import { getEditorDocument } from '@/vue/utils/editor'
@@ -83,11 +83,11 @@ export const settings = {
 	edit : function (props) {
 		const {
 			attributes,
-			className,
 			clientId,
 			setAttributes,
 			isSelected
 		} = props
+		const blockProps = useBlockProps()
 
 		const {
 			hidden,
@@ -223,7 +223,7 @@ export const settings = {
 
 		return (
 			<>
-				<div data-schema-only={hidden} className={className} data-schema-block-id={schemaBlockId}>
+				<div {...blockProps} data-schema-only={hidden} data-schema-block-id={schemaBlockId}>
 					<InspectorControls>
 						<Sidebar setSchemaBlockAttributes={setSchemaBlockAttributes} attributes={attributes} />
 					</InspectorControls>
@@ -244,7 +244,29 @@ export const settings = {
 			</>
 		)
 	},
-	save : function ({ attributes, className }) {
+	deprecated : [
+		{
+			attributes,
+			supports,
+			save : function ({ attributes, className }) {
+				const { hidden, question, tagName } = attributes
+				return (
+					<div data-schema-only={hidden} className={className}>
+						<RichText.Content
+							tagName={tagName}
+							className="aioseo-faq-block-question"
+							value={question}
+						/>
+						<div className="aioseo-faq-block-answer">
+							<InnerBlocks.Content />
+						</div>
+					</div>
+				)
+			}
+		}
+	],
+	save : function ({ attributes }) {
+		const blockProps = useBlockPropsSave()
 		const {
 			hidden,
 			question,
@@ -252,7 +274,7 @@ export const settings = {
 		} = attributes
 
 		return (
-			<div data-schema-only={hidden} className={className}>
+			<div {...blockProps} data-schema-only={hidden}>
 				<RichText.Content
 					tagName={tagName}
 					className="aioseo-faq-block-question"

@@ -8,6 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use AIOSEO\Plugin\Common\Integrations\WpCode as WpCodeIntegration;
 use AIOSEO\Plugin\Common\Models;
+use AIOSEO\Plugin\Common\SpellChecker\Dictionary;
+use AIOSEO\Plugin\Common\SpellChecker\SafeWords;
 use AIOSEO\Plugin\Common\Tools;
 
 /**
@@ -123,6 +125,7 @@ trait Vue {
 		$staticHomePage     = intval( get_option( 'page_on_front' ) );
 		$themeVersion       = aioseo()->helpers->getThemeVersion();
 		$themeParentVersion = aioseo()->helpers->getThemeVersion( true );
+		$settingsPagePath   = 'admin.php?page=aioseo-settings';
 
 		$this->data = [
 			'page'               => $this->args['page'],
@@ -186,12 +189,12 @@ trait Vue {
 					'searchAppearance' => admin_url( 'admin.php?page=aioseo-search-appearance' ),
 					'searchStatistics' => admin_url( 'admin.php?page=aioseo-search-statistics' ),
 					'seoAnalysis'      => admin_url( 'admin.php?page=aioseo-seo-analysis' ),
-					'settings'         => admin_url( 'admin.php?page=aioseo-settings' ),
+					'settings'         => admin_url( $settingsPagePath ),
 					'sitemaps'         => admin_url( 'admin.php?page=aioseo-sitemaps' ),
 					'socialNetworks'   => admin_url( 'admin.php?page=aioseo-social-networks' ),
 					'tools'            => admin_url( 'admin.php?page=aioseo-tools' ),
 					'wizard'           => admin_url( 'index.php?page=aioseo-setup-wizard' ),
-					'networkSettings'  => is_network_admin() ? network_admin_url( 'admin.php?page=aioseo-settings' ) : '',
+					'networkSettings'  => is_network_admin() ? network_admin_url( $settingsPagePath ) : '',
 					'seoRevisions'     => admin_url( 'admin.php?page=aioseo-seo-revisions' ),
 					'aiBulkGenerate'   => admin_url( 'admin.php?page=aioseo-ai-bulk-generate' )
 				],
@@ -201,7 +204,6 @@ trait Vue {
 					'scheduledActions' => admin_url( '/tools.php?page=action-scheduler&status=pending&s=aioseo' ),
 					'generalSettings'  => admin_url( 'options-general.php' )
 				],
-				'truSeoWorker'      => aioseo()->core->assets->jsUrl( 'src/app/tru-seo/analyzer/main.js' )
 			],
 			'backups'            => [],
 			'importers'          => [],
@@ -223,6 +225,7 @@ trait Vue {
 				'isBBPressActive'       => class_exists( 'bbPress' ),
 				'isClassicEditorActive' => $this->isClassicEditorActive(),
 				'isWooCommerceActive'   => $this->isWooCommerceActive(),
+				'isWooCommerceShopPage' => $this->isWooCommerceShopPage(),
 				'staticHomePage'        => $isStaticHomePage ? $staticHomePage : false,
 				'staticBlogPage'        => $this->getBlogPageId(),
 				'staticBlogPageTitle'   => get_the_title( $this->getBlogPageId() ),
@@ -253,6 +256,22 @@ trait Vue {
 			'notifications'      => array_merge( Models\Notification::getNotifications( true ), [
 				'force' => $this->showNotificationsDrawer()
 			] ),
+			'newsroom'           => [
+				'items'      => array_map(
+					function ( $item ) {
+						// Tagged here rather than in the feed: the medium names the surface, and
+						// the same item is served to the widget and modal under their own.
+						$item['url'] = aioseo()->helpers->utmUrl( $item['url'], 'newsroom-drawer', null, false );
+						// Formatted here so the drawer shows the site's date format without
+						// reimplementing PHP's format tokens in JS.
+						$item['dateFormatted'] = aioseo()->newsroom->formatDate( $item['date'] );
+
+						return $item;
+					},
+					array_slice( aioseo()->newsroom->getItems(), 0, 6 )
+				),
+				'archiveUrl' => aioseo()->newsroom->getArchiveUrl( 'newsroom-drawer' )
+			],
 			'addons'             => aioseo()->addons->getAddons(),
 			'features'           => aioseo()->features->getFeatures(),
 			'version'            => AIOSEO_VERSION,
@@ -297,6 +316,27 @@ trait Vue {
 			'unfilteredHtml' => current_user_can( 'unfiltered_html' ),
 			'canManage'      => aioseo()->access->canManage()
 		];
+
+		$dictionary                 = new Dictionary();
+		$safeWords                  = new SafeWords();
+		// TruSEO analyzes the post content, which is in the site language — not the
+		// editor's per-user admin locale. Resolve from get_locale() so the "Default"
+		// option matches the content and the backend pre-download in Activate/Updates.
+		$userLocaleResolved         = $dictionary->resolveUserLocale( get_locale() );
+		$this->data['spellChecker'] = [
+			'enabled'                 => (bool) aioseo()->options->advanced->spellChecker,
+			'dictionaryBaseUrl'       => $dictionary->getDictionaryBaseUrl(),
+			'safeWordsUrl'            => $safeWords->exists() ? $safeWords->getSafeWordsUrl() : '',
+			'safeWordsMetaUrl'        => $safeWords->matchCaseExists() ? $safeWords->getMatchCaseUrl() : '',
+			'settingsUrl'             => admin_url( $settingsPagePath ) . '#/advanced',
+			'userLocale'              => $userLocaleResolved['locale'],
+			'userLanguageLabel'       => $userLocaleResolved['nativeLabel'] ?: $userLocaleResolved['label'],
+			'userLocaleSupported'     => $userLocaleResolved['supported'],
+			'userLocaleHasSpellCheck' => $userLocaleResolved['hasSpellChecker'],
+			'userLocaleNeedsDownload' => $userLocaleResolved['needsDownload'],
+			'supportedLanguages'      => $dictionary->getSupportedLanguages(),
+			'installedLocales'        => $dictionary->getInstalledLocales()
+		];
 	}
 
 	/**
@@ -318,7 +358,8 @@ trait Vue {
 	/**
 	 * Set Vue post data.
 	 *
-	 * @since 4.4.9
+	 * @since   4.4.9
+	 * @version 5.0.0.1 Keyword columns fall back to the legacy keyphrases column.
 	 *
 	 * @return void
 	 */
@@ -332,6 +373,7 @@ trait Vue {
 		$post           = Models\Post::getPost( $postId );
 		$wpPost         = get_post( $postId );
 		$staticHomePage = intval( get_option( 'page_on_front' ) );
+		$keywordColumns = Models\Post::getKeywordColumnsWithLegacyFallback( $post );
 
 		$this->data['currentPost'] = [
 			'context'                        => 'post',
@@ -347,9 +389,15 @@ trait Vue {
 			'keywords'                       => ! empty( $post->keywords ) ? $post->keywords : [],
 			'keyphrases'                     => Models\Post::getKeyphrasesDefaults( $post->keyphrases ),
 			'page_analysis'                  => Models\Post::getPageAnalysisDefaults( $post->page_analysis ),
+			'truseo'                         => Models\Post::getTruseoDefaults( $post->truseo ?? null ),
+			'focus_keyword'                  => $keywordColumns['focus_keyword'],
+			'additional_keywords'            => $keywordColumns['additional_keywords'],
+			'truseo_locale'                  => $post->truseo_locale,
+			'wooProduct'                     => aioseo()->helpers->getWooCommerceProductData( $postId ),
 			'loading'                        => [
 				'focus'      => false,
 				'additional' => [],
+				'score'      => false,
 			],
 			'type'                           => $postTypeObj->labels->singular_name,
 			'postType'                       => 'type' === $postTypeObj->name ? '_aioseo_type' : $postTypeObj->name,
@@ -357,6 +405,7 @@ trait Vue {
 			'postAuthor'                     => (int) $wpPost->post_author,
 			'isSpecialPage'                  => $this->isSpecialPage( $postId ),
 			'isTruSeoEligible'               => $this->isTruSeoEligible( $postId ),
+			'supportsPageAnalysis'           => $this->supportsPageAnalysis( $postId ),
 			'isStaticPostsPage'              => aioseo()->helpers->isStaticPostsPage(),
 			'isHomePage'                     => $postId === $staticHomePage,
 			'isWooCommercePageWithoutSchema' => $this->isWooCommercePageWithoutSchema( $postId ),

@@ -234,10 +234,13 @@ $settings-bar-height: 90px;
 			}
 		}
 
+		// Only the text casing needs undoing here. Setting `display` too outranked every
+		// component that lays out its own <button> (0-2-1 against a lone class), which
+		// flattened full-width buttons into shrink-to-fit flex containers.
+		// `.aioseo-button` already declares its own inline-flex.
 		button,
 		.aioseo-button {
 			text-transform: initial;
-			display: inline-flex;
 
 			&:not(:disabled) {
 				&:hover {

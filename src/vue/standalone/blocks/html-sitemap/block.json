@@ -1,5 +1,6 @@
 {
-	"$schema": "https://schemas.wp.org/wp/5.8/block.json",
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
 	"name": "aioseo/html-sitemap",
 	"title": "AIOSEO - HTML Sitemap",
 	"description": "Displays a sitemap with your site's posts and terms.",

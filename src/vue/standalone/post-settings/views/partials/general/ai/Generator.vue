@@ -6,7 +6,7 @@
 		>
 			<button
 				type="button"
-				@click="showModal = true"
+				@click="onClick"
 			>
 				<svg-ai-content
 					width="18"
@@ -25,15 +25,26 @@
 			:show="showModal"
 			@closeModal="showModal = false"
 		/>
+
+		<out-of-credits-modal
+			:show="showOutOfCreditsModal"
+			:feature="upsellFeature"
+			@close="showOutOfCreditsModal = false"
+		/>
 	</div>
 </template>
 
 <script>
+import { toRef } from 'vue'
+
+import { useAiFeatureGate } from '@/vue/composables/AiFeatureGate'
+
 import {
 	useSettingsStore
 } from '@/vue/stores'
 
 import CoreTooltip from '@/vue/components/common/core/Tooltip'
+import OutOfCreditsModal from '@/vue/components/common/ai/OutOfCreditsModal'
 import SvgAiContent from '@/vue/components/common/svg/ai/AiContent'
 
 import MetaTitleModal from '@/vue/standalone/post-settings/views/partials/ai-content/MetaTitleModal'
@@ -43,16 +54,21 @@ import { __ } from '@/vue/plugins/translations'
 const td = import.meta.env.VITE_TEXTDOMAIN
 
 export default {
-	setup () {
+	setup (props) {
+		const { shouldUpsell, upsellFeature } = useAiFeatureGate(toRef(props, 'feature'))
+
 		return {
-			settingsStore : useSettingsStore()
+			settingsStore : useSettingsStore(),
+			shouldUpsell,
+			upsellFeature
 		}
 	},
 	components : {
 		CoreTooltip,
-		SvgAiContent,
 		MetaTitleModal,
-		MetaDescriptionModal
+		MetaDescriptionModal,
+		OutOfCreditsModal,
+		SvgAiContent
 	},
 	props : {
 		feature : {
@@ -65,7 +81,21 @@ export default {
 			strings : {
 				useAiGenerator : __('Use AI Generator', td)
 			},
-			showModal : false
+			showModal             : false,
+			showOutOfCreditsModal : false
+		}
+	},
+	methods : {
+		// The same gate the AI Copilot tab applies, so an unaffordable run sells from here too
+		// instead of opening a generator whose only button is disabled.
+		onClick () {
+			if (this.shouldUpsell) {
+				this.showOutOfCreditsModal = true
+
+				return
+			}
+
+			this.showModal = true
 		}
 	}
 }

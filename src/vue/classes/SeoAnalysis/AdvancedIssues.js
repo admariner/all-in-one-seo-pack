@@ -21,7 +21,7 @@ class AdvancedIssues {
 	}
 
 	get openGraph () {
-		const fixActionParams = '&aioseo-tab=social&aioseo-scroll=aioseo-post-settings-facebook&aioseo-highlight=aioseo-post-settings-facebook'
+		const fixActionParams = '&aioseo-tab=general&social-tab=facebook&aioseo-scroll=aioseo-post-settings-facebook&aioseo-highlight=aioseo-post-settings-facebook'
 
 		return {
 			'ogp-missing' : {
@@ -99,7 +99,7 @@ class AdvancedIssues {
 	}
 
 	get mainKeyword () {
-		const fixActionParams = '&aioseo-scroll=aioseo-post-settings-snippet-focus-keyphrase-row&aioseo-highlight=aioseo-post-settings-snippet-focus-keyphrase-row'
+		const fixActionParams = '&aioseo-tab=analysis&aioseo-scroll=aioseo-post-content-analysis&aioseo-highlight=aioseo-post-content-analysis'
 
 		return {
 			'main-keyword-missing' : {

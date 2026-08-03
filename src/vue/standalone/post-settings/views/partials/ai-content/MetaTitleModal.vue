@@ -89,6 +89,8 @@
 					<svg-rephrase />
 
 					{{ aiContent.strings.rephrase }}
+
+					<credit-badge :cost="aiContent.getRephraseCost()" />
 				</base-button>
 
 				<credit-counter parent-component-context="modal" />
@@ -114,6 +116,8 @@
 					:disabled="!aiContent.hasEnoughCredits(aiContent.getFeatureCost('titles')) || !aiContent.hasEnoughContent()"
 				>
 					{{ strings.generateButtonText }}
+
+					<credit-badge :cost="aiContent.getFeatureCost('titles')" />
 				</base-button>
 			</div>
 		</template>
@@ -133,6 +137,7 @@ import { getPostEditedContent } from '@/vue/plugins/tru-seo/components/postConte
 
 import CoreAlert from '@/vue/components/common/core/alert/Index'
 import CoreModal from '@/vue/components/common/core/modal/Index'
+import CreditBadge from '@/vue/components/common/ai/CreditBadge'
 import CreditCounter from '@/vue/components/common/ai/CreditCounter'
 import TitlesDescriptions from './TitlesDescriptions.vue'
 
@@ -145,7 +150,7 @@ import SvgClose from '@/vue/components/common/svg/Close'
 import SvgMetaTitle from '@/vue/components/common/svg/ai/MetaTitle'
 import SvgRephrase from '@/vue/components/common/svg/ai/Rephrase'
 
-import { __, sprintf } from '@/vue/plugins/translations'
+import { __ } from '@/vue/plugins/translations'
 const td = import.meta.env.VITE_TEXTDOMAIN
 
 export default {
@@ -178,11 +183,7 @@ export default {
 
 		const strings = {
 			settingsHeader     : __('Select tone and audience', td),
-			generateButtonText : sprintf(
-				// Translators: 1 - Number of credits.
-				__('Generate SEO Titles (%1$d credits)', td),
-				aiContent.getFeatureCost('titles')
-			)
+			generateButtonText : __('Generate SEO Titles', td)
 		}
 
 		const loaders = [
@@ -208,6 +209,7 @@ export default {
 	components : {
 		CoreAlert,
 		CoreModal,
+		CreditBadge,
 		CreditCounter,
 		Loader,
 		StepHeader,

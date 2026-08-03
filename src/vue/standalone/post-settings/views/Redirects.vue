@@ -1,36 +1,38 @@
 <template>
-	<div class="aioseo-tab-content">
-		<Redirects
-			v-if="!licenseStore.isUnlicensed && rootStore.isPro"
-			:parentComponentContext="parentComponentContext"
-		/>
-
-		<RedirectsLite
-			v-if="licenseStore.isUnlicensed || !rootStore.isPro"
-			:parentComponentContext="parentComponentContext"
-		/>
-	</div>
+	<component
+		:is="currentComponent"
+		:parentComponentContext="parentComponentContext"
+	/>
 </template>
 
 <script>
-import {
-	useLicenseStore,
-	useRootStore
-} from '@/vue/stores'
+import { computed, getCurrentInstance } from 'vue'
 
-import Redirects from './AIOSEO_VERSION/partials-redirects/Redirects'
-import RedirectsLite from './lite/partials-redirects/Redirects'
+import SidebarRedirects from './sidebar/Redirects'
+import MetaboxRedirects from './metabox/Redirects'
 
 export default {
-	setup () {
+	setup (props) {
+		const screenContext = computed(() => {
+			return getCurrentInstance().root.data.screenContext
+		})
+
+		const currentComponent = computed(() => {
+			// Load metabox component if in metabox context OR if modal is opened
+			if ('metabox' === screenContext.value || 'modal' === props.parentComponentContext) {
+				return MetaboxRedirects
+			}
+
+			return SidebarRedirects
+		})
+
 		return {
-			rootStore    : useRootStore(),
-			licenseStore : useLicenseStore()
+			currentComponent
 		}
 	},
 	components : {
-		Redirects,
-		RedirectsLite
+		SidebarRedirects,
+		MetaboxRedirects
 	},
 	props : {
 		parentComponentContext : String

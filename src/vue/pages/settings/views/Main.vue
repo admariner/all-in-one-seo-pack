@@ -27,15 +27,15 @@ export default {
 		}
 	},
 	components : {
-		AccessControl    : defineAsyncComponent(() => import('./AccessControl.vue')),
-		Advanced         : defineAsyncComponent(() => import('./Advanced.vue')),
-		Breadcrumbs      : defineAsyncComponent(() => import('./Breadcrumbs.vue')),
+		AccessControl       : defineAsyncComponent(() => import('./AccessControl.vue')),
+		Advanced            : defineAsyncComponent(() => import('./Advanced.vue')),
+		Breadcrumbs         : defineAsyncComponent(() => import('./Breadcrumbs.vue')),
 		CoreMain,
-		GeneralSettings  : defineAsyncComponent(() => import('./GeneralSettings.vue')),
-		RssContent       : defineAsyncComponent(() => import('./RssContent.vue')),
-		SeoChecklist     : defineAsyncComponent(() => import('./SeoChecklist.vue')),
-		WebmasterTools   : defineAsyncComponent(() => import('./WebmasterTools.vue')),
-		WritingAssistant : defineAsyncComponent(() => import('./WritingAssistant.vue'))
+		GeneralSettings     : defineAsyncComponent(() => import('./GeneralSettings.vue')),
+		RssContent          : defineAsyncComponent(() => import('./RssContent.vue')),
+		SeoChecklist        : defineAsyncComponent(() => import('./SeoChecklist.vue')),
+		WebmasterTools      : defineAsyncComponent(() => import('./WebmasterTools.vue')),
+		ContentOptimization : defineAsyncComponent(() => import('./WritingAssistant.vue'))
 	},
 	data () {
 		return {

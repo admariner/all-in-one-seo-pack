@@ -322,6 +322,9 @@ export default {
 
 			this.$emit('updated-option', this.url)
 		},
+		collapseOptions () {
+			this.showOptions = false
+		},
 		searchChange () {
 			if (this.disableSearch) {
 				return

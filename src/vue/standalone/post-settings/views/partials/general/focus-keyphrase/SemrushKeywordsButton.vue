@@ -78,10 +78,10 @@ export default {
 	computed : {
 		strings () {
 			return {
-				getAdditionalKeyphrases : __('Get Additional Keywords', td),
+				getAdditionalKeyphrases : __('Discover Additional Keywords', td),
 				semrushTooltip          : sprintf(
 					// Translators: 1 - Semrush.
-					__('Get Additional Keywords with %1$s!', td),
+					__('Discover Additional Keywords with %1$s!', td),
 					'Semrush'
 				),
 				semrushTooltipLicenseKey : sprintf(

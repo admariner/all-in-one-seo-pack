@@ -3,14 +3,15 @@ import {
 	useTagsStore
 } from '@/vue/stores'
 
-import TruSeo from '@/vue/plugins/tru-seo'
-import { customFieldsContent } from './customFields'
-import { getPostEditedPermalink } from './postPermalink'
+import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
+import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
+import { removeHtmlBlocks } from '@/app/tru-seo/languageProcessing/helpers'
 import { flattenBlocks } from '@/vue/utils/helpers'
 import { getEditorDocument } from '@/vue/utils/editor'
 import {
 	isBlockEditor,
 	isClassicEditor,
+	isPageBuilderEditor,
 	isElementorEditor,
 	isDiviEditor,
 	isSeedProdEditor,
@@ -19,10 +20,10 @@ import {
 	isSiteOriginEditor,
 	isThriveArchitectEditor,
 	isBricksEditor,
-	isOxygenEditor,
-	isPageBuilderEditor
+	isOxygenEditor
 } from '@/vue/utils/context'
 import { isTinyMceEmpty } from '@/vue/standalone/post-settings/utils/classicEditor'
+import { customFieldsContent } from '@/vue/plugins/tru-seo/components/customFields'
 import { getEditorData as getElementorData } from '@/vue/standalone/page-builders/elementor/helpers'
 import { getEditorData as getDiviData } from '@/vue/standalone/page-builders/divi/helpers'
 import { getEditorData as getSeedProdData } from '@/vue/standalone/page-builders/seedprod/helpers'
@@ -32,9 +33,12 @@ import { getEditorData as getSiteOriginData } from '@/vue/standalone/page-builde
 import { getEditorData as getThriveArchitectData } from '@/vue/standalone/page-builders/thrive-architect/helpers'
 import { getEditorData as getBricksData } from '@/vue/standalone/page-builders/bricks/helpers'
 import { getEditorData as getOxygenData } from '@/vue/standalone/page-builders/oxygen/helpers'
+import { getPostContent, getPostEditedContent } from '@/vue/utils/postData/postContent'
 
-const base64regex            = /data:[^;]+;base64,[A-Za-z0-9+/=]+/g
-const blockPrefixesToProcess = [ 'acf', 'aioseo', 'core' ]
+// Re-export getter functions from utils for backward compatibility.
+export { getPostContent, getPostEditedContent } from '@/vue/utils/postData/postContent'
+
+const base64regex = /base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)/g
 
 /**
  * Retrieves the content from the active page builder editor.
@@ -91,99 +95,97 @@ const getReusableBlockContent = (content) => {
 }
 
 /**
- * Parses postContent for blocks and replaces their markup with content.
+ * Parses postContent for all blocks and replaces their markup with content.
+ * This is used for TruSEO analysis and requires the htmlparser2 dependency.
  *
  * @param {string} content Content from the block editor.
- * @param {Array}  prefix  The block prefixes to process content.
  *
  * @returns {string} Post content with block markup replaced by their content.
  */
-const getProcessedBlockContent = (content, prefix) => {
+const getAllProcessedBlockContent = (content) => {
+	// If not in block editor context, return content as-is
+	if (!window.wp?.data?.select('core/block-editor')?.getBlocks) {
+		return content
+	}
+
 	const editorDoc = getEditorDocument()
 	const blocks = window.wp.data.select('core/block-editor').getBlocks()
-	blocks.forEach(block => {
-		const [ namePrefix, nameSuffix ] = block.name.split('/')
-		if (!prefix.includes(namePrefix)) {
-			return
-		}
+	const processBlock = (block) => {
+		const element = editorDoc?.getElementById('block-' + block.clientId)
+		if (element) {
+			let renderedText = ''
 
-		// Bail if it's a core block that's not a table, or an aioseo excluded block.
-		if (
-			('core' === namePrefix && 'table' !== nameSuffix) ||
-			('aioseo' === namePrefix && [ 'faq', 'ai-assistant' ].includes(nameSuffix))
-		) {
-			return
-		}
-
-		const element = editorDoc.getElementById('block-' + block.clientId)
-		if (element && element.innerText) {
-			const blockName = 'core' === namePrefix ? nameSuffix : block.name
-			const pattern = `<!-- wp:${blockName}.*?/wp:${blockName} -->|<!-- wp:${blockName}.*?/-->`
-
-			content = content.replace(new RegExp(pattern, 's'), element.innerText)
-		}
-	})
-
-	return content
-}
-
-/**
- * Returns the stored post content.
- *
- * @returns {string} Post Content
- */
-export const getPostContent = () => {
-	const tagsStore = useTagsStore()
-	if (tagsStore.liveTags.post_content) {
-		return tagsStore.liveTags.post_content
-	}
-
-	let postContent = ''
-	if (isClassicEditor() && !isPageBuilderEditor()) {
-		if (window.tinyMCE || document.querySelector('#wp-content-wrap.html-active')) {
-			postContent = classicContent()
-		} else {
-			const classicInterval = window.setInterval(() => {
-				if (window.tinyMCE) {
-					window.clearInterval(classicInterval)
-					postContent = classicContent()
+			// Special handling for embed blocks because they are not serialized correctly. (missing iframme tags)
+			if ('core/embed' === block.name) {
+				renderedText = element?.querySelector('iframe')?.contentDocument?.body?.getHTML() || element?.getHTML() || element?.innerText || ''
+			} else if ('core/post-excerpt' === block.name) {
+				// Dynamic block: serialize() emits no text, so the manual excerpt would otherwise be ignored.
+				// Only inject a manually-entered excerpt — an auto-generated one is derived from the content
+				// and already analyzed, so injecting it would double-count the opening of the post.
+				const manualExcerpt = window.wp?.data?.select('core/editor')?.getEditedPostAttribute?.('excerpt')?.trim() || ''
+				renderedText = manualExcerpt ? '<p>' + manualExcerpt + '</p>' : ''
+			} else {
+				try {
+					renderedText = window.wp.blocks.serialize(block)
+				} catch {
+					// Get the rendered text content from the DOM element
+					renderedText = element?.getHTML() || element?.innerText || ''
 				}
-			}, 50)
+			}
+
+			if (renderedText) {
+				const [ namePrefix, nameSuffix ] = block.name.split('/')
+				const blockName = 'core' === namePrefix ? nameSuffix : block.name
+
+				// Strip WordPress block comments from the rendered text to get just the HTML
+				const htmlOnly = renderedText.replace(/<!--\s*\/?wp:[^>]*?-->/g, '').trim()
+
+				// Match both self-closing and regular block comments
+				const pattern = `<!-- wp:${blockName}(?:\\s+\\{[^}]*\\})?\\s*-->.*?<!-- /wp:${blockName} -->|<!-- wp:${blockName}(?:\\s+\\{[^}]*\\})?\\s*/-->`
+
+				// Use a replacer function so `$` sequences in the content (e.g. "$$", "$&") aren't treated as
+				// special replacement patterns by String.prototype.replace.
+				content = content.replace(new RegExp(pattern, 's'), () => htmlOnly)
+			}
+		}
+
+		// Recursively process inner blocks
+		if (block.innerBlocks && 0 < block.innerBlocks.length) {
+			block.innerBlocks.forEach(processBlock)
 		}
 	}
 
-	if (isBlockEditor()) {
-		postContent = window.wp.data.select('core/editor').getCurrentPost().content || ''
-		postContent = getReusableBlockContent(postContent)
-		postContent = getProcessedBlockContent(postContent, blockPrefixesToProcess)
+	blocks.forEach(processBlock)
+
+	// Strip any remaining WordPress block comments (for blocks that couldn't be processed)
+	content = content.replace(/<!--\s*\/?wp:[^>]*?-->/g, '')
+
+	return removeHtmlBlocks(content)
+}
+
+const classicContent = () => {
+	let cc
+
+	const editor = window.tinyMCE ? window.tinyMCE.get('content') : ''
+	if (document.querySelector('#wp-content-wrap.tmce-active') && editor) {
+		cc = editor.getContent({ format: isTinyMceEmpty(editor) ? 'html' : 'raw' })
+	} else {
+		// No tinyMCE. Let's see if there's a proper #content textarea.
+		const textEditor = document.querySelector('textarea#content')
+		cc = textEditor ? textEditor.value : ''
 	}
-
-	if (isPageBuilderEditor()) {
-		postContent = getEditorContent()
-	}
-
-	const postEditorStore = usePostEditorStore()
-	if (postEditorStore.currentPost.descriptionIncludeCustomFields) {
-		postContent = postContent + customFieldsContent()
-	}
-
-	// Replace base64 stuff, since we don't need it to analyze the content.
-	postContent = postContent.replace(base64regex, '')
-
-	if (postContent) {
-		tagsStore.updatePostContent(postContent)
-	}
-
-	return postContent
+	return cc
 }
 
 /**
- * Returns the edited post content.
+ * Returns the edited post content with full block processing for TruSEO analysis.
+ * This version uses getAllProcessedBlockContent with removeHtmlBlocks for analysis.
  *
+ * @since 5.0.0
  * @param   {boolean} ignoreCustomFields Whether to ignore custom fields.
- * @returns {string}                     Post content
+ * @returns {string}                     Post content with full block processing.
  */
-export const getPostEditedContent = (ignoreCustomFields = false) => {
+export const getPostEditedContentForAnalysis = (ignoreCustomFields = false) => {
 	let postContent = ''
 
 	if (isClassicEditor() && !isPageBuilderEditor()) {
@@ -202,7 +204,7 @@ export const getPostEditedContent = (ignoreCustomFields = false) => {
 	if (isBlockEditor()) {
 		postContent = window.wp.data.select('core/editor').getEditedPostContent()
 		postContent = getReusableBlockContent(postContent)
-		postContent = getProcessedBlockContent(postContent, blockPrefixesToProcess)
+		postContent = getAllProcessedBlockContent(postContent)
 	}
 
 	if (isPageBuilderEditor()) {
@@ -234,25 +236,17 @@ export const maybeUpdatePostContent = async (run = true) => {
 			return
 		}
 
-		(new TruSeo()).runAnalysis({
-			postId   : postEditorStore.currentPost.id,
-			postData : { ...postEditorStore.currentPost },
-			content  : getPostEditedContent(),
-			slug     : getPostEditedPermalink()
-		})
-	}
-}
+		try {
+			const truSeo = await getTruSeoInstance()
+			const results = await truSeo?.runAnalysis({
+				postId : postEditorStore.currentPost.id
+			})
 
-const classicContent = () => {
-	let cc
-
-	const editor = window.tinyMCE ? window.tinyMCE.get('content') : ''
-	if (document.querySelector('#wp-content-wrap.tmce-active') && editor) {
-		cc = editor.getContent({ format: isTinyMceEmpty(editor) ? 'html' : 'raw' })
-	} else {
-		// No tinyMCE. Let's see if there's a proper #content textarea.
-		const textEditor = document.querySelector('textarea#content')
-		cc = textEditor ? textEditor.value : ''
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
 	}
-	return cc
 }

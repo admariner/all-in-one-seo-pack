@@ -214,13 +214,7 @@ class BulkActions {
 	 * @return bool
 	 */
 	private function isTrashView() {
-		// Mirrors how WordPress core determines the trash view in WP_Posts_List_Table and WP_Media_List_Table.
-		// phpcs:disable HM.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Recommended
-		$postStatus       = sanitize_text_field( wp_unslash( $_REQUEST['post_status'] ?? '' ) );
-		$attachmentFilter = sanitize_text_field( wp_unslash( $_REQUEST['attachment-filter'] ?? '' ) );
-		// phpcs:enable HM.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Recommended
-
-		return 'trash' === $postStatus || 'trash' === $attachmentFilter;
+		return aioseo()->helpers->isTrashListView();
 	}
 
 	/**

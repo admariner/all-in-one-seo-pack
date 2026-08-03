@@ -10,8 +10,8 @@ import {
 	useSensitiveOptionsStore
 } from '@/vue/stores'
 
-import { getPostEditedContent } from '@/vue/plugins/tru-seo/components/postContent'
-import { getPostPermalink } from '@/vue/plugins/tru-seo/components/postPermalink'
+import { getPostEditedContent } from '@/vue/utils/postData/postContent'
+import { getPostPermalink } from '@/vue/utils/postData/postPermalink'
 
 export const useAiStore = defineStore('AiStore', {
 	state : () => ({

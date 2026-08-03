@@ -330,6 +330,7 @@ namespace AIOSEO\Plugin {
 			$this->thirdParty         = new Common\ThirdParty\ThirdParty();
 			$this->writingAssistant   = new Common\WritingAssistant\WritingAssistant();
 			$this->seoAlerts          = new Common\SeoAlerts\SeoAlerts();
+			$this->newsroom           = new Common\Newsroom\Newsroom();
 			$this->llms               = $this->pro ? new Pro\Llms\Llms() : new Common\Llms\Llms();
 			$this->abilities          = $this->pro ? new Pro\Abilities\Abilities() : new Common\Abilities\Abilities();
 			$this->redirects          = $this->pro ? new Pro\Redirects\Redirects() : null;

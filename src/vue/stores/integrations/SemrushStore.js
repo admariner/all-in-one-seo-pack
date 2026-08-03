@@ -12,6 +12,11 @@ import {
 
 const td = import.meta.env.VITE_TEXTDOMAIN
 
+// The refresh token is single-use and a failed refresh clears both tokens server-side,
+// so concurrent callers (the sidebar and metabox panels mount together) must share one
+// request instead of racing each other into a disconnect.
+let refreshRequest = null
+
 export const useSemrushStore = defineStore('SemrushStore', {
 	state : () => ({
 		results : [],
@@ -39,7 +44,7 @@ export const useSemrushStore = defineStore('SemrushStore', {
 			const postEditorStore = usePostEditorStore()
 			return http.post(links.restUrl('integration/semrush/keyphrases'))
 				.send({
-					keyphrase : postEditorStore.currentPost.keyphrases.focus.keyphrase,
+					keyphrase : postEditorStore.truseoData?.focusKeyword,
 					database
 				})
 				.then(response => {
@@ -70,6 +75,11 @@ export const useSemrushStore = defineStore('SemrushStore', {
 					const optionsStore = useOptionsStore()
 					optionsStore.updateOption('internalOptions', { groups: [ 'integrations' ], key: 'semrush', value: response.body.semrush }, { root: true })
 					optionsStore.internalOptions.integrations.semrush = response.body.semrush
+
+					// The server persisted both tokens, but the response omits the `has*` flags; mirror them so hasValidTokens updates without a page reload.
+					const sensitiveOptionsStore = useSensitiveOptionsStore()
+					sensitiveOptionsStore.hasSemrushAccessToken  = true
+					sensitiveOptionsStore.hasSemrushRefreshToken = true
 				})
 				.catch(error => {
 					if (!error?.response?.body?.message) {
@@ -81,16 +91,33 @@ export const useSemrushStore = defineStore('SemrushStore', {
 				})
 		},
 		refresh () {
-			return http.post(links.restUrl('integration/semrush/refresh'))
+			if (refreshRequest) {
+				return refreshRequest
+			}
+
+			const sensitiveOptionsStore = useSensitiveOptionsStore()
+			refreshRequest = http.post(links.restUrl('integration/semrush/refresh'))
 				.then(response => {
 					const optionsStore = useOptionsStore()
 					optionsStore.updateOption('internalOptions', { groups: [ 'integrations' ], key: 'semrush', value: response.body.semrush }, { root: true })
 					optionsStore.internalOptions.integrations.semrush = response.body.semrush
+
+					sensitiveOptionsStore.hasSemrushAccessToken  = true
+					sensitiveOptionsStore.hasSemrushRefreshToken = true
 				}).catch(_error => { // eslint-disable-line no-unused-vars
 					const optionsStore = useOptionsStore()
 					optionsStore.updateOption('internalOptions', { groups: [ 'integrations' ], key: 'semrush', value: '' }, { root: true })
 					optionsStore.internalOptions.integrations.semrush = ''
+
+					// A failed refresh clears the tokens server-side (reset()), so drop the flags too.
+					sensitiveOptionsStore.hasSemrushAccessToken  = false
+					sensitiveOptionsStore.hasSemrushRefreshToken = false
 				})
+				.finally(() => {
+					refreshRequest = null
+				})
+
+			return refreshRequest
 		}
 	}
 })

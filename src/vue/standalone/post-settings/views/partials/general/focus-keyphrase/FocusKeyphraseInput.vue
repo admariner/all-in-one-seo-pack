@@ -59,7 +59,7 @@ export default {
 		return {
 			strings : {
 				addKeyphrase                   : __('Add Focus Keyword', td),
-				getAdditionalKeyphrases        : __('Get Additional Keywords', td),
+				getAdditionalKeyphrases        : __('Discover Additional Keywords', td),
 				semrushGetAdditionalKeyphrases : sprintf(
 					// Translators: 1 - Plugin short name "AIOSEO", 2 - Semrush.
 					__('%1$s integrates directly with %2$s to provide you with actionable keywords to help you write better content.', td),
@@ -76,10 +76,7 @@ export default {
 		},
 		handleEnter (event) {
 			event.preventDefault()
-			const addButton = document.getElementById('add-focus-keyphrase')
-			if (addButton) {
-				addButton.click()
-			}
+			this.handleAddClick()
 		}
 	}
 }

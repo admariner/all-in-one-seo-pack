@@ -1,4 +1,4 @@
-import { registerBlock } from '../utils'
+import { registerBlock, useBlockProps } from '../utils'
 import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 
 import icon from './icon'
@@ -38,23 +38,24 @@ export const settings = {
 			categories : categories
 		}
 	})(function (props) {
+		const blockProps = useBlockProps()
 		const optionsStore      = useOptionsStore()
 		const multipleLocations = optionsStore.options.localBusiness?.locations.general.multiple
 		let { categories } = props
 
 		if (multipleLocations && null === categories) {
-			return <div>{ __('Loading...', td) }</div>
+			return <div {...blockProps}>{ __('Loading...', td) }</div>
 		}
 
 		categories = null === categories ? [] : categories
 
 		if (!multipleLocations) {
-			return <div>{ __('Please enable multiple locations before using this block.', td) }</div>
+			return <div {...blockProps}>{ __('Please enable multiple locations before using this block.', td) }</div>
 		}
 
 		if (0 === categories.length) {
 			const rootStore = useRootStore()
-			return <div>{ sprintf(
+			return <div {...blockProps}>{ sprintf(
 				// Translators: 1 - The plural label of the custom post type.
 				__('No %1$s found', td),
 				rootStore.aioseo.localBusiness.taxonomyPluralLabel
@@ -62,7 +63,7 @@ export const settings = {
 		}
 
 		return (
-			<div>
+			<div {...blockProps}>
 				<Disabled>
 					<ServerSideRender
 						block={name}

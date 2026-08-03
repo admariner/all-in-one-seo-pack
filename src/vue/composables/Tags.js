@@ -4,7 +4,7 @@ import {
 	useTagsStore
 } from '@/vue/stores'
 
-import { customFieldValue } from '@/vue/plugins/tru-seo/components/customFields'
+import { customFieldValue } from '@/vue/utils/postData/customFields'
 import { sanitizeString } from '@/vue/utils/strings'
 
 export const useTags = ({ separator: defaultSeparator }) => {

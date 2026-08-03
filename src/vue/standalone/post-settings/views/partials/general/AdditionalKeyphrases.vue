@@ -2,7 +2,7 @@
 	<div class="additional-keyphrases-panel">
 		<additional-keyphrases-display
 			v-if="hasLicense"
-			:keyphrases="postEditorStore.currentPost.keyphrases.additional"
+			:keyphrases="postEditorStore.truseoData?.additionalKeywords || []"
 			:selected-keyphrase="selectedKeyphrase"
 			:loading="postEditorStore.currentPost.loading.additional"
 			@saved="handleSaved"
@@ -31,7 +31,7 @@ import {
 	useRootStore
 } from '@/vue/stores'
 
-import TruSeo from '@/vue/plugins/tru-seo'
+import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
 
 import {
 	updateAdditionalKeyphrase,
@@ -49,7 +49,7 @@ export default {
 			licenseStore    : useLicenseStore(),
 			postEditorStore : usePostEditorStore(),
 			rootStore       : useRootStore(),
-			truSeo          : new TruSeo()
+			truSeo          : null
 		}
 	},
 	components : {
@@ -63,8 +63,8 @@ export default {
 		}
 	},
 	watch : {
-		'postEditorStore.currentPost.keyphrases.additional' () {
-			if (this.postEditorStore.currentPost.keyphrases.additional && !this.postEditorStore.currentPost.keyphrases.additional[this.selectedKeyphrase]) {
+		'postEditorStore.currentPost.additionalKeywords' () {
+			if (this.postEditorStore.truseoData?.additionalKeywords?.length && !this.postEditorStore.truseoData?.additionalKeywords[this.selectedKeyphrase]) {
 				this.selectedKeyphrase = 0
 			}
 		}
@@ -115,8 +115,15 @@ export default {
 			}
 		}
 	},
-	mounted () {
-		this.selectedKeyphrase = (this.postEditorStore.currentPost.keyphrases.additional?.length - 1) ?? 0
+	created () {
+		this.postEditorStore.truseoData?.additionalKeywords?.forEach((_keyphrase, index) => {
+			this.postEditorStore.currentPost.loading.additional[index] = false
+		})
+	},
+	async mounted () {
+		this.truSeo = await getTruSeoInstance()
+
+		this.selectedKeyphrase = (this.postEditorStore.truseoData?.additionalKeywords?.length - 1) ?? 0
 	}
 }
 </script>
@@ -133,13 +140,11 @@ export default {
 	}
 }
 
-.aioseo-row {
-	.aioseo-keyphrase-tag {
-		margin-bottom: 22px;
-	}
-}
-
 .additional-keyphrases-panel {
+	.aioseo-analysis-detail {
+		padding: 20px 0 !important;
+	}
+
 	.aioseo-tooltip {
 		margin-left: 0 !important;
 

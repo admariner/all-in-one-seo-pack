@@ -72,6 +72,15 @@ const handleClickOutside = (event) => {
 		return
 	}
 
+	// Removing a keyword unmounts its row, and the popper tears its teleported menu
+	// out of the body-level portal on the same click — so by the time this bubbled
+	// handler runs the clicked node is already detached and closest() sees nothing.
+	// A detached target is always our own UI reacting to this very click, never a
+	// genuine outside click, so treat it as inside.
+	if (!event.target.isConnected) {
+		return
+	}
+
 	// Don't close if clicking inside any AIOSEO element, popover, media modal, or the toggle button.
 	if (
 		event.target.closest('.aioseo-app') ||

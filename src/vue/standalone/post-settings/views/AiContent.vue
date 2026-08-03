@@ -1,30 +1,43 @@
 <template>
-	<div class="aioseo-ai-content-standalone aioseo-tab-content">
-		<core-blur v-if="aiStore.isFreeAndOutOfCredits">
-			<ai-content-main :parent-component-context="props.parentComponentContext" />
-		</core-blur>
-
-		<ai-content-main
-			v-else
-			:parent-component-context="props.parentComponentContext"
-		/>
-
-		<ai-content-cta v-if="aiStore.isFreeAndOutOfCredits" />
-	</div>
+	<component
+		:is="currentComponent"
+		:parentComponentContext="parentComponentContext"
+	/>
 </template>
 
-<script setup>
-import { useAiStore } from '@/vue/stores/AiStore'
+<script>
+import { computed, getCurrentInstance } from 'vue'
 
-import AiContentMain from './partials/ai-content/Main'
-import AiContentCta from './partials/ai-content/Cta'
-import CoreBlur from '@/vue/components/common/core/Blur'
+import SidebarAiContent from './sidebar/AiContent'
+import MetaboxAiContent from './metabox/AiContent'
 
-const props = defineProps({
-	parentComponentContext : String
-})
+export default {
+	setup (props) {
+		const screenContext = computed(() => {
+			return getCurrentInstance().root.data.screenContext
+		})
 
-const aiStore = useAiStore()
+		const currentComponent = computed(() => {
+			// Load metabox component if in metabox context OR if modal is opened
+			if ('metabox' === screenContext.value || 'modal' === props.parentComponentContext) {
+				return MetaboxAiContent
+			}
+
+			return SidebarAiContent
+		})
+
+		return {
+			currentComponent
+		}
+	},
+	components : {
+		SidebarAiContent,
+		MetaboxAiContent
+	},
+	props : {
+		parentComponentContext : String
+	}
+}
 </script>
 
 <style lang="scss">
@@ -43,12 +56,6 @@ const aiStore = useAiStore()
 		> .counter-container-wrapper {
 			justify-content: center;
 		}
-	}
-
-	.aioseo-ai-content-features {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-		gap: 16px;
 	}
 }
 </style>

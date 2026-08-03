@@ -6,6 +6,14 @@ export const getParams = url => {
 	}.bind({}))[0]
 }
 
+// Snapshot taken at module evaluation. Deep-link params such as `aioseo-scroll` are stripped
+// shortly after load, so late-mounting consumers can't read them off the live URL anymore.
+const initialParams = getParams()
+
+export const getInitialParams = () => {
+	return { ...initialParams }
+}
+
 export const removeParam = (param, url) => {
 	url = url || document.location.href
 	const hashParts = url.split('#')

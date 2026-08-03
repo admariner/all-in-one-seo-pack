@@ -33,9 +33,10 @@ export default {
 	},
 	data () {
 		return {
-			style   : {},
-			initial : false,
-			hidden  : false
+			style        : {},
+			initial      : false,
+			hidden       : false,
+			targetHeight : null
 		}
 	},
 	watch : {
@@ -77,17 +78,30 @@ export default {
 				// force relayout so the animation will run
 				this.__ = this.el.scrollHeight
 
+				this.targetHeight = afterRelayout()
+
 				this.style = {
-					height                : afterRelayout(),
+					height                : this.targetHeight,
 					overflow              : 'hidden',
 					'transition-property' : 'all',
 					'transition-duration' : this.duration + 'ms'
 				}
 			})
 		},
+		reachedTargetHeight () {
+			if (null === this.targetHeight) {
+				return true
+			}
+
+			return 1 > Math.abs(this.el.getBoundingClientRect().height - parseFloat(this.targetHeight))
+		},
 		onTransitionEnd (event) {
 			// Don't do anything if the transition doesn't belong to the container
-			if (event.target !== this.el) return
+			if (event.target !== this.el || 'height' !== event.propertyName) return
+
+			// Re-toggling mid-flight supersedes the running transition, but the browser still
+			// reports the old one's end. Settling on it would drop the height we just set.
+			if (!this.reachedTargetHeight()) return
 
 			if (this.active) {
 				this.style = {}

@@ -2,11 +2,11 @@
 	<div class="preview-wrapper">
 		<google-serp-wireframe
 			:device="device"
-			:search-text="rootStore.aioseo?.keyphrases?.focus?.keyphrase ?? ''"
+			:search-text="rootStore.truseoData?.focusKeyword ?? ''"
 		>
 		<template #serp-snippet>
 			<core-google-search-preview
-				:focus-keyphrase="rootStore.aioseo?.keyphrases?.focus?.keyphrase ?? ''"
+				:focus-keyphrase="rootStore.truseoData?.focusKeyword ?? ''"
 				:device="device"
 				:favicon="googleData.favicon"
 				:url="googleData.url"

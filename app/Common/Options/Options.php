@@ -71,6 +71,9 @@ class Options {
 			'truSeo'           => [ 'type' => 'boolean', 'default' => true ],
 			'headlineAnalyzer' => [ 'type' => 'boolean', 'default' => true ],
 			'seoAnalysis'      => [ 'type' => 'boolean', 'default' => true ],
+			'spellChecker'     => [ 'type' => 'boolean', 'default' => true ],
+			'highlighter'      => [ 'type' => 'boolean', 'default' => true ],
+			'highlighterStyle' => [ 'type' => 'string', 'default' => 'underline' ],
 			'dashboardWidgets' => [ 'type' => 'array', 'default' => [ 'seoSetup', 'seoChecklist', 'seoOverview', 'seoNews' ] ],
 			'announcements'    => [ 'type' => 'boolean', 'default' => true ],
 			'postTypes'        => [

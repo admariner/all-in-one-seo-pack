@@ -6,11 +6,12 @@ import loadPlugins from '@/vue/plugins'
 import loadComponents from '@/vue/components/common'
 import loadVersionedComponents from '@/vue/components/AIOSEO_VERSION'
 
-import { loadPiniaStores } from '@/vue/stores'
+import { loadPiniaStores, usePostEditorStore } from '@/vue/stores'
 
 import { elemLoaded } from '@/vue/utils/elemLoaded'
 import HeadLineAnalyzer from './registerHeadlineAnalyzer'
 import { HeadlineCurrentScore } from './assets/js/HeadlineCurrentScore'
+import { debounceContext } from './assets/js/initAnalyzerData'
 
 import App from './App'
 
@@ -20,10 +21,9 @@ import './assets/scss/main.scss'
 // Register Headline Analyzer Plugin
 HeadLineAnalyzer()
 
-const vueAppId        = '#aioseo-headline-analyzer-sidebar-vue'
-const headlineSidebar = 'aioseo-headline-analyzer-sidebar/aioseo-headline-analyzer-sidebar'
+const vueAppId = '#aioseo-headline-analyzer-sidebar-vue'
 
-let app, isPinBtnEventAttached = false
+let app
 const localCreateApp = () => {
 	if (app) {
 		app.unmount()
@@ -86,29 +86,27 @@ if (window.aioseo.currentPost) {
 
 const { select } = window.wp.data
 
-function attachEventListener (element) {
-	if (!isPinBtnEventAttached) {
-		element?.addEventListener('click', () => {
-			HeadlineCurrentScore()
-		})
-
-		isPinBtnEventAttached = true
-	}
-}
-
+// Re-run the analysis when the post title changes so the Content Analysis card
+// stays current even when the Headline Analyzer sidebar is never opened.
+const headlineState = { last: select('core/editor').getEditedPostAttribute('title') }
 window.wp.data.subscribe(() => {
-	const activeSidebarName = select('core/edit-post').getActiveGeneralSidebarName()
+	const headline = select('core/editor').getEditedPostAttribute('title')
+	if (headlineState.last === headline) {
+		return
+	}
 
-	if (activeSidebarName) {
-		const sidebarParent = document.querySelector('.interface-interface-skeleton__sidebar')
+	headlineState.last = headline
 
-		if (headlineSidebar !== activeSidebarName) {
-			// Unmount when opening other sidebars.
-			if (window.aioseo.headlineAnalyzerSidebarApp) {
-				window.aioseo.headlineAnalyzerSidebarApp.unmount()
-			}
+	debounceContext(() => {
+		const postEditorStore = usePostEditorStore()
+		if (postEditorStore.currentPost?.headlineAnalyzer?.newData) {
+			postEditorStore.toggleShowNewHeadlineAnalyzerPreview(false)
 		}
 
-		attachEventListener(sidebarParent)
-	}
+		if (postEditorStore.currentPost?.headlineAnalyzer?.showNewData) {
+			postEditorStore.toggleShowNewHeadlineAnalyzerData(false)
+		}
+
+		HeadlineCurrentScore()
+	}, 2000)
 })

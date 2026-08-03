@@ -180,6 +180,13 @@ export default {
 			}
 		},
 		doShow () {
+			// The v-show binding alone isn't enough: once the popper is moved into the
+			// body-level portal it stops being re-patched, so a disabled popper would
+			// still be shown by a trigger. Refuse to open it here instead.
+			if (this.disabled) {
+				return
+			}
+
 			this.showPopper = true
 		},
 		doClose () {
@@ -195,8 +202,24 @@ export default {
 			}
 			if (this.appendedToBody) {
 				this.appendedToBody = false
-				document.body.removeChild(this.popper.parentElement)
+				const el = this.popper.parentElement
+				if (el && el.parentNode) {
+					el.parentNode.removeChild(el)
+				}
 			}
+		},
+		getPopperPortal () {
+			// Body-level portal that keeps the AIOSEO style scope (`.aioseo-app`),
+			// so appended poppers escape ancestor stacking contexts without losing
+			// their styling.
+			let portal = document.getElementById('aioseo-popper-portal')
+			if (!portal) {
+				portal = document.createElement('div')
+				portal.id = 'aioseo-popper-portal'
+				portal.className = 'aioseo-app'
+				document.body.appendChild(portal)
+			}
+			return portal
 		},
 		createPopper () {
 			this.$nextTick(() => {
@@ -205,7 +228,7 @@ export default {
 				}
 				if (this.appendToBody && !this.appendedToBody) {
 					this.appendedToBody = true
-					document.body.appendChild(this.popper.parentElement)
+					this.getPopperPortal().appendChild(this.popper.parentElement)
 				}
 				if (this.popperJS && this.popperJS.destroy) {
 					this.popperJS.destroy()

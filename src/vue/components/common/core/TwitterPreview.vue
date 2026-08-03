@@ -245,6 +245,10 @@ export default {
 					gap: 2px;
 					justify-content: center;
 					padding: 12px;
+					// In summary mode this sits in a flex row beside the image; without
+					// this it won't shrink below the no-wrap domain's width, so a long
+					// domain overflows the card instead of ellipsizing.
+					min-width: 0;
 
 					.site-domain,
 					.site-title,

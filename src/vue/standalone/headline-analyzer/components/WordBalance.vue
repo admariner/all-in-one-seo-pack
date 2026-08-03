@@ -3,18 +3,18 @@
 		:title="title"
 		:componentClass="'aioseo-headline-analyzer-panel-word-balance'"
 		:hasIcon="true"
-		:iconColor="classOnScore"
+		:iconColor="wordBalance.verdictClass"
 	>
 		<div class="aioseo-headline-analyzer-words-block">
-			<h4>{{ scoreStatus }}</h4>
+			<h4 :class="wordBalance.verdictClass">{{ wordBalance.verdict }}</h4>
 			<p>{{ textGuideline }}</p>
 		</div>
 		<words-block
 			:title="textCommonWords"
 			:value="currentResult?.result?.commonWordsPercentage ? Math.round(currentResult.result.commonWordsPercentage * 100) : 0"
 			:goalValue="textTwentyThirty"
-			:classOnScore="classOnCommonWords"
-			:classOnScoreBg="classOnCommonWordsBg"
+			:classOnScore="wordBalance.classes.common"
+			:classOnScoreBg="`${wordBalance.classes.common}-bg`"
 			:words="currentResult?.result?.commonWords ? currentResult.result.commonWords : []"
 			:guideLine="guideLineOnCommonWords"
 		/>
@@ -22,8 +22,8 @@
 			:title="textUnCommonWords"
 			:value="currentResult?.result?.uncommonWordsPercentage ? Math.round(currentResult.result.uncommonWordsPercentage * 100) : 0"
 			:goalValue="textTenTwenty"
-			:classOnScore="classOnUnCommonWords"
-			:classOnScoreBg="classOnUnCommonWordsBg"
+			:classOnScore="wordBalance.classes.uncommon"
+			:classOnScoreBg="`${wordBalance.classes.uncommon}-bg`"
 			:words="currentResult?.result?.uncommonWords ? currentResult.result.uncommonWords : []"
 			:guideLine="guideLineOnUnCommonWords"
 		/>
@@ -31,8 +31,8 @@
 			:title="textEmotionalWords"
 			:value="currentResult?.result?.emotionalWordsPercentage ? Math.round(currentResult.result.emotionalWordsPercentage * 100) : 0"
 			:goalValue="textTenFifteen"
-			:classOnScore="classOnEmotionalWords"
-			:classOnScoreBg="classOnEmotionalWordsBg"
+			:classOnScore="wordBalance.classes.emotional"
+			:classOnScoreBg="`${wordBalance.classes.emotional}-bg`"
 			:words="currentResult?.result?.emotionWords ? currentResult.result.emotionWords : []"
 			:guideLine="guideLineOnEmotionalWords"
 		/>
@@ -40,15 +40,15 @@
 			:title="textPowerWords"
 			:value="currentResult?.result?.powerWordsPercentage ? Math.round(currentResult.result.powerWordsPercentage * 100) : 0"
 			:goalValue="textLeastOne"
-			:classOnScore="classOnPowerWords"
-			:classOnScoreBg="classOnPowerWordsBg"
+			:classOnScore="wordBalance.classes.power"
+			:classOnScoreBg="`${wordBalance.classes.power}-bg`"
 			:words="currentResult?.result?.powerWords ? currentResult.result.powerWords : []"
 			:guideLine="guideLineOnPowerWords"
 		/>
 
 		<!-- Icons Slot -->
 		<template v-slot:icon>
-			<template v-if="'green' == classOnScore">
+			<template v-if="'green' == wordBalance.verdictClass">
 				<svg
 					width="20"
 					height="20"
@@ -93,6 +93,7 @@
 import Accordion from './partials/Accordion'
 import WordsBlock from './partials/WordsBlock'
 import { usePostEditorStore } from '@/vue/stores'
+import { getHeadlineWordBalance } from '@/vue/composables/HeadlineAnalyzer'
 
 import { __ } from '@/vue/plugins/translations'
 
@@ -126,93 +127,24 @@ export default {
 			const currentResult = this.postEditorStore.currentPost.headlineAnalyzer?.data[Object.keys(this.postEditorStore.currentPost.headlineAnalyzer.data)?.[0]] || null
 			return currentResult ? JSON.parse(currentResult) : {}
 		},
-		currentScore () {
-			return this.currentResult?.score ? this.currentResult.score : 0
-		},
-		classOnScore () {
-			return 40 > this.currentScore ? 'red' : 70 > this.currentScore ? 'orange' : 'green'
-		},
-		classOnCommonWords () {
-			return 0 === this.currentResult.result?.commonWordsPercentage
-				? 'red'
-				: 0.2 > this.currentResult.result?.commonWordsPercentage
-					? 'orange'
-					: 'green'
-		},
-		classOnCommonWordsBg () {
-			return 0 === this.currentResult.result?.commonWordsPercentage
-				? 'red-bg'
-				: 0.2 > this.currentResult.result?.commonWordsPercentage
-					? 'orange-bg'
-					: 'green-bg'
+		wordBalance () {
+			return getHeadlineWordBalance(this.currentResult?.result || {})
 		},
 		guideLineOnCommonWords () {
 			return 0.2 > this.currentResult.result?.commonWordsPercentage
 				? __('Your headline would be more likely to get clicks if it had more common words.', td)
 				: __('Headlines with 20-30% common words are more likely to get clicks.', td)
 		},
-		classOnUnCommonWords () {
-			return 0 === this.currentResult.result?.uncommonWordsPercentage
-				? 'red'
-				: 0.1 > this.currentResult.result?.uncommonWordsPercentage
-					? 'orange'
-					: 'green'
-		},
-		classOnUnCommonWordsBg () {
-			return 0 === this.currentResult.result?.uncommonWordsPercentage
-				? 'red-bg'
-				: 0.1 > this.currentResult.result?.uncommonWordsPercentage
-					? 'orange-bg'
-					: 'green-bg'
-		},
 		guideLineOnUnCommonWords () {
 			return 0.1 > this.currentResult.result?.uncommonWordsPercentage
 				? __('Your headline would be more likely to get clicks if it had more uncommon words.', td)
 				: __('Headlines with uncommon words are more likely to get clicks.', td)
 		},
-		classOnEmotionalWords () {
-			return 0 === this.currentResult.result?.emotionalWordsPercentage
-				? 'red'
-				: 0.1 > this.currentResult.result?.emotionalWordsPercentage
-					? 'orange'
-					: 'green'
-		},
-		classOnEmotionalWordsBg () {
-			return 0 === this.currentResult.result?.emotionalWordsPercentage
-				? 'red-bg'
-				: 0.1 > this.currentResult.result?.emotionalWordsPercentage
-					? 'orange-bg'
-					: 'green-bg'
-		},
 		guideLineOnEmotionalWords () {
 			return __('Emotionally triggered headlines are likely to drive more clicks.', td)
 		},
-		classOnPowerWords () {
-			return 0 === this.currentResult.result?.powerWords.length ? 'orange' : 'green'
-		},
-		classOnPowerWordsBg () {
-			return 0 === this.currentResult.result?.powerWords.length ? 'orange' : 'green-bg'
-		},
 		guideLineOnPowerWords () {
 			return __('Headlines with power words are more likely to get clicks.', td)
-		},
-		scoreStatus () {
-			if (25 > this.currentScore) {
-				return __('Not Looking Great', td)
-			}
-			if (50 > this.currentScore) {
-				return __('Could Be Better', td)
-			}
-			if (60 > this.currentScore) {
-				return __('Getting There', td)
-			}
-			if (75 > this.currentScore) {
-				return __('Looks Good! 👍👍', td)
-			}
-			if (75 <= this.currentScore) {
-				return __('Super! 🔥🔥🔥', td)
-			}
-			return false
 		}
 	}
 }

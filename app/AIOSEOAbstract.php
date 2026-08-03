@@ -636,6 +636,15 @@ abstract class AIOSEOAbstract {
 	public $seoAlerts = null;
 
 	/**
+	 * Newsroom class instance.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @var \AIOSEO\Plugin\Common\Newsroom\Newsroom
+	 */
+	public $newsroom = null;
+
+	/**
 	 * Llms class instance.
 	 *
 	 * @since 4.8.4

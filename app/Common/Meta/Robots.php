@@ -287,10 +287,19 @@ class Robots {
 				$this->attributes['noindex'] = 'noindex';
 			}
 
-			if ( ! isset( $options->advanced->robotsMeta ) ) {
+			// Probe with has() rather than a chained isset(): the latter runs both __isset()
+			// and __get(), each pushing the sub-group, so the traversal lands on
+			// `advanced.advanced` and the object's own robots meta is never found.
+			$hasRobotsMeta = $options->has( 'advanced', false );
+			if ( $hasRobotsMeta ) {
+				$options       = $options->advanced;
+				$hasRobotsMeta = $options->has( 'robotsMeta', false );
+			}
+
+			if ( ! $hasRobotsMeta ) {
 				$robotsMeta = aioseo()->options->searchAppearance->advanced->globalRobotsMeta->all();
 			} else {
-				$robotsMeta = $options->advanced->robotsMeta->all();
+				$robotsMeta = $options->robotsMeta->all();
 				if ( $robotsMeta['default'] ) {
 					$robotsMeta = aioseo()->options->searchAppearance->advanced->globalRobotsMeta->all();
 				}

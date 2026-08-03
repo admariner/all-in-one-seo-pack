@@ -14,6 +14,13 @@
 				{{ strings.description }}
 			</p>
 
+			<core-alert
+				v-if="!truSeoEnabled"
+				type="yellow"
+			>
+				{{ strings.truSeoDisabledNotice }}
+			</core-alert>
+
 			<div class="aioseo-overview-selector">
 				<strong>{{ strings.choosePostType }}</strong>
 
@@ -88,6 +95,7 @@
 <script>
 import links from '@/vue/utils/links'
 import {
+	useOptionsStore,
 	useRootStore,
 	useSettingsStore
 } from '@/vue/stores'
@@ -104,6 +112,7 @@ const td = import.meta.env.VITE_TEXTDOMAIN
 export default {
 	setup () {
 		return {
+			optionsStore  : useOptionsStore(),
 			rootStore     : useRootStore(),
 			settingsStore : useSettingsStore()
 		}
@@ -143,9 +152,10 @@ export default {
 					// Translators: 1 - The upgrade call to action.
 					__('Get additional keywords and many more modules! %1$s', td), links.getUpsellLink('dashboard', 'seo-overview', __('Upgrade to Pro Today!', td), 'liteUpgrade', true)
 				),
-				invalidTitle       : __('It looks like you haven\'t selected any post types yet!', td),
-				invalidDescription : __('TruSEO scoring can imrove your search engine rankings. To see TruSEO scores for your published posts, enable at least one post type by turning on "Show in Search Results" in the Search Appearance settings.', td),
-				invalidButton      : __('Enable Post Types', td)
+				invalidTitle         : __('It looks like you haven\'t selected any post types yet!', td),
+				invalidDescription   : __('TruSEO scoring can imrove your search engine rankings. To see TruSEO scores for your published posts, enable at least one post type by turning on "Show in Search Results" in the Search Appearance settings.', td),
+				invalidButton        : __('Enable Post Types', td),
+				truSeoDisabledNotice : __('TruSEO analysis is currently disabled, so these scores won\'t update. Enable TruSEO in your AIOSEO settings to start scoring your published content.', td)
 			},
 			postTypeInitial : true,
 			postType        : {},
@@ -184,6 +194,9 @@ export default {
 		}
 	},
 	computed : {
+		truSeoEnabled () {
+			return !!this.optionsStore.options?.advanced?.truSeo
+		},
 		postTypes () {
 			const postTypes = []
 			this.rootStore.aioseo.postData.postTypes.forEach(postType => {
@@ -213,7 +226,8 @@ export default {
 			parts.forEach((part, index) => {
 				parts[index].count = this.rootStore.aioseo.seoOverview[this.postType.value][part.slug]
 				parts[index].ratio = 0 === index ? 100 : (part.count / this.totalPosts) * 100
-				parts[index].link  = `${this.rootStore.aioseo.urls.editScreen}?post_status=publish&post_type=${this.postType.value}&aioseo-filter=${part.slug}`
+				// When TruSEO is disabled the score filters can't be populated, so render the legend as plain text.
+				parts[index].link  = this.truSeoEnabled ? `${this.rootStore.aioseo.urls.editScreen}?post_status=publish&post_type=${this.postType.value}&aioseo-filter=${part.slug}` : ''
 			})
 
 			parts.filter(part => 0 !== part.count)
@@ -245,18 +259,21 @@ export default {
 				return ''
 			}
 
-			const link = `${this.rootStore.aioseo.urls.editScreen}?post_status=publish&post_type=${this.postType.value}&aioseo-filter=withoutFocusKeyword`
+			const link     = `${this.rootStore.aioseo.urls.editScreen}?post_status=publish&post_type=${this.postType.value}&aioseo-filter=withoutFocusKeyword`
+			// Only link the filter when TruSEO is enabled; otherwise the filtered list can't be produced.
+			const openTag  = this.truSeoEnabled ? '<a href="' + link + '" rel="noopener noreferrer">' : ''
+			const closeTag = this.truSeoEnabled ? '</a>' : ''
 
 			return sprintf(
 				// Translators: 1 - HTML opening link tag, 2 - The number of posts (e.g. "1 post", "2 posts"), 3 - HTML closing link tag.
 				__('You have %1$s%2$s without a Focus Keyword%3$s. Adding one can help you optimize your content for your target keyword.', td),
-				'<a href="' + link + '" rel="noopener noreferrer">',
+				openTag,
 				sprintf(
 					// Translators: 1 - The number of posts (e.g. "1 post", "2 posts").
 					_n('%1$d post', '%1$d posts', withoutFocusKeyword, td),
 					withoutFocusKeyword
 				),
-				'</a>'
+				closeTag
 			)
 		}
 	},

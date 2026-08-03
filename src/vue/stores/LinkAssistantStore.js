@@ -96,7 +96,7 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 				})
 				.then(response => {
 					if (!linksReport && !postReport) {
-						if (response.body) {
+						if (response.body?.links) {
 							const postEditorStore           = usePostEditorStore()
 							const currentPost               = postEditorStore.currentPost
 							currentPost.linkAssistant.links = response.body.links
@@ -128,7 +128,7 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 				})
 				.then(response => {
 					if (!linksReport && !postReport) {
-						if (response.body) {
+						if (response.body?.links) {
 							const postEditorStore           = usePostEditorStore()
 							const currentPost               = postEditorStore.currentPost
 							currentPost.linkAssistant.links = response.body.links
@@ -178,7 +178,7 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 				})
 				.then(response => {
 					if (!linksReport && !postReport) {
-						if (response.body) {
+						if (response.body?.links) {
 							const currentPost               = postEditorStore.currentPost
 							currentPost.linkAssistant.links = response.body.links
 
@@ -192,7 +192,7 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 					}
 
 					if (linksReport) {
-						if (postIndex || 0 === postIndex) {
+						if (response.body?.links && (postIndex || 0 === postIndex)) {
 							this.linksReport.rows[postIndex].links = response.body.links
 						}
 
@@ -212,7 +212,7 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 				})
 				.then(response => {
 					if (!linksReport && !postReport) {
-						if (response.body) {
+						if (response.body?.links) {
 							const postEditorStore           = usePostEditorStore()
 							const currentPost               = postEditorStore.currentPost
 							currentPost.linkAssistant.links = response.body.links
@@ -255,8 +255,12 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 					additionalFilters
 				})
 				.then(response => {
-					if (additionalFilters?.postIndex) {
-						this.linksReport.rows[additionalFilters.postIndex].links = response.body.links
+					const postIndex = additionalFilters?.postIndex
+					if (response.body?.links && (postIndex || 0 === postIndex)) {
+						this.linksReport.rows[postIndex].links = response.body.links
+
+						// The tab labels read from the counts, so they have to follow the row we just refreshed.
+						this.setLinksReportCounts()
 					}
 
 					this.getOverviewData()
@@ -396,7 +400,7 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 					postContent : postContent
 				})
 				.then(response => {
-					if (response.body) {
+					if (response.body?.links) {
 						const currentPost               = postEditorStore.currentPost
 						currentPost.linkAssistant.links = response.body.links
 

@@ -12,13 +12,14 @@ import {
  *
  * @since 4.2.1
  *
- * @param {string} html    The HTML string.
- * @param {string} element The wrapper element.
- * @returns {Element}      The element.
+ * @param {string}  html    The HTML string.
+ * @param {string}  element The wrapper element.
+ * @param {boolean} trim    Whether to trim the HTML before parsing it.
+ * @returns {Element}       The element.
  */
-export const createElement = (html, element = 'div') => {
+export const createElement = (html, element = 'div', trim = true) => {
 	const div = document.createElement(element)
-	div.innerHTML = softSanitizeHtml(html.trim())
+	div.innerHTML = softSanitizeHtml(trim ? html.trim() : html)
 	return div
 }
 
@@ -51,11 +52,13 @@ export const getText = (html, removeBreaks = true, prop = 'textContent') => {
  * @since 4.4.6
  *
  * @param   {string|HTMLElement} html The string or node to retrieve the `outerText` property from.
+ * @param   {boolean}            trim Whether to trim the HTML before parsing it. Pass false when the
+ *                                    result's character offsets have to line up with the source HTML.
  * @returns {string}                  The text.
  */
-export const getOuterText = (html) => {
+export const getOuterText = (html, trim = true) => {
 	if ('string' === typeof html) {
-		html = createElement(html)
+		html = createElement(html, 'div', trim)
 	}
 
 	return html?.outerText ?? ''

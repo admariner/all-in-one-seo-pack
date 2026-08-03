@@ -1,12 +1,8 @@
 import { http, restUrl } from './functions'
 import { sanitizeString } from '@/vue/utils/strings'
-import { HeadlineCurrentScore } from './HeadlineCurrentScore'
-import {
-	usePostEditorStore
-} from '@/vue/stores'
-const { select } = window.wp.data
+import { getPostEditedTitle } from '@/vue/utils/postData/postTitle'
 
-let timeout, postTitle = select('core/editor').getEditedPostAttribute('title')
+let timeout
 export const debounceContext = (fn, time) => {
 	return ((...args) => {
 		const functionCall = () => fn(...args)
@@ -18,13 +14,10 @@ export const debounceContext = (fn, time) => {
 
 // Fetch data from the API.
 export const fetchData = async (newHeadline = null) => {
-	let headline = postTitle
-	if (newHeadline) {
-		headline = newHeadline
-	}
+	let headline = newHeadline || getPostEditedTitle()
 
 	// Trim headline from whitespaces.
-	headline = sanitizeString(headline.trim())
+	headline = sanitizeString((headline || '').trim())
 
 	if (!headline) {
 		return null
@@ -45,23 +38,3 @@ export const fetchData = async (newHeadline = null) => {
 			return { error: error.response.body?.message }
 		})
 }
-
-// Fetch new results after the title was changed.
-window.wp.data.subscribe(() => {
-	// If the title is the same, abort.
-	if (postTitle === select('core/editor').getEditedPostAttribute('title')) {
-		return
-	}
-	postTitle = select('core/editor').getEditedPostAttribute('title')
-
-	debounceContext(() => {
-		const postEditorStore = usePostEditorStore()
-		if (postEditorStore.currentPost?.headlineAnalyzer?.newData) {
-			postEditorStore.toggleShowNewHeadlineAnalyzerPreview(false)
-		}
-		if (postEditorStore.currentPost?.headlineAnalyzer?.showNewData) {
-			postEditorStore.toggleShowNewHeadlineAnalyzerData(false)
-		}
-		HeadlineCurrentScore(true)
-	}, 2000)
-})

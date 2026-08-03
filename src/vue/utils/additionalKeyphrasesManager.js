@@ -1,3 +1,6 @@
+import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
+import { keyphraseExists } from '@/vue/utils/keyphraseUtils'
+
 /**
  * Gets keyphrase panel elements.
  *
@@ -5,6 +8,21 @@
  */
 const getKeyphrasePanels = () => {
 	return document.getElementsByClassName('keyphrase-name')
+}
+
+/**
+ * Ensures the additional keyphrases arrays are initialized.
+ *
+ * @param {Object} postEditorStore Post editor Pinia store instance.
+ * @returns {void}
+ */
+const ensureAdditionalArrays = (postEditorStore) => {
+	if (!postEditorStore.currentPost.keyphrases.additional) {
+		postEditorStore.currentPost.keyphrases.additional = []
+	}
+	if (!postEditorStore.currentPost.additional_keywords) {
+		postEditorStore.currentPost.additional_keywords = []
+	}
 }
 
 /**
@@ -16,12 +34,9 @@ const getKeyphrasePanels = () => {
  * @returns {boolean}                      True if keyphrase exists, false otherwise.
  */
 export const hasAdditionalKeyphrase = ({ postEditorStore, keyphrase }) => {
-	const { additional } = postEditorStore.currentPost.keyphrases
-	if (!additional || !Array.isArray(additional)) {
-		return false
-	}
+	const additional = postEditorStore.truseoData?.additionalKeywords
 
-	return 0 < additional.filter(k => k.keyphrase.toLowerCase() === keyphrase.toLowerCase()).length
+	return additional ? additional.filter(k => k.word.toLowerCase() === keyphrase).length : 0
 }
 
 /**
@@ -33,12 +48,9 @@ export const hasAdditionalKeyphrase = ({ postEditorStore, keyphrase }) => {
  * @returns {Object|undefined}             Keyphrase object or undefined if not found.
  */
 export const getAdditionalKeyphrase = ({ postEditorStore, keyphrase }) => {
-	const { additional } = postEditorStore.currentPost.keyphrases
-	if (!additional || !Array.isArray(additional)) {
-		return undefined
-	}
+	const additional = postEditorStore.truseoData?.additionalKeywords
 
-	return additional.find(k => k.keyphrase.toLowerCase() === keyphrase.toLowerCase())
+	return additional ? additional.find(k => k.word.toLowerCase() === keyphrase) : null
 }
 
 /**
@@ -46,26 +58,43 @@ export const getAdditionalKeyphrase = ({ postEditorStore, keyphrase }) => {
  *
  * @param {Object}   options                 Options object.
  * @param {Object}   options.postEditorStore Post editor Pinia store instance.
- * @param {Object}   options.truSeo          TruSEO instance for running analysis.
+ * @param {Object}   options.truSeo          TruSEO instance.
  * @param {number}   options.index           Index of the keyphrase to update.
  * @param {string}   options.value           New keyphrase value.
  * @param {Function} options.onSuccess       Callback when keyphrase is updated successfully.
  * @returns {void}
  */
 export const updateAdditionalKeyphrase = ({ postEditorStore, truSeo, index, value, onSuccess }) => {
-	if (!postEditorStore.currentPost.keyphrases.additional[index]) {
+	if (keyphraseExists(postEditorStore, value, { excludeAdditionalIndex: index })) {
 		return
 	}
 
-	postEditorStore.currentPost.keyphrases.additional[index].keyphrase = value
-	postEditorStore.currentPost.keyphrases.additional[index].score     = 0
-	postEditorStore.currentPost.loading.additional[index]              = true
-	postEditorStore.isDirty                                            = true
+	postEditorStore.currentPost.additional_keywords[index].word = value
+	postEditorStore.currentPost.additional_keywords[index].score = 0
 
-	truSeo.runAnalysis({
-		postId   : postEditorStore.currentPost.id,
-		postData : postEditorStore.currentPost
-	})
+	// Keep the old keyphrase for backward compatibility
+	if (postEditorStore.currentPost.keyphrases?.additional?.[index]) {
+		postEditorStore.currentPost.keyphrases.additional[index].keyphrase = value
+		postEditorStore.currentPost.keyphrases.additional[index].score = 0
+	}
+
+	postEditorStore.currentPost.loading.additional[index] = true
+
+	postEditorStore.isDirty = true
+
+	setTimeout(async () => {
+		try {
+			const results = await truSeo?.runAnalysis({
+				postId : postEditorStore.currentPost.id
+			})
+
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
+	}, 300)
 
 	if (onSuccess) {
 		onSuccess(index)
@@ -77,29 +106,38 @@ export const updateAdditionalKeyphrase = ({ postEditorStore, truSeo, index, valu
  *
  * @param {Object}   options                 Options object.
  * @param {Object}   options.postEditorStore Post editor Pinia store instance.
- * @param {Object}   options.truSeo          TruSEO instance for running analysis.
+ * @param {Object}   options.truSeo          TruSEO instance.
  * @param {number}   options.index           Index of the keyphrase to delete.
  * @param {Function} options.onSuccess       Callback when keyphrase is deleted successfully.
  * @returns {void}
  */
 export const deleteAdditionalKeyphraseByIndex = ({ postEditorStore, truSeo, index, onSuccess }) => {
-	const additionalCopy = [ ...postEditorStore.currentPost.keyphrases.additional ]
+	const additionalCopy = [ ...postEditorStore.currentPost.additional_keywords ]
 	additionalCopy.splice(index, 1)
-	postEditorStore.currentPost.keyphrases.additional = []
+	postEditorStore.currentPost.additional_keywords = additionalCopy
+	// Keep the old keyphrase for backward compatibility
+	const additionalCopyOld = [ ...postEditorStore.currentPost.keyphrases.additional ]
+	additionalCopyOld.splice(index, 1)
+	postEditorStore.currentPost.keyphrases.additional = additionalCopyOld
+	postEditorStore.isDirty = true
 
-	setTimeout(() => {
-		postEditorStore.currentPost.keyphrases.additional = additionalCopy
-		postEditorStore.isDirty                           = true
+	setTimeout(async () => {
+		try {
+			const results = await truSeo?.runAnalysis({
+				postId : postEditorStore.currentPost.id
+			})
 
-		truSeo.runAnalysis({
-			postId   : postEditorStore.currentPost.id,
-			postData : postEditorStore.currentPost
-		})
-
-		if (onSuccess) {
-			onSuccess()
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
 		}
 	}, 300)
+
+	if (onSuccess) {
+		onSuccess()
+	}
 }
 
 /**
@@ -107,7 +145,7 @@ export const deleteAdditionalKeyphraseByIndex = ({ postEditorStore, truSeo, inde
  *
  * @param {Object}   options                 Options object.
  * @param {Object}   options.postEditorStore Post editor Pinia store instance.
- * @param {Object}   options.truSeo          TruSEO instance for running analysis.
+ * @param {Object}   options.truSeo          TruSEO instance.
  * @param {string}   options.screenContext   Screen context for finding the input.
  * @param {Function} options.onSuccess       Callback when keyphrase is added. Receives index.
  * @returns {number|null}                    Index of added keyphrase or null if failed.
@@ -121,42 +159,56 @@ export const addAdditionalKeyphraseFromInput = ({ postEditorStore, truSeo, scree
 	}
 
 	const keyphraseInputComponent = document.getElementsByClassName(`add-keyphrase-${screenContext}-input`)
-	if (!keyphraseInputComponent || !keyphraseInputComponent[0]) {
-		return null
+	const keyphraseInput          = keyphraseInputComponent[0].querySelector('.medium')
+	const keyphraseInputValue     = keyphraseInput?.value.trim()
+	let actualIndex = null
+
+	if (keyphraseInputValue) {
+		if (keyphraseExists(postEditorStore, keyphraseInputValue)) {
+			return null
+		}
+
+		ensureAdditionalArrays(postEditorStore)
+
+		// Keep the old keyphrase for backward compatibility
+		postEditorStore.currentPost.keyphrases.additional.push({
+			keyphrase : keyphraseInputValue,
+			score     : 0
+		})
+		const newKeyphraseIndex = postEditorStore.currentPost.additional_keywords.push({
+			word  : keyphraseInputValue,
+			score : 0
+		})
+		actualIndex    = newKeyphraseIndex - 1
+		const keyphrasePanel = document.getElementsByClassName('keyphrase-name')
+
+		postEditorStore.currentPost.loading.additional[actualIndex] = true
+		keyphraseInput.value = ''
+		keyphraseInput.blur()
+
+		postEditorStore.isDirty = true
+		keyphrasePanel[newKeyphraseIndex]?.click()
+
+		setTimeout(async () => {
+			try {
+				const results = await truSeo?.runAnalysis({
+					postId : postEditorStore.currentPost.id
+				})
+
+				if (results) {
+					updateStoreWithResults(results)
+				}
+			} catch (error) {
+				console.error('TruSEO analysis failed:', error)
+			}
+		}, 300)
 	}
 
-	const keyphraseInput      = keyphraseInputComponent[0].querySelector('.medium')
-	const keyphraseInputValue = keyphraseInput?.value.trim()
-
-	if (!keyphraseInputValue) {
-		return null
-	}
-
-	const newKeyphrase      = { keyphrase: keyphraseInputValue, score: 0 }
-	const newKeyphraseIndex = postEditorStore.currentPost.keyphrases.additional.push(newKeyphrase)
-	const keyphrasePanel    = getKeyphrasePanels()
-
-	postEditorStore.currentPost.loading.additional[0] = true
-	keyphraseInput.value = ''
-	keyphraseInput.blur()
-
-	postEditorStore.isDirty = true
-
-	if (keyphrasePanel[newKeyphraseIndex]) {
-		keyphrasePanel[newKeyphraseIndex].click()
-	}
-
-	truSeo.runAnalysis({
-		postId   : postEditorStore.currentPost.id,
-		postData : postEditorStore.currentPost
-	})
-
-	const index = newKeyphraseIndex - 1
 	if (onSuccess) {
-		onSuccess(index)
+		onSuccess(actualIndex)
 	}
 
-	return index
+	return actualIndex
 }
 
 /**
@@ -164,7 +216,7 @@ export const addAdditionalKeyphraseFromInput = ({ postEditorStore, truSeo, scree
  *
  * @param {Object}   options                    Options object.
  * @param {Object}   options.postEditorStore    Post editor Pinia store instance.
- * @param {Object}   options.truSeo             TruSEO instance for running analysis.
+ * @param {Object}   options.truSeo             TruSEO instance.
  * @param {string}   options.keyphrase          Keyphrase to add.
  * @param {Function} options.onStart            Callback when adding starts.
  * @param {Function} options.onSuccess          Callback when keyphrase is added. Receives keyphraseIndex.
@@ -183,9 +235,15 @@ export const addAdditionalKeyphrase = async ({ postEditorStore, truSeo, keyphras
 		return null
 	}
 
+	if (keyphraseExists(postEditorStore, keyphrase)) {
+		return null
+	}
+
 	if (onStart) {
 		onStart()
 	}
+
+	ensureAdditionalArrays(postEditorStore)
 
 	const { additional } = postEditorStore.currentPost.keyphrases
 	const keyphraseIndex = additional.push({ keyphrase, score: 0 })
@@ -193,10 +251,19 @@ export const addAdditionalKeyphrase = async ({ postEditorStore, truSeo, keyphras
 	postEditorStore.currentPost.keyphrases.additional = additional
 	postEditorStore.isDirty = true
 
-	await truSeo.runAnalysis({
-		postId   : postEditorStore.currentPost.id,
-		postData : postEditorStore.currentPost
-	})
+	setTimeout(async () => {
+		try {
+			const results = await truSeo?.runAnalysis({
+				postId : postEditorStore.currentPost.id
+			})
+
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
+	}, 300)
 
 	if (nextTick) {
 		await nextTick()
@@ -254,31 +321,30 @@ export const navigateToAdditionalKeyphrase = ({ postEditorStore, keyphrase, onSu
  * @param {string}   options.keyphrase       Keyphrase to remove.
  * @param {Function} options.onStart         Callback when removal starts.
  * @param {Function} options.onSuccess       Callback when keyphrase is removed. Receives keyphraseIndex.
- * @param {Function} options.onNotFound      Callback when keyphrase not found.
  * @param {Function} options.nextTick        Vue's nextTick function.
  * @returns {Promise<boolean>}               True if removal succeeded, false otherwise.
  */
-export const removeAdditionalKeyphrase = async ({ postEditorStore, keyphrase, onStart, onSuccess, onNotFound, nextTick }) => {
+export const removeAdditionalKeyphrase = async ({ postEditorStore, keyphrase, onStart, onSuccess, nextTick }) => {
 	if (onStart) {
 		onStart()
 	}
 
-	const { additional }  = postEditorStore.currentPost.keyphrases
-	const keyphraseIndex  = additional.findIndex(k => k.keyphrase.toLowerCase() === keyphrase.toLowerCase())
+	const additionalOld = postEditorStore.currentPost.keyphrases?.additional || []
+	const additional    = postEditorStore.truseoData?.additionalKeywords || []
 
-	if (-1 === keyphraseIndex) {
-		if (onNotFound) {
-			onNotFound()
+	const keyphraseIndex = additional ? additional.findIndex(k => k.word.toLowerCase() === keyphrase) : -1
+	if (-1 !== keyphraseIndex) {
+		// Keep the old keyphrase for backward compatibility
+		additionalOld.splice(keyphraseIndex, 1)
+		additional.splice(keyphraseIndex, 1)
+
+		// Keep the old keyphrase for backward compatibility
+		postEditorStore.currentPost.keyphrases.additional = additionalOld
+		postEditorStore.truseoData.additionalKeywords = additional
+		const keyphrasePanel = document.getElementsByClassName('keyphrase-name')
+		if (keyphrasePanel[0]) {
+			keyphrasePanel[0].click()
 		}
-		return false
-	}
-
-	additional.splice(keyphraseIndex, 1)
-	postEditorStore.currentPost.keyphrases.additional = additional
-
-	const keyphrasePanel = getKeyphrasePanels()
-	if (keyphrasePanel[0]) {
-		keyphrasePanel[0].click()
 	}
 
 	if (nextTick) {

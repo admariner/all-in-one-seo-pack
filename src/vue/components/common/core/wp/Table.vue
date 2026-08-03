@@ -148,7 +148,7 @@
 							v-if="shouldShowBulkActions"
 						>
 							<input
-								v-if="!shouldHideCheckbox"
+								:class="{ 'should-hide-checkbox': shouldHideCheckbox }"
 								type="checkbox"
 								:disabled="loading || disableTable"
 							/>
@@ -182,7 +182,7 @@
 
 					<template
 						v-for="(row, index) in rows"
-						:key="index"
+						:key="rowKey(row, index)"
 					>
 						<tr v-if="row.alert && 'top' === row.alert?.position">
 							<td :colspan="filteredColumns.length + 1">
@@ -243,6 +243,7 @@
 						</tr>
 
 						<tr
+							v-if="showEditRow(row)"
 							class="edit-row"
 							:class="{ even: 0 === index % 2 }"
 						>
@@ -416,7 +417,17 @@ export default {
 			type     : Object,
 			required : false
 		},
-		loading    : Boolean,
+		loading : Boolean,
+		// For Function-typed props Vue takes `default` as the value, not as a factory, so these
+		// must be the functions themselves — a factory here returns a new function on every call.
+		rowKey  : {
+			type    : Function,
+			default : (row, index) => index
+		},
+		showEditRow : {
+			type    : Function,
+			default : () => true
+		},
 		showSearch : {
 			type : Boolean,
 			default () {
@@ -964,6 +975,10 @@ export default {
 			td.check-column {
 				padding: 4px 0 0 3px
 			}
+		}
+
+		.should-hide-checkbox {
+			display: none !important;
 		}
 
 		.loader-overlay-table,

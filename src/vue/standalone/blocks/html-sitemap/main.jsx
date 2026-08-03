@@ -1,4 +1,4 @@
-import { registerBlock } from '../utils'
+import { registerBlock, useBlockProps } from '../utils'
 
 import { h, createApp } from 'vue'
 import { observeElement } from '@/vue/utils/helpers'
@@ -44,6 +44,7 @@ export const settings = {
 	attributes,
 	icon,
 	edit : function (props) {
+		const blockProps = useBlockProps()
 		const { setAttributes, attributes, clientId, isSelected, toggleSelection } = props
 		const vueAioseoId = 'aioseo-' + clientId
 
@@ -110,10 +111,12 @@ export const settings = {
 						<div id={vueAioseoId}></div>
 					</PanelBody>
 				</InspectorControls>
-				<ServerSideRender
-					block={name}
-					attributes={{ ...attributes }}
-				/>
+				<div {...blockProps}>
+					<ServerSideRender
+						block={name}
+						attributes={{ ...attributes }}
+					/>
+				</div>
 			</>
 		)
 	},

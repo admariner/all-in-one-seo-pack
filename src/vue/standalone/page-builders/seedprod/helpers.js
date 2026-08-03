@@ -1,7 +1,7 @@
 /* globals seedprod_data */
 import { get } from 'lodash-es'
 import { getText } from '@/vue/utils/html'
-import { getVideos, getImages } from '@/app/tru-seo/analyzer/analysis/contentHasAssets'
+import { getImages, getVideos } from '@/vue/standalone/page-builders/helpers/index'
 
 /**
  * Get the HTML for a given block object.

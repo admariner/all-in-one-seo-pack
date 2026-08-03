@@ -79,10 +79,7 @@ export default {
 		},
 		handleEnter (event) {
 			event.preventDefault()
-			const addButton = document.getElementById('add-additional-keyphrase')
-			if (addButton) {
-				addButton.click()
-			}
+			this.handleAddClick()
 		}
 	}
 }

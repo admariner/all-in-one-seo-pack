@@ -111,7 +111,7 @@ class SeoPreview {
 	 * Returns the data for Vue.
 	 *
 	 * @since   4.2.8
-	 * @version 4.9.10 Only expose a post's keyphrases/TruSEO analysis to users who can edit it (and not when password-protected).
+	 * @version 5.0.0.1 Keyword columns fall back to the legacy keyphrases column.
 	 *
 	 * @return array The data.
 	 */
@@ -122,8 +122,10 @@ class SeoPreview {
 			'editTwitterSnippetUrl'  => '',
 			'editObjectBtnText'      => '',
 			'editObjectUrl'          => '',
-			'keyphrases'             => '',
-			'page_analysis'          => '',
+			'truseo'                 => '',
+			'focus_keyword'          => '',
+			'additional_keywords'    => '',
+			'headlineScore'          => null,
 			'urls'                   => [
 				'home'        => home_url(),
 				'domain'      => aioseo()->helpers->getSiteDomain(),
@@ -171,9 +173,12 @@ class SeoPreview {
 						current_user_can( 'edit_post', $wpObject->ID ) &&
 						! post_password_required( $wpObject )
 					) {
-						$aioseoPost            = Models\Post::getPost( $wpObject->ID );
-						$data['page_analysis'] = Models\Post::getPageAnalysisDefaults( $aioseoPost->page_analysis );
-						$data['keyphrases']    = Models\Post::getKeyphrasesDefaults( $aioseoPost->keyphrases );
+						$aioseoPost                  = Models\Post::getPost( $wpObject->ID );
+						$keywordColumns              = Models\Post::getKeywordColumnsWithLegacyFallback( $aioseoPost );
+						$data['truseo']              = Models\Post::getTruseoDefaults( $aioseoPost->truseo );
+						$data['focus_keyword']       = $keywordColumns['focus_keyword'];
+						$data['additional_keywords'] = $keywordColumns['additional_keywords'];
+						$data['headlineScore']       = aioseo()->standalone->headlineAnalyzer->getScoreForPost( $wpObject->ID, $aioseoPost );
 					}
 				}
 			}
@@ -246,12 +251,34 @@ class SeoPreview {
 				? get_edit_term_link( $object, $object->taxonomy ) . '#aioseo-term-settings-field'
 				: get_edit_post_link( $object, 'url' ) . '#aioseo-settings';
 
-			$queryArgs = [ 'aioseo-tab' => 'general' ];
-			if ( in_array( $snippet, [ 'facebook', 'twitter' ], true ) ) {
-				$queryArgs = [
-					'aioseo-tab' => 'social',
-					'social-tab' => $snippet
-				];
+			// Attachments keep the legacy behavior; they don't get the section scroll/highlight.
+			if ( 'attachment' === $templateType ) {
+				$queryArgs = [ 'aioseo-tab' => 'general' ];
+				if ( in_array( $snippet, [ 'facebook', 'twitter' ], true ) ) {
+					$queryArgs = [
+						'aioseo-tab' => 'social',
+						'social-tab' => $snippet
+					];
+				}
+
+				return add_query_arg( $queryArgs, $url );
+			}
+
+			$isSocial = in_array( $snippet, [ 'facebook', 'twitter' ], true );
+
+			// Both social snippets live in the Social Appearance section; Google in Search Appearance.
+			$cardId = $isSocial
+				? 'aioseo-card-postSettingsSocialAppearance'
+				: 'aioseo-card-postSettingsSearchAppearance';
+
+			$queryArgs = [
+				'aioseo-tab'       => 'general',
+				'aioseo-scroll'    => $cardId,
+				'aioseo-highlight' => $cardId
+			];
+
+			if ( $isSocial ) {
+				$queryArgs['social-tab'] = $snippet;
 			}
 
 			return add_query_arg( $queryArgs, $url );

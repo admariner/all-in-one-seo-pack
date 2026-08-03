@@ -493,7 +493,12 @@ class Addons {
 		require_once ABSPATH . 'wp-admin/includes/screen.php';
 
 		// Set the current screen to avoid undefined notices.
-		set_current_screen( 'toplevel_page_aioseo' );
+		// We assign the globals ourselves rather than calling set_current_screen(), which also fires the
+		// `current_screen` action. Most callers are REST routes, and that action makes every plugin on the site run
+		// its admin-screen code inside a request that must return nothing but JSON.
+		$GLOBALS['current_screen'] = \WP_Screen::get( 'toplevel_page_aioseo' );
+		$GLOBALS['typenow']        = $GLOBALS['current_screen']->post_type;
+		$GLOBALS['taxnow']         = $GLOBALS['current_screen']->taxonomy;
 
 		// Prepare variables.
 		$url = esc_url_raw(

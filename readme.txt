@@ -1,10 +1,10 @@
 === All in One SEO – AI SEO Plugin to Boost SEO Rankings & Traffic (Schema, Local SEO, Sitemap & SEO Insights) ===
 Contributors: aioseo, smub, benjaminprojas
 Tags: SEO, AI, schema, XML Sitemap, redirect
-Tested up to: 7.0
+Tested up to: 7.0.2
 Requires at least: 5.7
 Requires PHP: 7.2
-Stable tag: 4.9.10
+Stable tag: 5.0.0.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -192,6 +192,22 @@ AIOSEO&reg; is a registered trademark of Semper Plugins LLC. When writing about 
 
 == Changelog ==
 
+**New in Version 5.0.0.1**
+
+- Updated: Made Search Appearance and Social Appearance cards in metabox collapsible.
+- Fixed: Focus keyword and additional keywords sometimes not appearing in TruSEO after 5.0.0 update.
+- Fixed: Resurfaced missing product ID, SKU and image alt text checks in TruSEO.
+
+**New in Version 5.0.0**
+
+- New: TruSEO just got a major revamp — it's smarter, faster, supports 10+ new languages and has a new modern UI.
+- New: TruSEO Highlighter revamp — an improved editor highlighter that flags issues TruSEO found, working seamlessly across the Block Editor and Classic Editor (page builder support coming soon!).
+- New: Spell checker - automatically detect spelling mistakes directly in the editor as you write and fix them instantly.
+- New: Optimize posts with AI - let our smart AI assistant automatically optimize your post for SEO by improving your SEO title, meta description, headline, keyword checks and spelling mistakes in just one click!
+- New: Actionable AI-powered fixes for TruSEO — let AI help you rewrite sentences or paragraphs to fix readability and SEO issues in your content.
+- Updated: AIOSEO blocks to add support for WordPress 6.3+ iFrame editor.
+- Fixed: MCP setup snippets for Claude Desktop, Cursor, and Gemini CLI so the connection no longer fails.
+
 **New in Version 4.9.10**
 
 - New: Added a new ability to list terms that are missing SEO data.
@@ -307,6 +323,6 @@ AIOSEO can easily help you get your sitemaps listed inside Google Search Console
 
 == Upgrade Notice ==
 
-= 4.9.10 =
+= 5.0.0.1 =
 
 This update adds major improvements and bug fixes.

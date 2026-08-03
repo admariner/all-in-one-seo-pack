@@ -1,51 +1,46 @@
 <template>
-	<div class="aioseo-tab-content aioseo-link-assistant">
-		<Links
-			v-if="!licenseStore.isUnlicensed && addons.isActive('aioseo-link-assistant') && !addons.requiresUpgrade('aioseo-link-assistant')"
-			:parentComponentContext="parentComponentContext"
-		/>
-
-		<LinksLite
-			v-if="licenseStore.isUnlicensed || addons.requiresUpgrade('aioseo-link-assistant')"
-			:parentComponentContext="parentComponentContext"
-		/>
-
-		<LinksActivate
-			v-if="!licenseStore.isUnlicensed && !addons.isActive('aioseo-link-assistant') && addons.canActivate('aioseo-link-assistant') && !addons.requiresUpgrade('aioseo-link-assistant')"
-			:parentComponentContext="parentComponentContext"
-		/>
-	</div>
+	<component
+		:is="currentComponent"
+		:parentComponentContext="parentComponentContext"
+	/>
 </template>
 
 <script>
-import {
-	useLicenseStore
-} from '@/vue/stores'
+import { computed, getCurrentInstance } from 'vue'
 
-import addons from '@/vue/utils/addons'
-import Links from './AIOSEO_VERSION/partials-links/Links'
-import LinksActivate from './AIOSEO_VERSION/partials-links/LinksActivate'
-import LinksLite from './lite/partials-links/Links'
+import SidebarLinks from './sidebar/Links'
+import MetaboxLinks from './metabox/Links'
 
 export default {
-	setup () {
+	setup (props) {
+		const screenContext = computed(() => {
+			return getCurrentInstance().root.data.screenContext
+		})
+
+		const currentComponent = computed(() => {
+			// Load metabox component if in metabox context OR if modal is opened
+			if ('metabox' === screenContext.value || 'modal' === props.parentComponentContext) {
+				return MetaboxLinks
+			}
+
+			return SidebarLinks
+		})
+
 		return {
-			addons,
-			licenseStore : useLicenseStore()
+			currentComponent
 		}
 	},
 	components : {
-		Links,
-		LinksActivate,
-		LinksLite
+		SidebarLinks,
+		MetaboxLinks
 	},
 	props : {
 		parentComponentContext : String
 	}
 }
 </script>
-
 <style lang="scss">
+// Shared styles for both sidebar and metabox contexts
 .aioseo-link-assistant,
 .aioseo-modal.aioseo-link-assistant-modal {
 	padding: 0 !important;

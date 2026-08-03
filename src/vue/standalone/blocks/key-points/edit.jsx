@@ -1,3 +1,5 @@
+import { useBlockProps } from '../utils'
+
 const { InnerBlocks } = window.wp.blockEditor
 const { useEffect } = window.wp.element
 const { select, dispatch, subscribe } = window.wp.data
@@ -11,9 +13,9 @@ const { select, dispatch, subscribe } = window.wp.data
  */
 export default function edit (props) {
 	const {
-		className,
 		clientId
 	} = props
+	const blockProps = useBlockProps()
 
 	useEffect(() => {
 		// Focus on the first list item when the block is inserted
@@ -47,7 +49,7 @@ export default function edit (props) {
 	}, [ clientId ])
 
 	return (
-		<div className={className}>
+		<div {...blockProps}>
 			<div id={`aioseo-${clientId}`}>
 				<InnerBlocks
 					template={[ [ 'core/list' ] ]}

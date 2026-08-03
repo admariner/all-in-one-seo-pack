@@ -25,6 +25,15 @@ class Settings {
 	public static $importFile = [];
 
 	/**
+	 * The `advanced` option keys that are surfaced under their own Content Optimization settings tab.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @var array
+	 */
+	const CONTENT_OPTIMIZATION_OPTIONS = [ 'truSeo', 'headlineAnalyzer', 'seoAnalysis', 'spellChecker', 'highlighter', 'highlighterStyle' ];
+
+	/**
 	 * Retrieves the plugin options.
 	 *
 	 * @since 4.0.0
@@ -253,7 +262,13 @@ class Settings {
 		$notAllowedOptions = aioseo()->access->getNotAllowedOptions();
 
 		foreach ( $settings as $setting ) {
-			$optionAccess = in_array( $setting, [ 'robots', 'blocker' ], true ) ? 'tools' : $setting;
+			$optionAccess = $setting;
+			if ( in_array( $setting, [ 'robots', 'blocker' ], true ) ) {
+				$optionAccess = 'tools';
+			} elseif ( 'contentOptimization' === $setting ) {
+				// Content Optimization is its own tab, but its options are stored inside the `advanced` group.
+				$optionAccess = 'advanced';
+			}
 
 			if ( in_array( $optionAccess, $notAllowedOptions, true ) ) {
 				continue;
@@ -264,6 +279,20 @@ class Settings {
 					aioseo()->options->tools->robots->reset();
 					aioseo()->options->searchAppearance->advanced->unwantedBots->reset();
 					aioseo()->options->searchAppearance->advanced->searchCleanup->settings->preventCrawling = false;
+					break;
+				case 'advanced':
+					// The Content Optimization tab surfaces some of the `advanced` options as its own settings screen,
+					// so we reset everything else in the group to keep this scoped to what the Advanced tab shows.
+					$advancedKeys = array_values( array_diff( array_keys( aioseo()->options->advanced->all() ), self::CONTENT_OPTIMIZATION_OPTIONS ) );
+					if ( ! empty( $advancedKeys ) ) {
+						aioseo()->options->advanced->reset( $advancedKeys );
+					}
+					break;
+				case 'contentOptimization':
+					aioseo()->options->advanced->reset( self::CONTENT_OPTIMIZATION_OPTIONS );
+					if ( aioseo()->options->has( 'writingAssistant' ) ) {
+						aioseo()->options->writingAssistant->reset();
+					}
 					break;
 				case 'redirects':
 					if ( ! empty( aioseo()->redirects ) ) {

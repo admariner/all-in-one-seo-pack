@@ -400,3 +400,10 @@ body,
 	width: 0;
 	height: 0;
 }
+
+// Body-level portal for appended poppers/tooltips. Carries `.aioseo-app` for
+// style scope, but must stay static so it doesn't become the popper's
+// offset parent (which would misposition it to the bottom of the document).
+#aioseo-popper-portal {
+	position: static;
+}

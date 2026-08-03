@@ -16,9 +16,18 @@ import { elemLoaded } from '@/vue/utils/elemLoaded'
 import { shouldShowMetaBox } from '@/vue/utils/metabox'
 import loadTruSeo from '@/vue/standalone/post-settings/loadTruSeo'
 import LinkAssistantWatcher from './link-assistant/AIOSEO_VERSION'
+import { registerHighlightFormats } from '@/vue/plugins/tru-seo/highlighter/blockFormats'
 
 // Local Business.
 import AppLocalBusiness from '../local-business-seo/App'
+
+// Register the TruSEO highlighter store + RichText format types now, at eager
+// entry load, before the block editor renders its blocks. They otherwise live
+// in the lazily-loaded Analysis sidebar chunk and register after Gutenberg's
+// first render, which changes the registered format-type count mid-session and
+// trips Gutenberg's `useFormatTypes` "hook dependency array changed size"
+// warning. Idempotent and self-gating (no-ops when the RichText API is absent).
+registerHighlightFormats()
 
 initWatcher()
 

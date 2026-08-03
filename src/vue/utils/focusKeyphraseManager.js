@@ -1,54 +1,58 @@
-/**
- * Gets the focus keyphrase input element.
- *
- * @param   {string} screenContext The screen context (sidebar, metabox, etc).
- * @returns {HTMLElement|null}     The input element or null.
- */
-const getFocusKeyphraseInput = (screenContext) => {
-	const keyphraseInputComponent = document.getElementsByClassName(`add-focus-keyphrase-${screenContext}-input`)
-	if (!keyphraseInputComponent || !keyphraseInputComponent[0]) {
-		return null
-	}
-
-	return keyphraseInputComponent[0].querySelector('.medium')
-}
+import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
+import { keyphraseExists } from '@/vue/utils/keyphraseUtils'
 
 /**
  * Adds a focus keyphrase from the input field.
  *
  * @param {Object}   options                  Options object.
  * @param {Object}   options.postEditorStore  Post editor Pinia store instance.
- * @param {Object}   options.truSeo           TruSEO instance for running analysis.
+ * @param {Object}   options.truSeo           TruSEO instance.
  * @param {string}   options.screenContext    Screen context for finding the input.
  * @param {Function} options.onSuccess        Callback when keyphrase is added successfully.
  * @returns {boolean}                         True if keyphrase was added, false otherwise.
  */
 export const addFocusKeyphrase = ({ postEditorStore, truSeo, screenContext, onSuccess }) => {
-	const keyphraseInput = getFocusKeyphraseInput(screenContext)
-	if (!keyphraseInput) {
-		return false
+	const keyphraseInputComponent = document.getElementsByClassName(`add-focus-keyphrase-${screenContext}-input`)
+	const keyphraseInput          = keyphraseInputComponent[0].querySelector('.medium')
+	const keyphraseInputValue     = keyphraseInput?.value.trim()
+
+	if (keyphraseInputValue) {
+		if (keyphraseExists(postEditorStore, keyphraseInputValue)) {
+			return false
+		}
+
+		postEditorStore.currentPost.focus_keyword = keyphraseInputValue
+		postEditorStore.currentPost.truseo = {
+			...(postEditorStore.currentPost.truseo || {}),
+			focus_keyword : { score: 0, items: null }
+		}
+		// Keep the old keyphrase for backward compatibility
+		postEditorStore.currentPost.keyphrases.focus = {
+			keyphrase : keyphraseInputValue,
+			score     : 0,
+			analysis  : {}
+		}
+		postEditorStore.currentPost.loading.focus = true
+
+		keyphraseInput.value = ''
+		keyphraseInput.blur()
+
+		postEditorStore.isDirty = true
+
+		setTimeout(async () => {
+			try {
+				const results = await truSeo?.runAnalysis({
+					postId : postEditorStore.currentPost.id
+				})
+
+				if (results) {
+					updateStoreWithResults(results)
+				}
+			} catch (error) {
+				console.error('TruSEO analysis failed:', error)
+			}
+		}, 300)
 	}
-
-	const keyphraseInputValue = keyphraseInput.value.trim()
-	if (!keyphraseInputValue) {
-		return false
-	}
-
-	postEditorStore.currentPost.keyphrases.focus = {
-		keyphrase : keyphraseInputValue,
-		score     : 0,
-		analysis  : {}
-	}
-	postEditorStore.currentPost.loading.focus = true
-
-	keyphraseInput.value = ''
-	keyphraseInput.blur()
-
-	postEditorStore.isDirty = true
-	truSeo.runAnalysis({
-		postId   : postEditorStore.currentPost.id,
-		postData : postEditorStore.currentPost
-	})
 
 	if (onSuccess) {
 		onSuccess(keyphraseInputValue)
@@ -62,20 +66,36 @@ export const addFocusKeyphrase = ({ postEditorStore, truSeo, screenContext, onSu
  *
  * @param {Object}   options                 Options object.
  * @param {Object}   options.postEditorStore Post editor Pinia store instance.
- * @param {Object}   options.truSeo          TruSEO instance for running analysis.
+ * @param {Object}   options.truSeo          TruSEO instance.
  * @param {string}   options.value           New keyphrase value.
  * @param {Function} options.onSuccess       Callback when keyphrase is updated successfully.
  * @returns {void}
  */
 export const updateFocusKeyphrase = ({ postEditorStore, truSeo, value, onSuccess }) => {
-	postEditorStore.currentPost.keyphrases.focus.keyphrase = value
-	postEditorStore.currentPost.loading.focus              = true
-	postEditorStore.isDirty                                = true
+	if (keyphraseExists(postEditorStore, value)) {
+		return
+	}
 
-	truSeo.runAnalysis({
-		postId   : postEditorStore.currentPost.id,
-		postData : postEditorStore.currentPost
-	})
+	postEditorStore.currentPost.focus_keyword = value
+	// Keep the old keyphrase for backward compatibility
+	postEditorStore.currentPost.keyphrases.focus.keyphrase = value
+	postEditorStore.currentPost.loading.focus = true
+
+	postEditorStore.isDirty = true
+
+	setTimeout(async () => {
+		try {
+			const results = await truSeo?.runAnalysis({
+				postId : postEditorStore.currentPost.id
+			})
+
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
+	}, 300)
 
 	if (onSuccess) {
 		onSuccess(value)
@@ -87,18 +107,35 @@ export const updateFocusKeyphrase = ({ postEditorStore, truSeo, value, onSuccess
  *
  * @param {Object}   options                 Options object.
  * @param {Object}   options.postEditorStore Post editor Pinia store instance.
- * @param {Object}   options.truSeo          TruSEO instance for running analysis.
+ * @param {Object}   options.truSeo          TruSEO instance.
  * @param {Function} options.onSuccess       Callback when keyphrase is deleted successfully.
  * @returns {void}
  */
 export const deleteFocusKeyphrase = ({ postEditorStore, truSeo, onSuccess }) => {
+	postEditorStore.currentPost.focus_keyword = ''
+	if (postEditorStore.currentPost.truseo) {
+		postEditorStore.currentPost.truseo = {
+			...postEditorStore.currentPost.truseo,
+			focus_keyword : null
+		}
+	}
+	// Keep the old keyphrase for backward compatibility
 	postEditorStore.currentPost.keyphrases.focus.keyphrase = ''
-	postEditorStore.isDirty                                = true
+	postEditorStore.isDirty = true
 
-	truSeo.runAnalysis({
-		postId   : postEditorStore.currentPost.id,
-		postData : postEditorStore.currentPost
-	})
+	setTimeout(async () => {
+		try {
+			const results = await truSeo?.runAnalysis({
+				postId : postEditorStore.currentPost.id
+			})
+
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
+	}, 300)
 
 	if (onSuccess) {
 		onSuccess()

@@ -253,6 +253,10 @@ class Updates {
 			$this->cleanupSearchStatisticsProfile();
 		}
 
+		if ( version_compare( $lastActiveVersion, '5.0.0', '<' ) ) {
+			$this->downloadDictionaries();
+		}
+
 		// Re-sync capabilities so aioseo_page_* caps added this release reach existing installs.
 		if ( version_compare( $lastActiveVersion, '4.9.10', '<' ) ) {
 			aioseo()->access->addCapabilities();
@@ -1622,6 +1626,49 @@ class Updates {
 
 		// Clear schema cache so columnExists/tableExists work correctly
 		aioseo()->core->cache->delete( 'db_schema' );
+	}
+
+	/**
+	 * Downloads the spell checker dictionary for the current locale if needed.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @return void
+	 */
+	private function downloadDictionaries() {
+		if ( ! aioseo()->options->advanced->spellChecker ) {
+			return;
+		}
+
+		$dictionary       = new \AIOSEO\Plugin\Common\SpellChecker\Dictionary();
+		$supportedLocales = $dictionary->getSpellCheckableLocales();
+		$locale           = get_locale();
+
+		if ( ! in_array( $locale, $supportedLocales, true ) ) {
+			return;
+		}
+
+		if ( ! $dictionary->needsDownload( $locale ) ) {
+			return;
+		}
+
+		$result = $dictionary->downloadForLocale( $locale );
+		if ( is_wp_error( $result ) ) {
+			$notification = Models\Notification::getNotificationByName( 'spell-checker-dictionary-download-failed' );
+			if ( ! $notification->exists() ) {
+				Models\Notification::addNotification( [
+					'slug'              => uniqid(),
+					'notification_name' => 'spell-checker-dictionary-download-failed',
+					'title'             => __( 'Spell Checker Dictionary Download Failed', 'all-in-one-seo-pack' ),
+					'content'           => __( 'We were unable to download the spell checker dictionary for your language. You can try again from the Settings page.', 'all-in-one-seo-pack' ),
+					'type'              => 'warning',
+					'level'             => [ 'all' ],
+					'button1_label'     => __( 'Go to Settings', 'all-in-one-seo-pack' ),
+					'button1_action'    => 'http://route#aioseo-settings:advanced',
+					'start'             => gmdate( 'Y-m-d H:i:s' )
+				] );
+			}
+		}
 	}
 
 	/**

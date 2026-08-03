@@ -6,6 +6,7 @@
 		:trigger="trigger"
 		:force-show="forceShow"
 		:disabled="disabled"
+		append-to-body
 		:options="{
 			placement,
 			modifiers : {
@@ -13,7 +14,11 @@
 					enabled : flip
 				},
 				preventOverflow : {
-					escapeWithReference : true
+					// Keep the tooltip inside the viewport. It's appended to the body,
+					// so escaping the boundary would extend the document and spawn a
+					// scrollbar — which reflows the page into a show/hide flicker loop.
+					escapeWithReference : false,
+					boundariesElement : 'viewport'
 				},
 				offset : {
 					offset : offset

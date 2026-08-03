@@ -1,6 +1,102 @@
 <template>
 	<div class="aioseo-writing-assistant-settings">
 		<core-card
+			slug="truSeoSettings"
+			:header-text="strings.truSeoSettings"
+		>
+			<core-settings-row
+				:name="strings.truSeo"
+			>
+				<template #content>
+					<base-toggle
+						v-model="optionsStore.options.advanced.truSeo"
+					/>
+
+					<div class="aioseo-description">
+						{{ strings.truSeoDescription }}
+					</div>
+				</template>
+			</core-settings-row>
+
+			<core-settings-row
+				:name="strings.highlighter"
+				v-if="optionsStore.options.advanced.truSeo"
+			>
+				<template #content>
+					<base-toggle v-model="optionsStore.options.advanced.highlighter"/>
+
+					<div class="aioseo-description">
+						{{ strings.highlighterDescription }}
+					</div>
+				</template>
+			</core-settings-row>
+
+			<core-settings-row
+				:name="strings.highlightStyle"
+				v-if="optionsStore.options.advanced.truSeo && optionsStore.options.advanced.highlighter"
+			>
+				<template #content>
+					<div class="highlight-style-options">
+						<button
+							v-for="option in highlightStyleOptions"
+							:key="option.value"
+							type="button"
+							class="highlight-style-options__option"
+							:class="{ 'highlight-style-options__option--active': optionsStore.options.advanced.highlighterStyle === option.value }"
+							@click="optionsStore.options.advanced.highlighterStyle = option.value"
+						>
+							<span
+								class="highlight-style-options__preview"
+								:class="`is-${option.value}`"
+							>
+								{{ strings.previewSample }}
+							</span>
+
+							<span class="highlight-style-options__label">
+								<span
+									class="highlight-style-options__radio"
+									:class="{ 'highlight-style-options__radio--checked': optionsStore.options.advanced.highlighterStyle === option.value }"
+								/>
+
+								{{ option.label }}
+							</span>
+						</button>
+					</div>
+
+					<div class="aioseo-description">
+						{{ strings.highlightStyleDescription }}
+					</div>
+				</template>
+			</core-settings-row>
+
+			<core-settings-row
+				:name="strings.spellChecker"
+				v-if="optionsStore.options.advanced.truSeo && optionsStore.options.advanced.highlighter"
+			>
+				<template #content>
+					<base-toggle v-model="optionsStore.options.advanced.spellChecker"/>
+
+					<div class="aioseo-description">
+						{{ strings.spellCheckerDescription }}
+					</div>
+				</template>
+			</core-settings-row>
+
+			<core-settings-row
+				:name="strings.headlineAnalyzer"
+			>
+				<template #content>
+					<base-toggle v-model="optionsStore.options.advanced.headlineAnalyzer"/>
+
+					<div class="aioseo-description">
+						{{ strings.headlineAnalyzerDescription }}
+					</div>
+				</template>
+			</core-settings-row>
+
+		</core-card>
+
+		<core-card
 			slug="writingAssistantSettings"
 			:header-text="strings.writingAssistant"
 		>
@@ -148,6 +244,7 @@ import { __ } from '@/vue/plugins/translations'
 import BaseCheckbox from '@/vue/components/common/base/Checkbox'
 import BaseButton from '@/vue/components/common/base/Button'
 import BaseSelect from '@/vue/components/common/base/Select'
+import BaseToggle from '@/vue/components/common/base/Toggle'
 import CorePostTypeOptions from '@/vue/components/common/core/PostTypeOptions'
 import SeoBoostLogin from '@/vue/standalone/writing-assistant/views/partials/authenticate/Seoboost'
 import DisconnectModal from '@/vue/standalone/writing-assistant/views/partials/authenticate/DisconnectModal'
@@ -163,25 +260,44 @@ const showDisconnectModal = ref(false)
 const openLogin = ref(false)
 
 const strings = {
-	tooltip             : __('Integrate seamlessly with SEOBoost via AIOSEO to supercharge your WordPress content.', td),
-	description         : __('Integrate seamlessly with SEOBoost via AIOSEO to supercharge your WordPress content.', td),
-	writingAssistant    : __('Writing Assistant', td),
-	seoBoost            : __('SEOBoost CTA', td),
-	postType            : __('Post Types', td),
-	includeAllPostTypes : __('Include all post types', td),
-	selectPostTypes     : __('Select the post types you want the Writing Assistant to be available.', td),
-	connect             : __('Connect to SEOBoost', td),
-	connectExisting     : __('Connect to an Existing Account', td),
-	connectDescription  : __('Connect to SEOBoost to get access to the Writing Assistant.', td),
-	loggedIn            : __('You\'re connected to SEOBoost!', td),
-	logoutButton        : __('Disconnect', td),
-	reportDefaults      : __('Report Defaults', td),
-	defaultCountry      : __('Default Region', td),
-	defaultLanguage     : __('Default Language', td),
-	or                  : __('OR', td),
-	createAccount       : __('Create a Free Account', td),
-	connectNow          : __('Now Connect to Your SEOBoost Account', td)
+	truSeoSettings              : __('TruSEO & Content Settings', td),
+	truSeo                      : __('TruSEO', td),
+	truSeoDescription           : __('Enable TruSEO to analyze your content for basic SEO issues, keyword usage, and readability, and to flag spelling mistakes as you write — helping you optimize every post for maximum traffic.', td),
+	headlineAnalyzer            : __('Headline Analyzer', td),
+	headlineAnalyzerDescription : __('Enable our Headline Analyzer to help you write irresistible headlines and rank better in search results.', td),
+	spellChecker                : __('Spell Checker', td),
+	spellCheckerDescription     : __('Highlight misspelled words in your content and suggest corrections. Requires TruSEO and the Highlighter to be enabled.', td),
+	highlighter                 : __('Highlighter', td),
+	highlighterDescription      : __('Highlight sentences that need improvement directly in the editor as you write. This sets the default for all posts; you can still toggle it per post. Requires TruSEO to be enabled.', td),
+	highlightStyle              : __('Highlight style', td),
+	highlightStyleDescription   : __('Choose how flagged text is marked in the editor.', td),
+	styleUnderline              : __('Underline', td),
+	styleBackground             : __('Highlight', td),
+	previewSample               : __('Highlighted text', td),
+	tooltip                     : __('Integrate seamlessly with SEOBoost via AIOSEO to supercharge your WordPress content.', td),
+	description                 : __('Integrate seamlessly with SEOBoost via AIOSEO to supercharge your WordPress content.', td),
+	writingAssistant            : __('Writing Assistant', td),
+	seoBoost                    : __('SEOBoost CTA', td),
+	postType                    : __('Post Types', td),
+	includeAllPostTypes         : __('Include all post types', td),
+	selectPostTypes             : __('Select the post types you want the Writing Assistant to be available.', td),
+	connect                     : __('Connect to SEOBoost', td),
+	connectExisting             : __('Connect to an Existing Account', td),
+	connectDescription          : __('Connect to SEOBoost to get access to the Writing Assistant.', td),
+	loggedIn                    : __('You\'re connected to SEOBoost!', td),
+	logoutButton                : __('Disconnect', td),
+	reportDefaults              : __('Report Defaults', td),
+	defaultCountry              : __('Default Region', td),
+	defaultLanguage             : __('Default Language', td),
+	or                          : __('OR', td),
+	createAccount               : __('Create a Free Account', td),
+	connectNow                  : __('Now Connect to Your SEOBoost Account', td)
 }
+
+const highlightStyleOptions = [
+	{ value: 'underline', label: strings.styleUnderline },
+	{ value: 'background', label: strings.styleBackground }
+]
 
 const disconnect = () => {
 	showDisconnectModal.value = false
@@ -213,6 +329,85 @@ const createAccount = () => {
 
 <style lang="scss">
 .aioseo-writing-assistant-settings {
+	.highlight-style-options {
+		display: flex;
+		gap: 12px;
+		margin-bottom: 8px;
+
+		&__option {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			padding: 12px;
+			border: 1px solid $border;
+			border-radius: 6px;
+			background: #fff;
+			cursor: pointer;
+			text-align: left;
+
+			&:hover {
+				border-color: $placeholder-color;
+			}
+
+			&--active {
+				border-color: $blue;
+				box-shadow: 0 0 0 1px $blue;
+			}
+		}
+
+		&__preview {
+			font-size: 14px;
+			color: $black;
+
+			&.is-underline {
+				text-decoration: underline;
+				text-decoration-color: #F97316;
+				text-underline-offset: 3px;
+				text-decoration-thickness: 2px;
+			}
+
+			&.is-background {
+				background-color: rgba(249, 115, 22, 0.3);
+				border-radius: 2px;
+				padding: 0 3px;
+			}
+		}
+
+		&__label {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			font-size: 13px;
+			font-weight: $font-bold;
+			color: $black;
+		}
+
+		&__radio {
+			width: 16px;
+			height: 16px;
+			border: 1px solid $input-border;
+			border-radius: 50%;
+			flex-shrink: 0;
+			position: relative;
+
+			&--checked {
+				border-color: $blue;
+
+				&::after {
+					content: '';
+					position: absolute;
+					top: 3px;
+					left: 3px;
+					width: 8px;
+					height: 8px;
+					border-radius: 50%;
+					background: $blue;
+				}
+			}
+		}
+	}
+
 	&__connect-logout {
 		display: flex;
 		flex-direction: column;

@@ -4,14 +4,15 @@ import {
 	useTagsStore
 } from '@/vue/stores'
 
-import TruSeo from '@/vue/plugins/tru-seo'
+import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
+import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
 import { isBlockEditor, isClassicEditor, isClassicNoEditor } from '@/vue/utils/context'
 
 let taxonomyTitle = '',
 	listOfCategories = ''
 
 // Update post data
-export const maybeUpdateTaxonomies = (run = true) => {
+export const maybeUpdateTaxonomies = async (run = true) => {
 	const tagsStore = useTagsStore()
 	const postEditorStore = usePostEditorStore()
 
@@ -78,6 +79,15 @@ export const maybeUpdateTaxonomies = (run = true) => {
 	}
 
 	if (run) {
-		(new TruSeo()).runAnalysis({ postId: postEditorStore.currentPost.id })
+		try {
+			const truSeo = await getTruSeoInstance()
+			const results = await truSeo?.runAnalysis({ postId: postEditorStore.currentPost.id })
+
+			if (results) {
+				updateStoreWithResults(results)
+			}
+		} catch (error) {
+			console.error('TruSEO analysis failed:', error)
+		}
 	}
 }

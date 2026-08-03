@@ -1,6 +1,6 @@
 import { useWritingAssistantStore } from '@/vue/stores'
 import { isBlockEditor, isClassicEditor } from '@/vue/utils/context'
-import { getPostEditedContent } from '@/vue/plugins/tru-seo/components/postContent'
+import { getPostEditedContent } from '@/vue/utils/postData/postContent'
 import { debounce } from 'lodash-es'
 
 export default class WritingAssistant {

@@ -8,12 +8,13 @@ import {
 import './mention-blot'
 
 const Keys = {
-	TAB    : 'Tab',
-	ENTER  : 'Enter',
-	ESCAPE : 'Escape',
-	UP     : 'ArrowUp',
-	DOWN   : 'ArrowDown',
-	SPACE  : ' '
+	TAB       : 'Tab',
+	ENTER     : 'Enter',
+	ESCAPE    : 'Escape',
+	UP        : 'ArrowUp',
+	DOWN      : 'ArrowDown',
+	SPACE     : ' ',
+	BACKSPACE : 'Backspace'
 }
 
 class Mention {
@@ -276,6 +277,16 @@ class Mention {
 			this.downHandler.bind(this)
 		)
 
+		quill.keyboard.addBinding(
+			{
+				key : Keys.BACKSPACE
+			},
+			this.backspaceHandler.bind(this)
+		)
+		quill.keyboard.bindings[Keys.BACKSPACE].unshift(
+			quill.keyboard.bindings[Keys.BACKSPACE].pop()
+		)
+
 		quill.clipboard.addMatcher(Node.TEXT_NODE, this.clipboardHandler.bind(this))
 	}
 
@@ -328,6 +339,31 @@ class Mention {
 			return false
 		}
 		return true
+	}
+
+	// A tag at the very end of the value is padded with a space that is invisible and
+	// gets trimmed off when the value is saved, so remove both in one keypress.
+	backspaceHandler (range) {
+		if (!range || 0 !== range.length || range.index !== this.quill.getLength() - 1) {
+			return true
+		}
+
+		const ops     = this.quill.getContents(0, range.index).ops
+		const padding = ops[ops.length - 1]
+		if (
+			!padding ||
+			'string' !== typeof padding.insert ||
+			!/^[ \u00A0\t]+$/.test(padding.insert) ||
+			!ops[ops.length - 2]?.insert?.mention
+		) {
+			return true
+		}
+
+		const length = padding.insert.length + 1
+		this.quill.deleteText(range.index - length, length, Quill.sources.USER)
+		this.quill.setSelection(range.index - length, Quill.sources.USER)
+
+		return false
 	}
 
 	clipboardHandler (node, delta) {
@@ -418,7 +454,9 @@ class Mention {
 	}
 
 	hideMentionList () {
-		const toggles = document.querySelectorAll('.aioseo-tag .tag-toggle svg')
+		// Scoped to this editor: a top-level query misses tags rendered inside the
+		// block editor iframe.
+		const toggles = this.quill.root.querySelectorAll('.aioseo-tag .tag-toggle svg')
 		toggles.forEach(node => {
 			node.classList.remove('rotated')
 		})
@@ -640,7 +678,12 @@ class Mention {
 	containerBottomIsNotVisible () {
 		// const mentionContainerBottom = topPos + this.mentionContainer.offsetHeight + containerPos.top
 		const rect = this.mentionContainer.getBoundingClientRect()
-		return rect.bottom > window.innerHeight
+
+		// The rect is relative to the viewport the editor lives in, which is the
+		// block editor iframe rather than the window in that context.
+		const view = this.quill.root.ownerDocument.defaultView || window
+
+		return rect.bottom > view.innerHeight
 	}
 
 	containerRightIsNotVisible (leftPos, containerPos) {
@@ -669,7 +712,14 @@ class Mention {
 
 	setMentionContainerPosition () {
 		const containerPos = this.quill.container.getBoundingClientRect()
-		const mentionCharPos = this.quill.getBounds(this.mentionCharPos)
+
+		// Quill returns null when it can't measure the position, e.g. for an empty
+		// text node. Fall back to the editor's own edges so the menu still shows.
+		const mentionCharPos = this.quill.getBounds(this.mentionCharPos) || {
+			left   : 0,
+			top    : 0,
+			bottom : containerPos.height
+		}
 		const containerHeight = this.mentionContainer.offsetHeight
 
 		let topPos = this.options.offsetTop,

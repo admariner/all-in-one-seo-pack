@@ -7,7 +7,8 @@ import loadVersionedComponents from '@/vue/components/AIOSEO_VERSION'
 
 import {
 	loadPiniaStores,
-	useOptionsStore
+	useOptionsStore,
+	useSpellCheckerDictionaryStore
 } from '@/vue/stores'
 
 import http from '@/vue/utils/http'
@@ -17,12 +18,20 @@ import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 
 import App from './App'
 import TermApp from './TermApp'
+import BatchScanManager from './BatchScanManager'
+import mountDictionaryDownloadBar from './mountDictionaryDownloadBar'
 
 import './AIOSEO_VERSION/urlInspection.js'
 
 // We need to load the Pinia here since we will use the store outside an App.
 // links.restUrl method that we use below uses rootStore to get the rest URL.
 loadPiniaStores()
+
+// Kick off the background dictionary install (no-op when not needed) and mount
+// its progress bar at the top of the page. BatchScanManager awaits the same
+// promise before starting its queue.
+useSpellCheckerDictionaryStore().ensureDownloaded()
+mountDictionaryDownloadBar()
 
 const localCreateApp = (app) => {
 	app = loadPlugins(app)
@@ -105,6 +114,19 @@ if (window.aioseo.posts && 0 < window.aioseo.posts.length && (allowed('aioseo_pa
 			window.aioseo.posts.forEach((post) => {
 				loadPostsTable(post)
 			})
+
+			// Initialize batch scanning for posts without scores
+			// Only run on post list pages (not media library) and if batch scanning is enabled
+			if (shouldInitializeBatchScan()) {
+				const maxWorkers = window.aioseo?.batchScanConcurrency || 3
+				const startDelay = window.aioseo?.batchScanStartDelay || 2000
+				const batchScanManager = new BatchScanManager({
+					maxWorkers,
+					startDelay,
+					posts : window.aioseo.posts
+				})
+				batchScanManager.start()
+			}
 		})
 }
 
@@ -144,6 +166,97 @@ if (window.aioseo.terms && 0 < window.aioseo.terms.length && 0 === window.aioseo
 		})
 }
 
+/**
+ * Determines if batch scanning should be initialized.
+ * Only enable on post list pages where TruSEO is supported.
+ *
+ * @since 5.0.0
+ * @returns {boolean} Whether to initialize batch scanning.
+ */
+const shouldInitializeBatchScan = () => {
+	// Batch scan is disabled (e.g. TruSEO turned off). wp_localize_script stringifies the
+	// PHP boolean, so a disabled flag arrives as '' rather than false — treat any falsy value
+	// as disabled instead of comparing strictly against a boolean that never arrives.
+	if (!window.aioseo?.batchScanEnabled) {
+		return false
+	}
+
+	// Only run on 'edit' screen (post list), not 'upload' (media library)
+	if ('edit' !== window.aioseo?.screen?.base) {
+		return false
+	}
+
+	// Check for required post data
+	if (!window.aioseo?.posts || 0 === window.aioseo.posts.length) {
+		return false
+	}
+
+	// Verify we're on a supported post type (not attachment/media)
+	const postType = window.aioseo?.screen?.postType
+	if (!postType || 'attachment' === postType) {
+		return false
+	}
+
+	// All checks passed
+	return true
+}
+
+// Quick Edit renders one hidden fieldset for the whole table, so the current values
+// have to be copied in each time the form is opened for a row.
+const syncQuickEditRobots = (postId) => {
+	const form = document.getElementById('edit-' + postId)
+	if (!form) {
+		return
+	}
+
+	const post   = (window.aioseo?.posts || []).find((p) => p.id === postId)
+	const robots = post?.robots || { default: true, noindex: false, nofollow: false }
+
+	// Special pages — the homepage, blog page, the WooCommerce pages — take their robots
+	// meta from Search Appearance, so a per-post override here would do nothing. The column
+	// already hides its own indexing row for them.
+	const fieldset = form.querySelector('.aioseo-inline-edit-robots')
+	if (fieldset) {
+		fieldset.hidden = !!post?.isSpecialPage
+	}
+
+	const useDefault = form.querySelector('[name="aioseo-quick-robots-default"]')
+	const noindex    = form.querySelector('[name="aioseo-quick-robots-noindex"]')
+	const nofollow   = form.querySelector('[name="aioseo-quick-robots-nofollow"]')
+	if (!useDefault || !noindex || !nofollow) {
+		return
+	}
+
+	useDefault.checked = !!robots.default
+	noindex.checked    = !!robots.noindex
+	nofollow.checked   = !!robots.nofollow
+
+	const applyDefaultState = () => {
+		const disabled = useDefault.checked
+		noindex.disabled  = disabled
+		nofollow.disabled = disabled
+		noindex.closest('.aioseo-inline-edit-robots__options')?.classList.toggle('is-disabled', disabled)
+	}
+
+	applyDefaultState()
+	useDefault.removeEventListener('change', applyDefaultState)
+	useDefault.addEventListener('change', applyDefaultState)
+}
+
+// WP has no hook for "quick edit opened", so wrap its handler.
+if (window.inlineEditPost?.edit) {
+	const wpInlineEdit = window.inlineEditPost.edit
+	window.inlineEditPost.edit = function (id) {
+		const result = wpInlineEdit.apply(this, arguments)
+		const postId = parseInt('object' === typeof id ? this.getId(id) : id)
+		if (postId) {
+			syncQuickEditRobots(postId)
+		}
+
+		return result
+	}
+}
+
 // Adds a flag to the quick-edit form to re-render the component when it finishes.
 addHiddenField(document.querySelector('#inline-edit div'))
 
@@ -163,6 +276,22 @@ addHiddenField(document.getElementById('addtag'))
 		if ('inline-save' === action) {
 			const { post_ID : postId } = Object.fromEntries(data.entries())
 			const post = window.aioseo.posts.find((p) => p.id === parseInt(postId))
+
+			// The submitted robots values aren't in the response, so fold them back into
+			// the cached post — otherwise the column's noindex badge renders stale.
+			if (post && data.has('aioseo-quick-robots-submitted')) {
+				const useDefault = data.has('aioseo-quick-robots-default')
+
+				post.robots = {
+					default  : useDefault,
+					noindex  : !useDefault && data.has('aioseo-quick-robots-noindex'),
+					nofollow : !useDefault && data.has('aioseo-quick-robots-nofollow')
+				}
+
+				post.isNoindexed = useDefault
+					? !!window.aioseo?.postTypeIsNoindexed
+					: post.robots.noindex
+			}
 
 			loadPostsTable({
 				...post,
@@ -187,12 +316,21 @@ addHiddenField(document.getElementById('addtag'))
 			const taxonomy     = $(jqXHR.responseXML).find('term taxonomy').text()
 			const optionsStore = useOptionsStore()
 
+			// The taxonomy's templates seed the editors; they are not the term's own values, so
+			// they'd otherwise show as a custom title/description on a term nobody has touched.
+			// titleParsed/descriptionParsed are left for the reload to fetch — a brand new term
+			// has nothing rendered yet.
 			loadTermsTable({
-				id          : parseInt(termId),
-				columnName  : 'aioseo-details',
-				title       : optionsStore.dynamicOptions.searchAppearance.taxonomies[taxonomy]?.title,
-				description : optionsStore.dynamicOptions.searchAppearance.taxonomies[taxonomy]?.metaDescription,
-				reload      : true
+				id                 : parseInt(termId),
+				columnName         : 'aioseo-details',
+				taxonomy,
+				title              : '',
+				description        : '',
+				defaultTitle       : optionsStore.dynamicOptions.searchAppearance.taxonomies[taxonomy]?.title,
+				defaultDescription : optionsStore.dynamicOptions.searchAppearance.taxonomies[taxonomy]?.metaDescription,
+				showTitle          : true,
+				showDescription    : true,
+				reload             : true
 			})
 		}
 	})

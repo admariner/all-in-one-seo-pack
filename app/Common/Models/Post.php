@@ -31,6 +31,8 @@ class Post extends Model {
 	protected $jsonFields = [
 		'keywords',
 		'keyphrases',
+		'truseo',
+		'additional_keywords',
 		'page_analysis',
 		'schema',
 		'images',
@@ -82,7 +84,8 @@ class Post extends Model {
 	 * @var array
 	 */
 	protected $nullFields = [
-		'priority'
+		'priority',
+		'truseo_locale'
 	];
 
 	/**
@@ -205,6 +208,85 @@ class Post extends Model {
 		$post = self::migrateImageTypes( $post );
 		$post = self::runDynamicSchemaMigration( $post );
 		$post = self::migrateKoreaCountryCodeSchemas( $post );
+		$post = self::runDynamicKeywordMigration( $post );
+
+		return $post;
+	}
+
+	/**
+	 * Copies the post's keywords out of the legacy keyphrases column when it is loaded.
+	 *
+	 * Rows written before the dedicated columns existed hold their keywords only in `keyphrases`,
+	 * and the features that query the columns directly cannot see them there. Migrating on load
+	 * spreads the work across normal traffic instead of sweeping the whole table at once.
+	 *
+	 * NOTE: only fills a column that is still empty, so a TruSEO scan's result is never replaced.
+	 *
+	 * @since 5.0.0.1
+	 *
+	 * @param  Post $post The Post object.
+	 * @return Post       The modified Post object.
+	 */
+	private static function runDynamicKeywordMigration( $post ) {
+		if ( empty( $post->keyphrases ) || empty( $post->id ) ) {
+			return $post;
+		}
+
+		$needsFocus      = empty( $post->focus_keyword );
+		$needsAdditional = empty( $post->additional_keywords );
+		if ( ! $needsFocus && ! $needsAdditional ) {
+			return $post;
+		}
+
+		// getPost() runs on every post render, and a post that has a focus keyword but genuinely no
+		// additional ones stays "needing" migration forever. Settle that on two property reads of
+		// the already-decoded column instead of re-encoding it through the mapper every time.
+		if ( is_object( $post->keyphrases ) ) {
+			$hasLegacyFocus      = ! empty( $post->keyphrases->focus->keyphrase );
+			$hasLegacyAdditional = ! empty( $post->keyphrases->additional );
+
+			if ( ( ! $needsFocus || ! $hasLegacyFocus ) && ( ! $needsAdditional || ! $hasLegacyAdditional ) ) {
+				return $post;
+			}
+		}
+
+		$columns = self::getKeywordColumnsFromKeyphrases( $post->keyphrases );
+
+		$updates = [];
+		if ( $needsFocus && ! empty( $columns['focus_keyword'] ) ) {
+			$post->focus_keyword      = $columns['focus_keyword'];
+			$updates['focus_keyword'] = $columns['focus_keyword'];
+		}
+
+		if ( $needsAdditional && ! empty( $columns['additional_keywords'] ) ) {
+			$post->additional_keywords      = json_decode( (string) wp_json_encode( $columns['additional_keywords'] ) );
+			$updates['additional_keywords'] = wp_json_encode( $columns['additional_keywords'] );
+		}
+
+		if ( empty( $updates ) ) {
+			return $post;
+		}
+
+		// Targeted UPDATEs rather than save(), which writes every column of the row from this
+		// object. Two reasons, only the first of which is unconditional:
+		//
+		// 1. Filling two empty columns should not rewrite the other ~60, nor stamp `updated` on
+		//    every migrated row.
+		// 2. The window between getPost()'s SELECT and here is only intra-request, but it is not
+		//    empty: the posts list calls getPost() for each row while the batch scanner is POSTing
+		//    scan results for those same rows. A scan landing inside it loses focus_keyword, truseo
+		//    and seo_score to this object's pre-scan snapshot — verified, not theoretical.
+		//
+		// Repeating the emptiness check in the WHERE clause lets whichever write landed first win.
+		// One statement per column, so a contended column cannot block the other from being
+		// migrated. Column names are local literals, never input.
+		foreach ( $updates as $column => $value ) {
+			aioseo()->core->db->update( 'aioseo_posts' )
+				->where( 'id', (int) $post->id )
+				->whereRaw( "( `{$column}` IS NULL OR `{$column}` = '' )" )
+				->set( [ $column => $value ] )
+				->run();
+		}
 
 		return $post;
 	}
@@ -704,6 +786,24 @@ class Post extends Model {
 		if ( array_key_exists( 'page_analysis', $data ) ) {
 			$thePost->page_analysis = ! empty( $data['page_analysis'] ) ? self::sanitizePageAnalysis( $data['page_analysis'] ) : null;
 		}
+		if ( array_key_exists( 'truseo', $data ) ) {
+			$thePost->truseo = ! empty( $data['truseo'] ) ? self::sanitizeTruseo( $data['truseo'] ) : null;
+		}
+		if ( array_key_exists( 'focus_keyword', $data ) ) {
+			$thePost->focus_keyword = ! empty( $data['focus_keyword'] ) && is_string( $data['focus_keyword'] ) ? sanitize_text_field( $data['focus_keyword'] ) : null;
+		}
+		if ( array_key_exists( 'additional_keywords', $data ) ) {
+			$thePost->additional_keywords = ! empty( $data['additional_keywords'] ) ? self::sanitizeAdditionalKeywords( $data['additional_keywords'] ) : null;
+		}
+		if ( array_key_exists( 'truseo_locale', $data ) ) {
+			$thePost->truseo_locale = ! empty( $data['truseo_locale'] ) ? sanitize_text_field( $data['truseo_locale'] ) : null;
+		}
+		// Per-post highlighter preference. Persisted on its own endpoint too; mapping it here
+		// makes a full save authoritative so it can't race-clobber the dedicated write back to
+		// the default. isset() skips a null (never-set) value, preserving the site-wide default.
+		if ( isset( $data['options']['truSeo']['highlightingEnabled'] ) ) {
+			$thePost->options->truSeo->highlightingEnabled = (bool) $data['options']['truSeo']['highlightingEnabled'];
+		}
 		if ( array_key_exists( 'priority', $data ) ) {
 			$thePost->priority = 'default' === sanitize_text_field( (string) $data['priority'] ) ? null : (float) $data['priority'];
 		}
@@ -1001,6 +1101,10 @@ class Post extends Model {
 			],
 			'primaryTerm' => [
 				'productEducationDismissed' => false
+			],
+			// null = never set, so the site-wide highlighter default applies.
+			'truSeo'      => [
+				'highlightingEnabled' => null
 			]
 		];
 
@@ -1188,5 +1292,327 @@ class Post extends Model {
 		$existingOptions = array_replace_recursive( $defaults, (array) $existingOptions );
 
 		return json_decode( wp_json_encode( $existingOptions ) );
+	}
+
+	/**
+	 * Returns the default TruSEO options.
+	 *
+	 * The Model auto-decodes JSON fields via json_decode without assoc, so callers receive a
+	 * stdClass instance ({ focus_keyword: { score, items }, general: { [analyzer]: … } }).
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  mixed  $truseo The stored truseo value.
+	 * @return mixed          The truseo options (stdClass on populated rows, null on empty).
+	 */
+	public static function getTruseoDefaults( $truseo = null ) {
+		if ( empty( $truseo ) ) {
+			return null;
+		}
+
+		return $truseo;
+	}
+
+	/**
+	 * Returns the focus keyword as a plain string.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  mixed  $focusKeyword The stored focus keyword value.
+	 * @return string               The keyword string (empty when unset).
+	 */
+	public static function getFocusKeywordDefaults( $focusKeyword = null ) {
+		if ( empty( $focusKeyword ) || ! is_string( $focusKeyword ) ) {
+			return '';
+		}
+
+		return $focusKeyword;
+	}
+
+	/**
+	 * Returns the default additional keywords options.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  array      $additionalKeywords The existing additional keywords options.
+	 * @return array|null                     The additional keywords options.
+	 */
+	public static function getAdditionalKeywordsDefaults( $additionalKeywords = null ) {
+		if ( empty( $additionalKeywords ) ) {
+			return null;
+		}
+
+		return $additionalKeywords;
+	}
+
+	/**
+	 * Returns the keyword column values for a given legacy keyphrases structure.
+	 *
+	 * The focus keyword lives in its own column as a plain string and the additional keywords
+	 * in theirs as a list of `{ word, score }` entries. Writers that produce the legacy nested
+	 * keyphrases structure map it through here so both representations stay in sync.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  array|object|string $keyphrases The legacy keyphrases structure.
+	 * @return array                           The focus_keyword and additional_keywords column values.
+	 */
+	public static function getKeywordColumnsFromKeyphrases( $keyphrases ) {
+		$columns = [
+			'focus_keyword'       => null,
+			'additional_keywords' => null
+		];
+
+		$keyphrases = is_string( $keyphrases )
+			? json_decode( $keyphrases, true )
+			: json_decode( wp_json_encode( $keyphrases ), true );
+
+		if ( ! is_array( $keyphrases ) ) {
+			return $columns;
+		}
+
+		$focusKeyword = isset( $keyphrases['focus']['keyphrase'] ) && is_scalar( $keyphrases['focus']['keyphrase'] )
+			? trim( (string) $keyphrases['focus']['keyphrase'] )
+			: '';
+
+		if ( '' !== $focusKeyword ) {
+			// The column is a varchar( 255 ), unlike the longtext one the keyphrases live in.
+			$columns['focus_keyword'] = trim( aioseo()->helpers->substring( $focusKeyword, 0, 255 ) );
+		}
+
+		$additional         = ! empty( $keyphrases['additional'] ) && is_array( $keyphrases['additional'] ) ? $keyphrases['additional'] : [];
+		$additionalKeywords = [];
+		foreach ( $additional as $keyphrase ) {
+			$word = isset( $keyphrase['keyphrase'] ) && is_scalar( $keyphrase['keyphrase'] )
+				? trim( (string) $keyphrase['keyphrase'] )
+				: '';
+
+			if ( '' === $word ) {
+				continue;
+			}
+
+			$additionalKeywords[] = [
+				'word'  => $word,
+				'score' => isset( $keyphrase['score'] ) ? (int) $keyphrase['score'] : 0
+			];
+		}
+
+		if ( ! empty( $additionalKeywords ) ) {
+			$columns['additional_keywords'] = $additionalKeywords;
+		}
+
+		return $columns;
+	}
+
+	/**
+	 * Returns the keyword columns for a post, falling back to the legacy keyphrases column.
+	 *
+	 * Rows written before the columns existed hold their keywords only in `keyphrases`, so reading
+	 * the columns alone renders them empty. Each side falls back on its own — a post can have a
+	 * migrated focus keyword and un-migrated additional keywords.
+	 *
+	 * NOTE: words only. The legacy per-keyword score and analysis are not carried over, since the
+	 * client re-analyzes on load and would discard them anyway.
+	 *
+	 * @since 5.0.0.1
+	 *
+	 * @param  Post  $post The Post model.
+	 * @return array       The focus_keyword and additional_keywords values.
+	 */
+	public static function getKeywordColumnsWithLegacyFallback( $post ) {
+		$focusKeyword       = self::getFocusKeywordDefaults( $post->focus_keyword ?? null );
+		$additionalKeywords = self::getAdditionalKeywordsDefaults( $post->additional_keywords ?? null );
+
+		$columns = [
+			'focus_keyword'       => $focusKeyword,
+			'additional_keywords' => $additionalKeywords
+		];
+
+		$needsFocus      = '' === $focusKeyword;
+		$needsAdditional = empty( $additionalKeywords );
+		if ( ( ! $needsFocus && ! $needsAdditional ) || empty( $post->keyphrases ) ) {
+			return $columns;
+		}
+
+		// "Has no additional keywords" is indistinguishable from "not migrated" on the columns alone,
+		// so settle it on two property reads before round-tripping the longtext through the mapper.
+		if ( is_object( $post->keyphrases ) ) {
+			$hasLegacyFocus      = ! empty( $post->keyphrases->focus->keyphrase );
+			$hasLegacyAdditional = ! empty( $post->keyphrases->additional );
+
+			if ( ( ! $needsFocus || ! $hasLegacyFocus ) && ( ! $needsAdditional || ! $hasLegacyAdditional ) ) {
+				return $columns;
+			}
+		}
+
+		$legacy = self::getKeywordColumnsFromKeyphrases( $post->keyphrases );
+
+		if ( $needsFocus ) {
+			$columns['focus_keyword'] = self::getFocusKeywordDefaults( $legacy['focus_keyword'] );
+		}
+
+		if ( $needsAdditional ) {
+			$columns['additional_keywords'] = self::getAdditionalKeywordsDefaults( $legacy['additional_keywords'] );
+		}
+
+		return $columns;
+	}
+
+	/**
+	 * Returns the legacy keyphrases structure for the given keyword column values.
+	 *
+	 * The inverse of {@see self::getKeywordColumnsFromKeyphrases()}. Synonyms live only on the
+	 * legacy structure, so they are carried over from $existingKeyphrases by matching word, which
+	 * means a renamed keyword drops the synonyms that belonged to the old one.
+	 *
+	 * @since 5.0.0.1
+	 *
+	 * @param  string              $focusKeyword       The focus keyword.
+	 * @param  array|object|string $additionalKeywords The additional keywords.
+	 * @param  array|object|string $existingKeyphrases The current keyphrases, for synonyms.
+	 * @param  array|object|string $truseo             The truseo data, for the focus keyword score.
+	 * @return array                                   The legacy keyphrases structure.
+	 */
+	public static function getKeyphrasesFromKeywordColumns( $focusKeyword, $additionalKeywords, $existingKeyphrases = null, $truseo = null ) {
+		$existing = json_decode( is_string( $existingKeyphrases ) ? $existingKeyphrases : (string) wp_json_encode( $existingKeyphrases ), true );
+		$existing = is_array( $existing ) ? $existing : [];
+
+		// The additional keywords carry their own score, so take the focus one from truseo to keep
+		// the mirrored structure consistent rather than pinning it to 0.
+		$truseoData = json_decode( is_string( $truseo ) ? $truseo : (string) wp_json_encode( $truseo ), true );
+		$focusScore = isset( $truseoData['focus_keyword']['score'] ) ? (int) $truseoData['focus_keyword']['score'] : 0;
+
+		$synonyms = [];
+		if ( ! empty( $existing['focus']['keyphrase'] ) && isset( $existing['focus']['synonyms'] ) ) {
+			$synonyms[ $existing['focus']['keyphrase'] ] = $existing['focus']['synonyms'];
+		}
+
+		if ( ! empty( $existing['additional'] ) && is_array( $existing['additional'] ) ) {
+			foreach ( $existing['additional'] as $keyphrase ) {
+				if ( ! empty( $keyphrase['keyphrase'] ) && isset( $keyphrase['synonyms'] ) ) {
+					$synonyms[ $keyphrase['keyphrase'] ] = $keyphrase['synonyms'];
+				}
+			}
+		}
+
+		$keyphrases   = [
+			'focus'      => [],
+			'additional' => []
+		];
+		$focusKeyword = is_string( $focusKeyword ) ? trim( $focusKeyword ) : '';
+
+		if ( '' !== $focusKeyword ) {
+			$keyphrases['focus'] = [
+				'keyphrase' => $focusKeyword,
+				'score'     => $focusScore
+			];
+
+			if ( isset( $synonyms[ $focusKeyword ] ) ) {
+				$keyphrases['focus']['synonyms'] = $synonyms[ $focusKeyword ];
+			}
+		}
+
+		$additional = json_decode( is_string( $additionalKeywords ) ? $additionalKeywords : (string) wp_json_encode( $additionalKeywords ), true );
+		foreach ( (array) $additional as $keyword ) {
+			$word = isset( $keyword['word'] ) && is_scalar( $keyword['word'] ) ? trim( (string) $keyword['word'] ) : '';
+			if ( '' === $word ) {
+				continue;
+			}
+
+			$entry = [
+				'keyphrase' => $word,
+				'score'     => isset( $keyword['score'] ) ? (int) $keyword['score'] : 0
+			];
+
+			if ( isset( $synonyms[ $word ] ) ) {
+				$entry['synonyms'] = $synonyms[ $word ];
+			}
+
+			$keyphrases['additional'][] = $entry;
+		}
+
+		return $keyphrases;
+	}
+
+	/**
+	 * Sanitizes the truseo payload.
+	 *
+	 * Shape: [
+	 *     'focus_keyword' => [ 'score' => int, 'items' => [ <id> => { score, error, … } ] ],
+	 *     'general'       => [ <analyzer> => { score, error, maxScore, … } ],
+	 * ].
+	 *
+	 * Strips ephemeral fields (title, text, highlightSentences, marks) from every analysis
+	 * entry under both sub-keys — these are render-only and must never be persisted.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  array      $data The existing truseo options.
+	 * @return array|null       The truseo options.
+	 */
+	public static function sanitizeTruseo( $data ) {
+		if ( empty( $data ) ) {
+			return $data;
+		}
+
+		$ephemeralKeys = [ 'title', 'text', 'highlightSentences', 'marks' ];
+
+		if ( ! empty( $data['general'] ) && is_array( $data['general'] ) ) {
+			foreach ( $data['general'] as $analyzer => $value ) {
+				foreach ( $ephemeralKeys as $keyToRemove ) {
+					if ( isset( $data['general'][ $analyzer ][ $keyToRemove ] ) ) {
+						unset( $data['general'][ $analyzer ][ $keyToRemove ] );
+					}
+				}
+			}
+		}
+
+		if (
+			! empty( $data['focus_keyword'] ) &&
+			is_array( $data['focus_keyword'] ) &&
+			! empty( $data['focus_keyword']['items'] ) &&
+			is_array( $data['focus_keyword']['items'] )
+		) {
+			foreach ( $data['focus_keyword']['items'] as $id => $result ) {
+				foreach ( $ephemeralKeys as $keyToRemove ) {
+					if ( isset( $data['focus_keyword']['items'][ $id ][ $keyToRemove ] ) ) {
+						unset( $data['focus_keyword']['items'][ $id ][ $keyToRemove ] );
+					}
+				}
+			}
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Sanitizes the additional keywords.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param  array      $data The existing additional keywords options.
+	 * @return array|null       The additional keywords options.
+	 */
+	public static function sanitizeAdditionalKeywords( $data ) {
+		if ( empty( $data ) ) {
+			return $data;
+		}
+
+		foreach ( $data as $key => $value ) {
+			if ( empty( $value['items'] ) ) {
+				continue;
+			}
+
+			foreach ( $value['items'] as $k => $item ) { // phpcs:ignore
+				// Remove unnecessary data.
+				foreach ( [ 'title', 'text', 'highlightSentences', 'marks' ] as $keyToRemove ) {
+					if ( isset( $data[ $key ]['items'][ $k ][ $keyToRemove ] ) ) {
+						unset( $data[ $key ]['items'][ $k ][ $keyToRemove ] );
+					}
+				}
+			}
+		}
+
+		return $data;
 	}
 }

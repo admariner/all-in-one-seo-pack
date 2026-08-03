@@ -56,6 +56,7 @@
 					</div>
 				</div>
 			</div>
+			<slot name="word-balance-extra" />
 		</div>
 
 		<div class="box">
@@ -175,6 +176,7 @@ import SvgFaceSmile from '@/vue/components/common/svg/face/Smile'
 import SvgList from '@/vue/components/common/svg/List'
 import SvgSeoSiteScore from '@/vue/components/common/svg/seo-site-score/Index'
 
+import { getHeadlineWordBalance } from '@/vue/composables/HeadlineAnalyzer'
 import { __, sprintf } from '@/vue/plugins/translations'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
@@ -196,13 +198,14 @@ const props = defineProps({
 })
 
 const wordBalance = computed(() => {
-	const result = props.result
+	const result                            = props.result
+	const { classes, verdict, verdictClass } = getHeadlineWordBalance(result)
 
 	const words = {
 		common : {
 			title   : __('Common Words', td),
 			help    : __('Headlines with 20-30% common words are more likely to get clicks.', td),
-			class   : 0 === result.commonWordsPercentage ? 'red' : 0.2 > result.commonWordsPercentage ? 'orange' : 'green',
+			class   : classes.common,
 			words   : result.commonWords,
 			percent : Math.round(result.commonWordsPercentage * 100),
 			bar     : (100 * result.commonWordsPercentage) / 0.3,
@@ -211,7 +214,7 @@ const wordBalance = computed(() => {
 		uncommon : {
 			title   : __('Uncommon Words', td),
 			help    : __('Your headline would be more likely to get clicks if it had more uncommon words.', td),
-			class   : 0 === result.uncommonWordsPercentage ? 'red' : 0.1 > result.uncommonWordsPercentage ? 'orange' : 'green',
+			class   : classes.uncommon,
 			words   : result.uncommonWords,
 			percent : Math.round(result.uncommonWordsPercentage * 100),
 			bar     : (100 * result.uncommonWordsPercentage) / 0.2,
@@ -220,7 +223,7 @@ const wordBalance = computed(() => {
 		emotional : {
 			title   : __('Emotional Words', td),
 			help    : __('Emotionally triggered headlines are likely to drive more clicks.', td),
-			class   : 0 === result.emotionalWordsPercentage ? 'red' : 0.1 > result.emotionalWordsPercentage ? 'orange' : 'green',
+			class   : classes.emotional,
 			words   : result.emotionWords,
 			percent : Math.round(result.emotionalWordsPercentage * 100),
 			bar     : (100 * result.emotionalWordsPercentage) / 0.15,
@@ -229,7 +232,7 @@ const wordBalance = computed(() => {
 		power : {
 			title   : __('Power Words', td),
 			help    : __('Headlines with power words are more likely to get clicks.', td),
-			class   : 0 === result.powerWordsPercentage ? 'red' : 'green',
+			class   : classes.power,
 			words   : result.powerWords,
 			percent : Math.round(result.powerWordsPercentage * 100),
 			bar     : (100 * result.powerWordsPercentage) / 0.1,
@@ -237,12 +240,10 @@ const wordBalance = computed(() => {
 		}
 	}
 
-	const allGood = Object.values(words).every(word => 'green' === word.class)
-
 	return {
-		result : allGood ? __('All good', td) : __('Needs improvement', td),
-		icon   : allGood ? SvgCircleCheck : SvgCircleExclamation,
-		class  : allGood ? 'green' : 'orange',
+		result : verdict,
+		icon   : 'green' === verdictClass ? SvgCircleCheck : SvgCircleExclamation,
+		class  : verdictClass,
 		words
 	}
 })

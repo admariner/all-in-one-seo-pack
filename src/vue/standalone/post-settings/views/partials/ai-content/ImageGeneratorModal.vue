@@ -53,6 +53,8 @@
 					:loading="buttonStates.submit.loading"
 				>
 					{{ buttonStates.submit.text }}
+
+					<credit-badge :cost="aiImageGeneratorStore.generationPrice" />
 				</base-button>
 
 				<base-button
@@ -78,10 +80,11 @@ import {
 
 import { useAiContent } from '@/vue/composables/AiContent'
 import { isBlockEditor, isClassicEditor } from '@/vue/utils/context'
-import { __, sprintf } from '@/vue/plugins/translations'
+import { __ } from '@/vue/plugins/translations'
 
 import AiImageGenerator from '@/vue/standalone/ai-image-generator/App'
 import CoreModal from '@/vue/components/common/core/modal/Index'
+import CreditBadge from '@/vue/components/common/ai/CreditBadge'
 import CreditCounter from '@/vue/components/common/ai/CreditCounter'
 import SvgArrowBack from '@/vue/components/common/svg/ArrowBack'
 import SvgImageGenerator from '@/vue/components/common/svg/ai/ImageGenerator'
@@ -123,10 +126,7 @@ const buttonStates = computed(() => {
 			show     : 'generate' === aiImageGeneratorStore.currentScreen && !aiImageGeneratorStore.images.selected.length,
 			disabled : !aiImageGeneratorStore.canGenerate,
 			loading  : aiImageGeneratorStore.form.isGenerating,
-			text     : sprintf(
-				// Translators: 1 - Number of credits.
-				__('Generate Image (%1$s credits)', td), aiImageGeneratorStore.generationPrice.toLocaleString()
-			)
+			text     : __('Generate Image', td)
 		},
 		previousResults : {
 			show     : 'results' !== aiImageGeneratorStore.currentScreen && !!aiImageGeneratorStore.images.count,

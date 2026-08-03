@@ -4,7 +4,7 @@ import { debounce } from 'lodash-es'
 import { getEditorData } from './helpers'
 import { handleEditorSave, createEditorChangeHandler } from '@/vue/standalone/page-builders/helpers'
 import { getText } from '@/vue/utils/html'
-import { getImages } from '@/app/tru-seo/analyzer/analysis/contentHasAssets'
+import { getImages } from '@/vue/standalone/page-builders/helpers/index'
 
 const processContent = async (editorElement = null) => {
 	const postEditorStore = usePostEditorStore()

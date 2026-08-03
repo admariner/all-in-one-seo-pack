@@ -239,6 +239,9 @@ export default {
 				gap: 2px;
 				justify-content: center;
 				padding: 10px 12px;
+				// Without this, the flex item won't shrink below the no-wrap domain's
+				// width, so a long domain overflows the card instead of ellipsizing.
+				min-width: 0;
 
 				.site-domain,
 				.site-title,

@@ -21,191 +21,112 @@
 				/>
 
 				<core-tooltip
-					type="action"
-					v-if="showHeadlineAnalyzer"
-				>
-					<core-score-button
-						:score="post.headlineScore"
-						:postId="postId"
-					>
-						<template #icon>
-							<svg-headline-analyzer />
-						</template>
-					</core-score-button>
-
-					<template #tooltip>
-						{{ strings.headlineScore }}
-					</template>
-				</core-tooltip>
-
-				<core-tooltip
-					type="action"
 					v-if="showTruSeo && allowed('aioseo_page_analysis')"
 				>
-					<core-score-button
-						:score="post.value"
-						:postId="postId"
-					>
-						<template #icon>
-							<svg-aioseo-logo-gear />
-						</template>
-					</core-score-button>
+					<div class="aioseo-details-column__truseo">
+						<div
+							v-if="truSeoScanning"
+							class="aioseo-details-column__loading">
+							<core-loader dark />
+						</div>
 
-					<template #tooltip>
-						{{ strings.truSeoScore }}
-					</template>
-				</core-tooltip>
-			</div>
-
-			<div>
-				<core-tooltip
-					v-if="allowed('aioseo_page_general_settings') && post.showTitle"
-					class="aioseo-details-column__tooltip"
-					:disabled="showEditTitle"
-				>
-					<div class="edit-row edit-title">
-						<strong>{{ strings.title }}:</strong>
-
-						<core-loader v-if="postLoading" dark />
-
-						<svg-pencil
-							v-if="!showEditTitle"
-							@click.prevent="editTitle"
-						/>
-
-						<span v-if="!showEditTitle">
-							{{ truncate(titleParsed, 100) }}
-						</span>
-					</div>
-
-					<template #tooltip>
-						<strong>{{ strings.title }}:</strong>
-						{{ titleParsed }}
-					</template>
-				</core-tooltip>
-			</div>
-
-			<div
-				v-if="showEditTitle"
-				class="edit-row"
-			>
-				<core-html-tags-editor
-					v-model="title"
-					:line-numbers="false"
-					single
-					:tags-context="getTagText('post', post?.postType, 'Title')"
-					defaultMenuOrientation="bottom"
-					tagsDescription=''
-					:default-tags="[ 'post_title' ]"
-				/>
-
-				<base-button
-					type="gray"
-					size="small"
-					@click.prevent="cancel"
-				>
-					{{ strings.discardChanges }}
-				</base-button>
-
-				<base-button
-					type="blue"
-					size="small"
-					@click.prevent="save"
-				>
-					{{ strings.saveChanges }}
-				</base-button>
-			</div>
-
-			<div>
-				<core-tooltip
-					v-if="allowed('aioseo_page_general_settings') && post.showDescription"
-					class="aioseo-details-column__tooltip"
-					:disabled="showEditDescription"
-				>
-					<div class="edit-row edit-description">
-						<strong>{{ strings.description }}:</strong>
-
-						<core-loader v-if="postLoading" dark />
-
-						<svg-pencil
-							v-if="!showEditDescription"
-							@click.prevent="editDescription"
-						/>
-
-						<span
-							v-if="!showEditDescription"
-							:id="`aioseo-${columnName}-${postId}-value`"
+						<core-score-button
+							v-else
+							:score="post.value"
+							:postId="postId"
 						>
-							{{ truncate(descriptionParsed) }}
-						</span>
+							<template #icon>
+								<svg-aioseo-logo-gear />
+							</template>
+						</core-score-button>
 					</div>
 
 					<template #tooltip>
-						<strong>{{ strings.description }}:</strong>
-						{{ truncate(descriptionParsed) }}
+						{{ strings.seoScoreTooltip }}
+					</template>
+				</core-tooltip>
+
+				<core-tooltip
+					v-if="post.isNoindexed"
+					class="aioseo-details-column__robots-tooltip"
+				>
+					<span class="aioseo-details-column__robots">{{ strings.noindex }}</span>
+
+					<template #tooltip>
+						{{ strings.noindexTooltip }}
 					</template>
 				</core-tooltip>
 			</div>
 
-			<div
-				v-if="showEditDescription"
-				class="edit-row"
-			>
-				<core-html-tags-editor
-					v-model="postDescription"
-					:line-numbers="false"
-					:tags-context="getTagText('post', post?.postType, 'Description')"
-					defaultMenuOrientation="bottom"
-					tagsDescription=''
-					:default-tags="[ 'post_excerpt' ]"
-				/>
+			<details-field
+				v-if="allowed('aioseo_page_general_settings') && post.showTitle"
+				v-model="title"
+				:parsed="titleParsed"
+				:label="strings.title"
+				:is-custom="isCustomTitle"
+				:editing="showEditTitle"
+				:loading="postLoading"
+				:labelled="isMediaScreen"
+				single
+				:length="showLengthBadges ? titleLength : null"
+				:tags-context="getTagText('post', post?.postType, 'Title')"
+				:default-tags="[ 'post_title' ]"
+				:custom-tooltip="strings.customTitle"
+				:default-tooltip="strings.defaultTitle"
+				@edit="editTitle"
+				@save="save"
+				@cancel="cancel"
+			/>
 
-				<base-button
-					type="gray"
-					size="small"
-					@click.prevent="cancel"
-				>
-					{{ strings.discardChanges }}
-				</base-button>
-
-				<base-button
-					type="blue"
-					size="small"
-					@click.prevent="save"
-				>
-					{{ strings.saveChanges }}
-				</base-button>
-			</div>
-
+			<details-field
+				v-if="allowed('aioseo_page_general_settings') && post.showDescription"
+				v-model="postDescription"
+				:parsed="descriptionParsed"
+				:label="strings.description"
+				:is-custom="isCustomDescription"
+				:editing="showEditDescription"
+				:loading="postLoading"
+				:labelled="isMediaScreen"
+				:length="showLengthBadges ? descriptionLength : null"
+				:tags-context="getTagText('post', post?.postType, 'Description')"
+				:default-tags="[ 'post_excerpt' ]"
+				:custom-tooltip="strings.customDescription"
+				:default-tooltip="strings.defaultDescription"
+				@edit="editDescription"
+				@save="save"
+				@cancel="cancel"
+			/>
 			<slot />
 
-			<div>
+			<div
+				v-if="isMediaScreen && post.showMedia && !showEditImageTitle"
+				class="aioseo-details-column__field aioseo-details-column__field--labelled"
+			>
+				<span class="aioseo-details-column__flabel">{{ strings.imageTitle }}</span>
+
 				<core-tooltip
-					v-if="'upload' === $root.$data.screen.base && post.showMedia"
+					v-if="hasText(imageTitle)"
 					class="aioseo-details-column__tooltip"
-					:disabled="showEditImageTitle"
 				>
-					<div class="edit-row edit-image-title">
-						<strong>{{ strings.imageTitle }}:</strong>
-
-						<svg-pencil
-							v-if="!showEditImageTitle"
-							@click.prevent="editImageTitle"
-						/>
-
-						<span
-							v-if="!showEditImageTitle"
-							:id="`aioseo-${columnName}-${postId}-value`"
-						>
-							{{ imageTitle }}
-						</span>
-					</div>
+					<span
+						:id="`aioseo-${columnName}-${postId}-value`"
+						class="aioseo-details-column__value aioseo-details-column__value--single"
+					>
+						{{ imageTitle }}
+					</span>
 
 					<template #tooltip>
 						<strong>{{ strings.imageTitle }}:</strong>
 						{{ imageTitle }}
 					</template>
 				</core-tooltip>
+
+				<span
+					v-else
+					class="aioseo-details-column__value aioseo-details-column__value--single"
+				>{{ emptyValue }}</span>
+
+				<svg-pencil @click.prevent="editImageTitle" />
 			</div>
 
 			<div
@@ -239,35 +160,37 @@
 				</base-button>
 			</div>
 
-			<div>
+			<div
+				v-if="isMediaScreen && post.showMedia && !showEditImageAltTag && !generatingAlt"
+				class="aioseo-details-column__field aioseo-details-column__field--labelled"
+			>
+				<span class="aioseo-details-column__flabel">{{ strings.imageAltTag }}</span>
+
 				<core-tooltip
-					v-if="'upload' === $root.$data.screen.base && post.showMedia"
+					v-if="hasText(imageAltTag)"
 					class="aioseo-details-column__tooltip"
-					:disabled="showEditImageAltTag"
 				>
-					<div class="edit-row edit-image-alt">
-						<strong>{{ strings.imageAltTag }}:</strong>
-
-						<core-loader v-if="generatingAlt" dark />
-
-						<svg-pencil
-							v-if="!showEditImageAltTag && !generatingAlt"
-							@click.prevent="editImageAlt"
-						/>
-
-						<span
-							v-if="!showEditImageAltTag && !generatingAlt"
-							:id="`aioseo-${columnName}-${postId}-value`"
-						>
-							{{ imageAltTag }}
-						</span>
-					</div>
+					<span
+						:id="`aioseo-${columnName}-${postId}-value`"
+						class="aioseo-details-column__value aioseo-details-column__value--single"
+					>
+						{{ imageAltTag }}
+					</span>
 
 					<template #tooltip>
 						<strong>{{ strings.imageAltTag }}:</strong>
 						{{ imageAltTag }}
 					</template>
 				</core-tooltip>
+
+				<span
+					v-else
+					class="aioseo-details-column__value aioseo-details-column__value--single"
+				>{{ emptyValue }}</span>
+
+				<core-loader v-if="generatingAlt" dark />
+
+				<svg-pencil @click.prevent="editImageAlt" />
 			</div>
 
 			<div
@@ -317,25 +240,31 @@ import { merge } from 'lodash-es'
 
 import { useTruSeoScore } from '@/vue/composables/TruSeoScore'
 
-import { truncate } from '@/vue/utils/html'
 import license from '@/vue/utils/license'
+import { MIN_WIDTH_FOR_BADGES, useDetailsFieldLength } from '@/vue/composables/DetailsFieldLength'
 import links from '@/vue/utils/links'
 import tags from '@/vue/utils/tags'
 
-import { shouldShowTruSeoScore } from '@/vue/plugins/tru-seo/components/helpers'
+import { shouldShowTruSeoScore } from '@/vue/utils/postData/helpers'
 import BaseButton from '@/vue/components/common/base/Button'
 import CoreHtmlTagsEditor from '@/vue/components/common/core/HtmlTagsEditor'
 import CoreLoader from '@/vue/components/common/core/Loader'
+import DetailsField from '@/vue/components/common/core/DetailsField'
 import CoreScoreButton from '@/vue/components/common/core/ScoreButton'
 import CoreTooltip from '@/vue/components/common/core/Tooltip'
 import IndexStatus from '@/vue/components/AIOSEO_VERSION/search-statistics/IndexStatus'
 import SvgAioseoLogoGear from '@/vue/components/common/svg/aioseo/LogoGear'
-import SvgHeadlineAnalyzer from '@/vue/components/common/svg/HeadlineAnalyzer'
 import SvgPencil from '@/vue/components/common/svg/Pencil'
 
-import { __ } from '@/vue/plugins/translations'
+import { __, _x } from '@/vue/plugins/translations'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
+
+// Below this the length badge takes more room than the value it describes, so the
+// column drops it. Screen Options and narrow viewports both get us there.
+
+// Matches how WordPress fills an empty list table cell.
+const EMPTY_VALUE = '\u2014'
 
 export default {
 	setup () {
@@ -343,9 +272,12 @@ export default {
 			runAnalysis,
 			strings
 		} = useTruSeoScore()
+		const { getTitleLength, getDescriptionLength } = useDetailsFieldLength()
 
 		return {
 			aiStore               : useAiStore(),
+			getTitleLength,
+			getDescriptionLength,
 			composableStrings     : strings,
 			optionsStore          : useOptionsStore(),
 			rootStore             : useRootStore(),
@@ -360,9 +292,9 @@ export default {
 		CoreLoader,
 		CoreScoreButton,
 		CoreTooltip,
+		DetailsField,
 		IndexStatus,
 		SvgAioseoLogoGear,
-		SvgHeadlineAnalyzer,
 		SvgPencil
 	},
 	props : {
@@ -371,6 +303,8 @@ export default {
 	data () {
 		return {
 			allowed,
+			columnWidth             : 0,
+			resizeObserver          : null,
 			postId                  : null,
 			columnName              : null,
 			title                   : null,
@@ -388,20 +322,63 @@ export default {
 			inspectionResult        : {},
 			inspectionResultLoading : true,
 			postLoading             : false,
+			truSeoScanning          : false,
 			generatingAlt           : false,
 			strings                 : merge(this.composableStrings, {
-				title          : __('Title', td),
-				description    : __('Description', td),
-				imageTitle     : __('Image Title', td),
-				imageAltTag    : __('Image Alt Tag', td),
-				saveChanges    : __('Save Changes', td),
-				discardChanges : __('Discard Changes', td),
-				truSeoScore    : __('TruSEO Score', td),
-				headlineScore  : __('Headline Score', td)
+				title              : __('SEO Title', td),
+				description        : __('Meta Description', td),
+				imageTitle         : __('Image Title', td),
+				imageAltTag        : __('Image Alt Tag', td),
+				saveChanges        : __('Save', td),
+				discardChanges     : __('Cancel', td),
+				customTitle        : __('Custom SEO title written for this post', td),
+				defaultTitle       : __('Default SEO title generated from your template', td),
+				customDescription  : __('Custom meta description written for this post', td),
+				defaultDescription : __('Default meta description generated from your template', td),
+				noDescription      : __('No meta description set', td),
+				// Translators: 1 - Character count, 2 - Recommended minimum, 3 - Recommended maximum.
+				// Translators: 1 - Width in pixels, 2 - Recommended minimum, 3 - Recommended maximum.
+				noindex            : _x('Noindex', 'Robots meta directive shown as a badge.', td),
+				noindexTooltip     : __('This post is set to noindex, so search engines are told to keep it out of search results.', td)
 			})
 		}
 	},
 	computed : {
+		emptyValue () {
+			return EMPTY_VALUE
+		},
+		// The badges are the first thing to go when the column is squeezed: at that point
+		// they cost more of the value than the signal is worth.
+		minWidthForBadges () {
+			return MIN_WIDTH_FOR_BADGES
+		},
+		showLengthBadges () {
+			if (this.isMediaScreen) {
+				return false
+			}
+
+			return !this.columnWidth || this.columnWidth >= this.minWidthForBadges
+		},
+		isMediaScreen () {
+			return 'upload' === this.$root.$data.screen.base
+		},
+		// A missing meta description is a real defect on a post, but not on an attachment,
+		// where almost nothing has one — flagging every row red was pure noise.
+		emptyDescriptionText () {
+			return this.isMediaScreen ? EMPTY_VALUE : this.strings.noDescription
+		},
+		isCustomTitle () {
+			return !!this.post.title && this.post.title !== this.post.defaultTitle
+		},
+		isCustomDescription () {
+			return !!this.post.description && this.post.description !== this.post.defaultDescription
+		},
+		titleLength () {
+			return this.getTitleLength(this.titleParsed)
+		},
+		descriptionLength () {
+			return this.getDescriptionLength(this.descriptionParsed)
+		},
 		showIndexStatus () {
 			if (!this.rootStore.isPro) {
 				return false
@@ -416,21 +393,55 @@ export default {
 			const isAllowed   = this.allowed('aioseo_search_statistics_settings')
 
 			return isVerified && isConnected && isAllowed
-		},
-		showHeadlineAnalyzer () {
-			if (this.rootStore.aioseo.data.isClassicEditorActive) {
-				return false
-			}
-
-			// We don't want to show the HA for products or AMP web stories.
-			if ('product' === this.post.postType || 'web-story' === this.post.postType) {
-				return false
-			}
-
-			return this.optionsStore.options.advanced?.headlineAnalyzer
 		}
 	},
 	methods : {
+		// An editor left at the template means "keep using the default", which is stored empty.
+		storedValue (value, template) {
+			return value === template ? '' : value
+		},
+		// A tooltip that only carries a field label and an empty value is noise, so the
+		// value tooltips are disabled when there is nothing to show.
+		hasText (value) {
+			return !!(value && String(value).trim())
+		},
+		observeColumnWidth () {
+			if (!window.ResizeObserver) {
+				return
+			}
+
+			this.resizeObserver = new window.ResizeObserver(entries => {
+				const width = entries[0]?.contentRect?.width
+				if (width) {
+					this.columnWidth = Math.round(width)
+				}
+			})
+
+			this.resizeObserver.observe(this.$el)
+		},
+		refreshParsedValues () {
+			this.postLoading = true
+
+			http.post(links.restUrl('posts-list/load-details-column'))
+				.send({ ids: [ this.post.id ] })
+				.then(response => {
+					const fresh = response.body?.posts?.find(p => p.id === this.post.id)
+					if (!fresh) {
+						return
+					}
+
+					this.titleParsed            = fresh.titleParsed
+					this.descriptionParsed      = fresh.descriptionParsed
+					this.post.titleParsed       = fresh.titleParsed
+					this.post.descriptionParsed = fresh.descriptionParsed
+				})
+				.catch(error => {
+					console.error(`Unable to refresh post ${this.post.id}: ${error}`)
+				})
+				.finally(() => {
+					this.postLoading = false
+				})
+		},
 		save () {
 			if (!allowed('aioseo_page_general_settings')) {
 				return
@@ -438,8 +449,10 @@ export default {
 
 			this.showEditTitle       = false
 			this.showEditDescription = false
-			this.post.title          = this.title
-			this.post.description    = this.postDescription
+			// Both editors post together, so an untouched field would be saved as the post's
+			// own copy of the template and stop following it if the default changes.
+			this.post.title          = this.storedValue(this.title, this.post.defaultTitle)
+			this.post.description    = this.storedValue(this.postDescription, this.post.defaultDescription)
 			this.postLoading         = true
 			http.post(links.restUrl('posts-list/update-details-column'))
 				.send({
@@ -455,7 +468,7 @@ export default {
 					this.post.descriptionParsed = response.body.description
 
 					if ('upload' !== this.$root.$data.screen.base) {
-						this.runAnalysis(this.post.id)
+						this.runAnalysis({ postId: this.post.id })
 					}
 				})
 				.catch(error => {
@@ -511,7 +524,6 @@ export default {
 		editImageAlt () {
 			this.showEditImageAltTag = true
 		},
-		truncate,
 		updatePostTitle (postId, value) {
 			const post = document.getElementById(`post-${postId}`)
 			if (!post) {
@@ -585,6 +597,13 @@ export default {
 			this.inspectionResult        = inspectionResult
 			this.inspectionResultLoading = inspectionResultLoading
 		},
+		updateScanningState (isScanning) {
+			this.truSeoScanning = isScanning
+		},
+		updateScore (score) {
+			this.post.value = score
+			this.value = score
+		},
 		async refreshInspectionResult () {
 			this.inspectionResultLoading = true
 
@@ -615,18 +634,31 @@ export default {
 		this.inspectionResult        = this.post.inspectionResult
 		this.inspectionResultLoading = this.post.inspectionResultLoading
 
-		// If the post data changed, we need to parse the title and description again.
-		// This can happen after using the quick-edit feature.
+		// A quick edit can change the WP title or slug, which the parsed values are built
+		// from, so they're re-read here. Re-reading, not re-saving: save() would post the
+		// editor's values back, and those fall back to the default template — which would
+		// store the template as an explicit override and spawn a second SEO revision.
 		if (this.post.reload) {
-			this.save()
+			this.refreshParsedValues()
 		}
 
+		this.observeColumnWidth()
+
 		window.aioseoBus.$on('updateInspectionResult' + this.postId, this.updateInspectionResult)
+		window.aioseoBus.$on('batchScanLoading' + this.postId, this.updateScanningState)
+		window.aioseoBus.$on('batchScanScoreUpdate' + this.postId, this.updateScore)
 		window.aioseoBus.$on('generateAltInline' + this.postId, this.generateAltInline)
 	},
 	beforeUnmount () {
+		if (this.resizeObserver) {
+			this.resizeObserver.disconnect()
+			this.resizeObserver = null
+		}
+
 		window.aioseoBus.$off('updateInspectionResult' + this.postId, this.updateInspectionResult)
 		window.aioseoBus.$off('generateAltInline' + this.postId, this.generateAltInline)
+		window.aioseoBus.$off('batchScanLoading' + this.postId, this.updateScanningState)
+		window.aioseoBus.$off('batchScanScoreUpdate' + this.postId, this.updateScore)
 	},
 	created () {
 		this.showTruSeo = shouldShowTruSeoScore()
@@ -645,11 +677,204 @@ export default {
 		overflow: visible;
 	}
 
+	&__loading {
+		position: relative;
+		width: 35px;
+		height: 35px;
+	}
+
+	.dashicons {
+		cursor: pointer;
+	}
+
+	.aioseo-quickedit {
+		margin-right: 5px;
+		color: #72777c;
+
+		&:hover {
+			color: #0073aa;
+			outline: 0;
+		}
+	}
+
 	&__tooltip {
 		display: inline-block;
 		margin-left: 0;
 		max-width: 100%;
 		width: auto;
+	}
+
+	&__field {
+		display: flex;
+		align-items: flex-start;
+		gap: 7px;
+
+		// Tighter than the 10px the generic .edit-row uses: these three rows read as
+		// one block, so they need less air between them than unrelated rows do.
+		margin-bottom: 6px;
+
+		.aioseo-details-column__dot-tooltip,
+		.aioseo-details-column__len-tooltip {
+			flex-shrink: 0;
+			margin-left: 0;
+		}
+
+		.aioseo-details-column__dot-tooltip {
+			line-height: 0;
+		}
+
+		// The tooltip wrapper is the flex child that holds the value, so it has to be
+		// allowed to shrink below its content width for the clamp to kick in.
+		.aioseo-details-column__tooltip {
+			flex: 1 1 auto;
+			min-width: 0;
+		}
+
+		.aioseo-loading-spinner {
+			position: relative;
+			width: 18px;
+			height: 18px;
+		}
+
+		.aioseo-pencil {
+			flex-shrink: 0;
+			margin-top: 1px;
+			cursor: pointer;
+			color: $black;
+			width: 16px;
+			height: 16px;
+			opacity: 0.38;
+			transition: opacity 0.15s ease;
+		}
+
+		&:hover .aioseo-pencil,
+		.aioseo-pencil:hover,
+		.aioseo-pencil:focus {
+			opacity: 1;
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.aioseo-pencil {
+				transition: none;
+			}
+		}
+	}
+
+	&__robots-tooltip {
+		margin-left: 0;
+	}
+
+	// A plain label rather than a chip: the row already carries a bordered score and an
+	// icon, so a third boxed element made it read as an alert.
+	&__robots {
+		color: $red;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 1.3;
+		white-space: nowrap;
+		cursor: default;
+	}
+
+	// Media shows four fields where posts show two, so they carry a micro-label instead
+	// of relying on the T/D badges to tell them apart. The label sits above the value
+	// rather than beside it: this column is only ~235px wide here, so a label column
+	// left the value about 12 characters of room.
+	&__field--labelled {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0 8px;
+		margin-bottom: 8px;
+
+		.aioseo-details-column__flabel {
+			grid-area: 1 / 1;
+			padding-top: 0;
+		}
+
+		.aioseo-details-column__tooltip {
+			grid-area: 2 / 1;
+		}
+
+		.aioseo-pencil {
+			grid-area: 1 / 2 / span 2 / auto;
+			align-self: start;
+			margin-top: 2px;
+		}
+	}
+
+	&__flabel {
+		padding-top: 3px;
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+		color: $placeholder-color;
+		white-space: nowrap;
+	}
+
+	&__dot {
+		flex-shrink: 0;
+		width: 7px;
+		height: 7px;
+		margin-top: 6px;
+		border-radius: 50%;
+
+		&--custom {
+			background: $blue;
+		}
+
+		&--default {
+			background: transparent;
+			border: 1.5px solid $placeholder-color;
+		}
+	}
+
+	&__value {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		font-size: 13px;
+		line-height: 1.45;
+		overflow-wrap: anywhere;
+
+		&--single {
+			-webkit-line-clamp: 1;
+		}
+
+		&--missing {
+			color: $red;
+			font-style: italic;
+		}
+	}
+
+	&__len {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: baseline;
+		gap: 4px;
+		margin-top: 1px;
+		padding: 2px 6px;
+		border-radius: 3px;
+		font-size: 11.5px;
+		line-height: 1.25;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		cursor: default;
+
+		&--ok {
+			background: rgba($green, 0.12);
+			color: $green3;
+		}
+
+		&--warn {
+			background: rgba($orange, 0.14);
+			color: $orange3;
+		}
+
+		&--bad {
+			background: rgba($red, 0.1);
+			color: $red2;
+		}
 	}
 
 	.edit-row {
@@ -682,7 +907,7 @@ export default {
 			}
 
 			.aioseo-pencil {
-				opacity: 0;
+				opacity: 0.38;
 				cursor: pointer;
 				color: $black;
 				width: 16px;
@@ -718,12 +943,19 @@ export default {
 		}
 
 		.aioseo-button {
-			margin-right: 2px;
+			margin-right: 8px;
 			margin-bottom: 2px;
 
+			&:last-child {
+				margin-right: 0;
+			}
+
+			// Stacked full-width at this breakpoint, so the horizontal gap becomes a
+			// vertical one instead.
 			@media screen and (max-width: 1366px) {
 				width: 100%;
 				margin-right: 0;
+				margin-bottom: 6px;
 			}
 		}
 
@@ -741,6 +973,58 @@ export default {
 				}
 			}
 		}
+	}
+}
+
+// Quick Edit / Bulk Edit robots fieldset. Plain admin markup rather than a Vue
+// component, so it is styled here alongside the column's other wp-admin overrides.
+//
+// NOTE: #wpbody-content is required, not decorative. Core sets
+// `#wpbody-content .inline-edit-row fieldset { margin: 0; padding: 0 12px 0 0 }`,
+// which outranks a class-only selector and silently drops our margin and padding.
+#wpbody-content .inline-edit-row .aioseo-inline-edit-robots {
+	float: none;
+	clear: both;
+	width: 100%;
+	margin: 12px 0 0;
+	padding: 16px 0;
+	border-top: 1px solid $gray;
+
+	&__title {
+		display: block;
+		margin-bottom: 8px;
+		font-weight: 600;
+	}
+
+	&__controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 24px;
+	}
+
+	&__options {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 20px;
+
+		&.is-disabled {
+			opacity: 0.5;
+		}
+	}
+
+	label {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		float: none;
+		margin: 0;
+		line-height: 1.4;
+	}
+
+	input[type='checkbox'] {
+		margin: 0;
 	}
 }
 

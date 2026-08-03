@@ -393,7 +393,7 @@ class Helpers {
 		}
 
 		aioseo()->core->cache->update( $lockKey, true, MINUTE_IN_SECONDS );
-		$response = aioseo()->helpers->wpRemoteGetExternal( 'https://aioseo.com/wp-json/wp/v2/posts?per_page=4' );
+		$response = aioseo()->helpers->wpRemoteGetExternal( untrailingslashit( AIOSEO_MARKETING_URL ) . '/wp-json/wp/v2/posts?per_page=4' );
 		if ( is_wp_error( $response ) ) {
 			aioseo()->core->networkCache->update( 'rss_feed', [], 10 * MINUTE_IN_SECONDS );
 			aioseo()->core->cache->delete( $lockKey );
