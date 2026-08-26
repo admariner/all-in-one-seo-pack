@@ -87,7 +87,6 @@
 						v-if="element.headings"
 						class="aioseo-toc-list-nested"
 						:headings="element.headings"
-						:parent-block-id="element.blockClientId"
 						:allowReorder="allowReorder"
 						:client-id="clientId"
 						:group="element.anchor"
@@ -106,7 +105,7 @@ import {
 
 import { cleanHtml, deepCopy } from '@/vue/standalone/blocks/utils'
 import { cleanForSlug } from '@/vue/utils/cleanForSlug'
-import { orderHeadings } from '../helpers'
+import { findHeadingBlockClientId, orderHeadings, replaceHeadingAnchor } from '../helpers'
 
 import BaseInput from '@/vue/components/common/base/Input'
 import CoreTooltip from '@/vue/components/common/core/Tooltip'
@@ -141,15 +140,13 @@ const props = defineProps({
 		required : false,
 		type     : String,
 		default  : 'description'
-	},
-	parentBlockId : {
-		required : false,
-		type     : String,
-		default  : ''
 	}
 })
 
 const rootStore = useRootStore()
+
+// The characters cleanForSlug() turns into a hyphen, matched at the end of the typed anchor.
+const TRAILING_SEPARATOR = /[-\s./]$/
 
 const blockAttributes = ref(window.wp.data.select('core/block-editor').getBlockAttributes(props.clientId) || {})
 
@@ -174,20 +171,15 @@ const dragOptions = computed(() => ({
 const setEditedContent = (newValue, heading) => {
 	heading.editedContent = newValue === heading.content ? '' : cleanHtml(newValue, true, false)
 
+	// Always use the full headings tree from the block attributes to avoid
+	// overwriting the entire tree with a nested sub-array.
+	const currentAttributes = window.wp.data.select('core/block-editor').getBlockAttributes(props.clientId)
+	const updatedHeadings = getHeadings(currentAttributes.headings, heading)
+
 	window.wp.data.dispatch('core/block-editor').updateBlockAttributes(props.clientId, {
-		...blockAttributes.value,
-		headings : props.headings
+		...currentAttributes,
+		headings : updatedHeadings
 	})
-}
-
-const replaceSortedHeadings = (heading) => {
-	if (heading.blockClientId === props.parentBlockId) {
-		heading.headings = orderHeadings(heading.headings, heading.editedOrder)
-	} else {
-		heading.headings.map(replaceSortedHeadings)
-	}
-
-	return heading
 }
 
 const setReorder = (value) => {
@@ -198,8 +190,9 @@ const setReorder = (value) => {
 		return
 	}
 
-	const copyHeadings = deepCopy(blockAttributes.value.headings)
-	const newHeadings = orderHeadings(copyHeadings.map(replaceSortedHeadings))
+	// Draggable already applied the move to the tree in place, so this only has to renumber it.
+	const newHeadings = orderHeadings(deepCopy(blockAttributes.value.headings))
+
 	window.wp.data.dispatch('core/block-editor').updateBlockAttributes(props.clientId, {
 		...blockAttributes.value,
 		headings : newHeadings
@@ -207,21 +200,39 @@ const setReorder = (value) => {
 }
 
 const setAnchor = (newValue, heading) => {
-	const clientId = heading.blockClientId
-	const block    = window.wp.data.select('core/block-editor').getBlock(clientId)
-	if (!block) {
+	const blockEditor = window.wp.data.select('core/block-editor')
+
+	// The heading's stored client ID goes stale as soon as the post is reloaded, so look the block up again.
+	const headingClientId = blockEditor.getBlock(heading.blockClientId)
+		? heading.blockClientId
+		: findHeadingBlockClientId(heading, blockEditor.getBlocks())
+
+	if (!headingClientId) {
 		return
 	}
 
-	heading.anchor = cleanForSlug(newValue)
-	if (!newValue) {
-		const blockIndex = window.wp.data.select('core/block-editor').getBlockIndex(clientId)
-		heading.anchor   = rootStore.aioseo.data.blocks.toc.hashPrefix + cleanForSlug(`${heading.content}-${blockIndex}`)
+	let anchor = cleanForSlug(newValue)
+	if (!anchor) {
+		const blockIndex = blockEditor.getBlockIndex(headingClientId)
+		anchor = rootStore.aioseo.data.blocks.toc.hashPrefix + cleanForSlug(`${heading.content}-${blockIndex}`)
+	} else if (TRAILING_SEPARATOR.test(newValue)) {
+		// The field mirrors the anchor we store, and cleanForSlug() drops the trailing separator -
+		// keeping it is what lets the next word be typed instead of running into the previous one.
+		anchor += '-'
 	}
 
-	window.wp.data.dispatch('core/block-editor').updateBlockAttributes(clientId, {
-		anchor : heading.anchor
+	const currentAttributes = blockEditor.getBlockAttributes(props.clientId)
+
+	// The table of contents has to carry the new anchor itself. Leaving that to the re-parse would
+	// cost the heading its custom label, visibility and position, none of which survive an anchor change.
+	window.wp.data.dispatch('core/block-editor').updateBlockAttributes(props.clientId, {
+		...currentAttributes,
+		headings : replaceHeadingAnchor(currentAttributes.headings, heading, anchor)
 	})
+
+	window.wp.data.dispatch('core/block-editor').updateBlockAttributes(headingClientId, { anchor })
+
+	window.aioseoBus.$emit('updateToc' + props.clientId)
 }
 
 const getHeadings = (headings, heading) => {
@@ -231,9 +242,13 @@ const getHeadings = (headings, heading) => {
 			h.level === Number(heading.level) &&
 			h.anchor === heading.anchor
 		) {
-			return heading
+			// Preserve the store's nested headings to avoid overwriting
+			// with potentially stale data from the component state.
+			return { ...heading, headings: h.headings || [] }
+		} else if (h.headings?.length) {
+			return { ...h, headings: getHeadings(h.headings, heading) }
 		} else {
-			return h.headings ? getHeadings(h.headings, heading) : h
+			return h
 		}
 	})
 }

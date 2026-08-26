@@ -128,3 +128,19 @@ export const createHighlightPopoverNode = () => {
 
 	return el
 }
+
+/**
+ * Whether the additional-keyword limit has been reached.
+ *
+ * NOTE: A limit of 0 means unlimited — the keyword list paginates, so there is no UI reason to cap
+ * it. Kept configurable via the `aioseo_post_additional_keywords_limit` filter.
+ *
+ * @param {number} limit The configured limit.
+ * @param {number} count The number of additional keywords already added.
+ * @returns {boolean}    Whether no more keywords may be added.
+ */
+export const additionalKeywordLimitReached = (limit, count) => {
+	const max = parseInt(limit, 10)
+
+	return !isNaN(max) && 0 < max && max <= count
+}

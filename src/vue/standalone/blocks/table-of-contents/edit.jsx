@@ -16,7 +16,7 @@ import { observeElement } from '@/vue/utils/helpers'
 import { getEditorDocument } from '@/vue/utils/editor'
 import { cleanForSlug } from '@/vue/utils/cleanForSlug'
 
-import { flattenHeadings, MODES } from './helpers'
+import { BLOCK_TYPES, flattenHeadings, MODES } from './helpers'
 import { __ } from '@/vue/plugins/translations'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
@@ -27,14 +27,9 @@ const { InspectorControls }   = wp.blockEditor
 const { PanelBody }           = wp.components
 const { useSelect }           = wp.data
 const blockEditorStore        = wp.blockEditor.store
-const { isTyping }            = wp.data.select(blockEditorStore) || { isTyping: () => null }
-
-// Constants
-const BLOCK_TYPES = {
-	HEADING : 'core/heading',
-	FAQ     : 'aioseo/faq',
-	TOC     : 'aioseo/table-of-contents'
-}
+// isTyping must be read fresh from the store on every call – capturing it at
+// module-load time produces a stale closure that can permanently return true.
+const isTyping = () => wp.data.select(blockEditorStore)?.isTyping() ?? false
 
 const appInstances   = new Map()
 let hasInitialized = [],
@@ -53,15 +48,30 @@ const isValidHeading = (headingContent, tableOfContentsIndex, headingIndex, list
 				 (listAllHeadings || tableOfContentsIndex <= headingIndex)
 }
 
-const processHeading = (headingAttributes, headingIndex, tableOfContentsIndex, existingHeadings = [], blockClientId, listAllHeadings = false, hashPrefix = '') => {
+const processHeading = ({
+	headingAttributes,
+	headingIndex,
+	tableOfContentsIndex,
+	existingHeadings = [],
+	blockClientId,
+	listAllHeadings = false,
+	hashPrefix = '',
+	usedAnchors = new Set()
+}) => {
 	const hasAnchor = 'string' === typeof headingAttributes?.anchor && '' !== headingAttributes.anchor
+
 	const headingLevel = headingAttributes.level || headingAttributes.tagName.replace('h', '')
 
 	if ('div' === headingLevel) {
 		return null
 	}
 
-	let headingContent = getHeadingContent(headingAttributes)
+	// Use a local variable for anchor so we never rely on mutating headingAttributes
+	// — the object from getBlockAttributes may be frozen (Immer), so the assignment
+	// `headingAttributes.anchor = slug` would silently fail in strict mode.
+	let headingContent = getHeadingContent(headingAttributes),
+		anchor         = hasAnchor ? headingAttributes.anchor : '',
+		dedupeSuffix   = 2
 
 	if (!isValidHeading(headingContent, tableOfContentsIndex, headingIndex, listAllHeadings)) {
 		return null
@@ -69,13 +79,21 @@ const processHeading = (headingAttributes, headingIndex, tableOfContentsIndex, e
 
 	headingContent = cleanHtml(headingContent.replace(/(<br *\/?>)+/g, ' '), true)
 
-	let anchor = headingAttributes?.anchor || ''
-
 	if (!hasAnchor && !isTyping()) {
-		anchor = hashPrefix + cleanForSlug(`${headingContent}-${headingIndex}`)
+		anchor = hashPrefix + cleanForSlug(headingContent)
+
+		// Only append a numeric suffix if the slug collides with an existing one.
+		if (usedAnchors.has(anchor)) {
+			while (usedAnchors.has(`${anchor}-${dedupeSuffix}`)) {
+				dedupeSuffix++
+			}
+			anchor = `${anchor}-${dedupeSuffix}`
+		}
 	}
 
-	// Find matching existing heading to preserve order and visibility
+	usedAnchors.add(anchor)
+
+	// Find matching existing heading to preserve order and visibility.
 	const existingHeading = existingHeadings.find(h =>
 		h.content === headingContent &&
 		h.level === Number(headingLevel) &&
@@ -209,6 +227,7 @@ export const edit = ({ setAttributes, attributes, clientId, isSelected }) => {
 		const hashPrefix = rootStore.aioseo.data.blocks.toc.hashPrefix
 
 		const result = []
+		const usedAnchors = new Set()
 		const anchorUpdates = []
 		relevantBlockClientIds.forEach((blockClientId) => {
 			const blockName = getBlockName(blockClientId)
@@ -220,7 +239,16 @@ export const edit = ({ setAttributes, attributes, clientId, isSelected }) => {
 			const headingAttributes = getBlockAttributes(blockClientId)
 			const headingIndex = allBlockClientIds.indexOf(blockClientId)
 
-			const heading = processHeading(headingAttributes, headingIndex, tableOfContentsIndex, localHeadings, blockClientId, attributes?.listAllHeadings, hashPrefix)
+			const heading = processHeading({
+				headingAttributes,
+				headingIndex,
+				tableOfContentsIndex,
+				existingHeadings : localHeadings,
+				blockClientId,
+				listAllHeadings  : attributes?.listAllHeadings,
+				hashPrefix,
+				usedAnchors
+			})
 			if (heading) {
 				if (heading.anchor && heading.anchor !== (headingAttributes?.anchor || '')) {
 					anchorUpdates.push({ blockClientId, anchor: heading.anchor })
@@ -337,7 +365,7 @@ export const edit = ({ setAttributes, attributes, clientId, isSelected }) => {
 			return
 		}
 
-		const normalizedNewHeadings = sortByContent(newHeadings)?.map(h => ({
+		const normalizedNewHeadings = sortByContent(flattenHeadings(deepCopy(newHeadings)))?.map(h => ({
 			content       : h.content,
 			level         : h.level,
 			anchor        : h.anchor,
@@ -346,7 +374,7 @@ export const edit = ({ setAttributes, attributes, clientId, isSelected }) => {
 			editedContent : h.editedContent
 		}))
 
-		const normalizedHeadings = sortByContent(headings)?.map(h => ({
+		const normalizedHeadings = sortByContent(flattenHeadings(deepCopy(headings || [])))?.map(h => ({
 			content       : h.content,
 			level         : h.level,
 			anchor        : h.anchor,
@@ -364,18 +392,18 @@ export const edit = ({ setAttributes, attributes, clientId, isSelected }) => {
 	}
 
 	const hasActualChanges = (newHeadings, currentHeadings) => {
-    // Normalize both arrays for comparison
-    const normalize = (headings) => {
+		// Normalize both arrays for comparison
+		const normalize = (headings) => {
 			return headings.map(h => ({
-				content: h.content,
-				level: h.level,
-				anchor: h.anchor,
-				hidden: h.hidden,
-				editedContent: h.editedContent || '',
+				content       : h.content,
+				level         : h.level,
+				anchor        : h.anchor,
+				hidden        : h.hidden,
+				editedContent : h.editedContent || '',
 				// Recursively normalize nested headings
-				headings: h.headings ? normalize(h.headings) : []
+				headings      : h.headings ? normalize(h.headings) : []
 			}))
-    }
+		}
 
 		const normalizedNew = normalize(newHeadings)
 		const normalizedCurrent = normalize(currentHeadings)

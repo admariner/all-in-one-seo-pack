@@ -188,6 +188,12 @@ const classicContent = () => {
 export const getPostEditedContentForAnalysis = (ignoreCustomFields = false) => {
 	let postContent = ''
 
+	// A term has no editor — its description is the only body content, and custom
+	// fields never apply.
+	if ('term' === usePostEditorStore().currentPost.context) {
+		return (document.querySelector('#edittag textarea#description')?.value || '').replace(base64regex, '')
+	}
+
 	if (isClassicEditor() && !isPageBuilderEditor()) {
 		if (window.tinyMCE || document.querySelector('#wp-content-wrap.html-active')) {
 			postContent = classicContent()

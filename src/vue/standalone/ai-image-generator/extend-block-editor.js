@@ -12,7 +12,7 @@ import aiAssistantIcon from '@/vue/standalone/blocks/ai-assistant/icon'
 const { addFilter } = window.wp.hooks
 const { BlockControls } = window.wp.blockEditor
 const { Button, ToolbarGroup, ToolbarButton } = window.wp.components
-const { Fragment, render, unmountComponentAtNode } = window.wp.element
+const { Fragment, createRoot, flushSync, render, unmountComponentAtNode } = window.wp.element
 const { createHigherOrderComponent } = window.wp.compose
 const { select, useSelect } = window.wp.data
 
@@ -24,6 +24,27 @@ const strings = {
 }
 
 let isImageBlockToolbarExtended = false
+
+// React 18 (WP 6.2+) ships `wp.element.createRoot`; fall back to the legacy
+// `render`/`unmountComponentAtNode` pair for older WordPress installs.
+// `flushSync` is used so the rendered output is available synchronously for cloning.
+// NOTE: A narrow window of standalone Gutenberg builds shipped `createRoot` before
+// `flushSync`, so both must be present before taking the React 18 path.
+const renderAndUnmount = (component, container) => {
+	if (createRoot && flushSync) {
+		const root = createRoot(container)
+
+		flushSync(() => {
+			root.render(component)
+		})
+
+		return () => root.unmount()
+	}
+
+	render(component, container)
+
+	return () => unmountComponentAtNode(container)
+}
 
 const clickHandler = ($el, options = {}) => {
 	window.aioseoBus.$emit('do-post-settings-main-tab-change', { name: 'aiContent' })
@@ -122,45 +143,53 @@ export const extendImageBlockPlaceholder = () => {
 		return
 	}
 
-	const editorDoc  = getEditorDocument()
-	const $block     = editorDoc.getElementById(`block-${selectedBlock.clientId}`)
-	const $targetBtn = $block?.querySelector('.components-form-file-upload')
-	if (
-		!$targetBtn ||
-		$block?.querySelector('.aioseo-ai-image-generator-btn')
-	) {
-		return
-	}
+	// Defer out of the editor's render phase. This callback runs on every
+	// `wp.data.subscribe` tick, i.e. while WordPress's React may be mid-render;
+	// calling `createRoot`/`flushSync`/`unmount` there emits flushSync-lifecycle
+	// and sync-unmount race warnings. `setTimeout` moves the work to a macrotask
+	// after the render settles, which also lets `flushSync` flush synchronously so
+	// the cloned node is reliably available. Same approach as extendFeaturedImageButton.
+	setTimeout(() => {
+		const editorDoc  = getEditorDocument()
+		const $block     = editorDoc.getElementById(`block-${selectedBlock.clientId}`)
+		const $targetBtn = $block?.querySelector('.components-form-file-upload')
+		if (
+			!$targetBtn ||
+			$block?.querySelector('.aioseo-ai-image-generator-btn')
+		) {
+			return
+		}
 
-	const $tempContainer = document.createElement('div')
+		const $tempContainer = document.createElement('div')
 
-	render(
-		html`
-			<${Button}
-				className=${'aioseo-ai-image-generator-btn'}
-				variant=${'secondary'}
-				icon=${aiAssistantIcon}
-				iconSize=${'20'}
-				__next40pxDefaultSize=${true}
-			>
-				${strings.generateWithAI}
-			</${Button}>`,
-		$tempContainer
-	)
+		const unmount = renderAndUnmount(
+			html`
+				<${Button}
+					className=${'aioseo-ai-image-generator-btn'}
+					variant=${'secondary'}
+					icon=${aiAssistantIcon}
+					iconSize=${'20'}
+					__next40pxDefaultSize=${true}
+				>
+					${strings.generateWithAI}
+				</${Button}>`,
+			$tempContainer
+		)
 
-	const $buttonElement = $tempContainer.firstChild?.cloneNode(true)
-	if ($buttonElement) {
-		// Place the button after the "Upload" button, inside the so called MediaPlaceholder component.
-		$targetBtn.after($buttonElement)
+		const $buttonElement = $tempContainer.firstChild?.cloneNode(true)
+		if ($buttonElement) {
+			// Place the button after the "Upload" button, inside the so called MediaPlaceholder component.
+			$targetBtn.after($buttonElement)
 
-		$buttonElement.addEventListener('click', () => {
-			clickHandler($buttonElement, { initiator: { slug: 'image-block-placeholder' } })
-		})
-	}
+			$buttonElement.addEventListener('click', () => {
+				clickHandler($buttonElement, { initiator: { slug: 'image-block-placeholder' } })
+			})
+		}
 
-	unmountComponentAtNode($tempContainer)
+		unmount()
 
-	$tempContainer.remove()
+		$tempContainer.remove()
+	})
 }
 
 export const extendFeaturedImageButton = () => {
@@ -196,7 +225,7 @@ export const extendFeaturedImageButton = () => {
 
 		const $tempContainer = document.createElement('div')
 
-		render(
+		const unmount = renderAndUnmount(
 			html`
 				<${Button}
 					className=${'aioseo-ai-image-generator-btn-featured-image'}
@@ -219,7 +248,7 @@ export const extendFeaturedImageButton = () => {
 			})
 		}
 
-		unmountComponentAtNode($tempContainer)
+		unmount()
 
 		$tempContainer.remove()
 	})

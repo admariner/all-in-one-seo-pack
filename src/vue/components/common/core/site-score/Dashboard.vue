@@ -31,7 +31,7 @@
 					:href="button.url ? button.url : ''"
 					size="small"
 					:loading="button?.runAgain && analyzerStore.analyzing"
-					@click="button?.runAgain ? analyzerStore.runSiteAnalyzer() : ''"
+					@click="button?.runAgain ? analyzerStore.runSiteAnalyzer({ refresh: true }) : ''"
 				>
 					{{ button.text }}
 				</base-button>
@@ -116,7 +116,7 @@ export default {
 	},
 	computed : {
 		getError () {
-			switch (this.analyzerStore.analyzeError) {
+			switch (this.analyzerStore.analyzeErrorCode) {
 				case 'invalid-url':
 					return __('The URL provided is invalid.', td)
 				case 'missing-content':

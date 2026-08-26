@@ -113,10 +113,7 @@ export default class SlugKeywordAssessment extends Assessment {
 			return {
 				score       : this._config.scores.okay,
 				resultTitle : __('Keyword in slug', td),
-				resultText  : __(
-					'Your URL doesn\'t include your keyword. Edit the slug below the title to add it — a clean, keyword-rich URL tells search engines and readers what the page is about.',
-					td
-				)
+				resultText  : this.getSlugFeedback()
 			}
 		}
 
@@ -133,11 +130,30 @@ export default class SlugKeywordAssessment extends Assessment {
 		return {
 			score       : this._config.scores.okay,
 			resultTitle : __('Keyword in slug', td),
-			resultText  : __(
-				'Your URL doesn\'t include your keyword. Edit the slug below the title to add it — a clean, keyword-rich URL tells search engines and readers what the page is about.',
+			resultText  : this.getSlugFeedback()
+		}
+	}
+
+	/**
+	 * Returns the feedback for a slug that is missing the keyword.
+	 *
+	 * NOTE: The slug field sits below the title when editing a post, but elsewhere on a term screen,
+	 * so the pointer is only given where it is accurate.
+	 *
+	 * @returns {string} The feedback string.
+	 */
+	getSlugFeedback () {
+		if (this.isTaxonomyContent()) {
+			return __(
+				'Your URL doesn\'t include your keyword. Add it to the slug — a clean, keyword-rich URL tells search engines and readers what the page is about.',
 				td
 			)
 		}
+
+		return __(
+			'Your URL doesn\'t include your keyword. Edit the slug below the title to add it — a clean, keyword-rich URL tells search engines and readers what the page is about.',
+			td
+		)
 	}
 }
 

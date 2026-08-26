@@ -291,6 +291,45 @@ export function replaceBlockText (mark, newText) {
 }
 
 /**
+ * Applies the case pattern of the replaced text to its replacement.
+ *
+ * Dictionary suggestions come back lowercase, so accepting one for "Recieve" at the start of a
+ * sentence would fix the spelling and introduce a capitalisation error in its place. Matched per
+ * occurrence, so the same word capitalised in one sentence and lowercase in another each keep their
+ * own form.
+ *
+ * NOTE: Scripts without letter case (the spell checker supports many) compare equal upper and lower,
+ * so they fall through and keep the suggestion exactly as the dictionary supplied it.
+ *
+ * @since 5.0.1
+ *
+ * @param {string} original    The text being replaced.
+ * @param {string} replacement The replacement word.
+ * @returns {string}           The replacement, cased like the original.
+ */
+export function matchCase (original, replacement) {
+	if (!original || !replacement) {
+		return replacement
+	}
+
+	// Require more than one letter so a lone "I" isn't read as an all-caps word.
+	const isAllCaps = 1 < original.length &&
+		original === original.toUpperCase() &&
+		original !== original.toLowerCase()
+
+	if (isAllCaps) {
+		return replacement.toUpperCase()
+	}
+
+	const first = original.charAt(0)
+	if (first === first.toUpperCase() && first !== first.toLowerCase()) {
+		return replacement.charAt(0).toUpperCase() + replacement.slice(1)
+	}
+
+	return replacement
+}
+
+/**
  * Replaces every whole-word occurrence of `word` with `replacement`
  * inside a single Gutenberg block.
  *
@@ -298,7 +337,8 @@ export function replaceBlockText (mark, newText) {
  * text representation, then applies replacements from the end so earlier
  * offsets stay valid for the same update.
  *
- * @since 5.0.0
+ * @since   5.0.0
+ * @version 5.0.1 Preserves each occurrence's capitalisation.
  *
  * @param {string} clientId    The Gutenberg block client ID.
  * @param {string} word        The misspelled word to replace.
@@ -332,7 +372,7 @@ export function replaceAllInBlockEditor (clientId, word, replacement) {
 	 match
 
 	while (null !== (match = wordRegex.exec(richTextValue.text))) {
-		positions.push({ start: match.index, end: match.index + match[0].length })
+		positions.push({ start: match.index, end: match.index + match[0].length, matched: match[0] })
 	}
 
 	if (!positions.length) {
@@ -342,7 +382,7 @@ export function replaceAllInBlockEditor (clientId, word, replacement) {
 	for (let i = positions.length - 1; 0 <= i; i--) {
 		richTextValue = insert(
 			richTextValue,
-			create({ text: replacement }),
+			create({ text: matchCase(positions[i].matched, replacement) }),
 			positions[i].start,
 			positions[i].end
 		)
@@ -363,14 +403,56 @@ export function replaceAllInBlockEditor (clientId, word, replacement) {
 }
 
 /**
- * Replaces every whole-word occurrence of a word in the Classic Editor (TinyMCE)
- * body by rewriting the matching text nodes directly — no highlight marks needed.
+ * Replaces every whole-word occurrence of a word in a term's description textarea.
+ *
+ * @since 5.0.1
+ *
+ * @param {HTMLTextAreaElement} textarea          The term description textarea.
+ * @param {string}              word              The word to replace.
+ * @param {string}              replacement       The replacement word.
+ * @param {boolean}             triggerReanalysis Re-run analysis after editing.
+ * @returns {boolean}                             Whether any occurrence was replaced.
+ */
+export function replaceAllWordInTermDescription (textarea, word, replacement, triggerReanalysis = true) {
+	const wordRegex = new RegExp(wordBoundaryPattern(word), 'gu')
+	const original  = textarea.value || ''
+
+	wordRegex.lastIndex = 0
+	if (!wordRegex.test(original)) {
+		return false
+	}
+
+	// Preserve the caret so applying a fix doesn't jump the cursor to the end for anyone
+	// mid-sentence in the description.
+	const selectionStart = textarea.selectionStart
+	const selectionEnd   = textarea.selectionEnd
+
+	wordRegex.lastIndex = 0
+	// Function replacer so `$` sequences in the replacement aren't treated as special patterns.
+	textarea.value = original.replace(wordRegex, match => matchCase(match, replacement))
+
+	const maxCaret = textarea.value.length
+	textarea.setSelectionRange(Math.min(selectionStart, maxCaret), Math.min(selectionEnd, maxCaret))
+
+	// The term description is a plain textarea, so nothing observes programmatic writes —
+	// dispatch input so WordPress and our own listeners see the change.
+	textarea.dispatchEvent(new Event('input', { bubbles: true }))
+
+	if (triggerReanalysis) {
+		requestPostUpdate(500)
+	}
+
+	return true
+}
+
+/**
+ * Replaces every whole-word occurrence of a misspelled word in the Classic editor.
  *
  * @since 5.0.0
  *
- * @param {string}  word              The word to replace.
+ * @param {string}  word              The misspelled word to replace.
  * @param {string}  replacement       The replacement word.
- * @param {boolean} triggerReanalysis Re-run analysis after editing. Pass false when the caller re-analyzes itself.
+ * @param {boolean} triggerReanalysis Re-run analysis after editing.
  * @returns {boolean}                 Whether any occurrence was replaced.
  */
 export function replaceAllWordInClassicEditor (word, replacement, triggerReanalysis = true) {
@@ -401,7 +483,7 @@ export function replaceAllWordInClassicEditor (word, replacement, triggerReanaly
 		wordRegex.lastIndex = 0
 		// Function replacer so `$` sequences in the replacement (e.g. "$&") aren't
 		// treated as special patterns by String.prototype.replace.
-		textNode.nodeValue = textNode.nodeValue.replace(wordRegex, () => replacement)
+		textNode.nodeValue = textNode.nodeValue.replace(wordRegex, match => matchCase(match, replacement))
 	}
 
 	// Merge annotation-split siblings so TinyMCE's serializer stays clean, then
@@ -436,6 +518,12 @@ export function replaceAllWordInClassicEditor (word, replacement, triggerReanaly
 export function replaceWordInContent (word, replacement, triggerReanalysis = true) {
 	if (!word || !replacement) {
 		return false
+	}
+
+	// A term has no editor — its description textarea is the analysed content.
+	const termDescription = document.querySelector('#edittag textarea#description')
+	if (termDescription) {
+		return replaceAllWordInTermDescription(termDescription, word, replacement, triggerReanalysis)
 	}
 
 	if (!isBlockEditor()) {

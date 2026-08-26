@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify'
 import { decode } from 'he'
-import { isString } from 'lodash-es'
+import { escape, isString } from 'lodash-es'
 
 function decodeHtml (string) {
 	while (string !== decode(string)) {
@@ -54,6 +54,22 @@ export const softSanitizeHtml = (string) => {
 	}
 
 	return DOMPurify.sanitize(decodeHtml(string))
+}
+
+/**
+ * Escapes a string so that it is rendered as text when it is inserted into markup.
+ *
+ * NOTE: Entities are decoded first so that an already encoded string doesn't end up double escaped.
+ *
+ * @param   {string} string The string to escape.
+ * @returns {string}        Returns the escaped string.
+ */
+export const escapeHtml = (string) => {
+	if (!isString(string)) {
+		return ''
+	}
+
+	return escape(decodeHtml(string))
 }
 
 /**

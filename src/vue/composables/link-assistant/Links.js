@@ -201,7 +201,7 @@ export const useLinks = (params = {}) => {
 		pattern = new RegExp(`${escapedPhraseHtml}`, 'i')
 
 		window.wp.data.dispatch('core/block-editor').updateBlockAttributes(targetBlockId, {
-			content : targetBlock.attributes.content.replace(pattern, newPhraseHtml)
+			content : String(targetBlock.attributes.content).replace(pattern, newPhraseHtml)
 		}).then(() => {
 			post.links[linkType].rows.splice(rowIndex, 1)
 		}).catch((error) => {

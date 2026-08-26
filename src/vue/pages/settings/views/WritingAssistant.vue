@@ -19,6 +19,80 @@
 			</core-settings-row>
 
 			<core-settings-row
+				:name="strings.truSeoPostTypes"
+				v-if="optionsStore.options.advanced.truSeo"
+			>
+				<template #content>
+					<base-checkbox
+						size="medium"
+						v-model="optionsStore.options.advanced.truSeoObjects.postTypes.all"
+					>
+						{{ strings.includeAllTruSeoPostTypes }}
+					</base-checkbox>
+
+					<core-post-type-options
+						v-if="!optionsStore.options.advanced.truSeoObjects.postTypes.all"
+						:options="optionsStore.options.advanced.truSeoObjects"
+						:excluded="ineligible.postTypes"
+						type="postTypes"
+					/>
+
+					<div class="aioseo-description">
+						{{ strings.selectTruSeoPostTypes }}
+					</div>
+				</template>
+			</core-settings-row>
+
+			<core-settings-row
+				v-if="optionsStore.options.advanced.truSeo"
+			>
+				<template #name>
+					{{ strings.truSeoTaxonomies }}
+					<core-pro-badge
+						v-if="licenseStore.isUnlicensed"
+					/>
+				</template>
+
+				<template #content>
+					<base-checkbox
+						v-if="licenseStore.isUnlicensed"
+						disabled
+						size="medium"
+						:modelValue="true"
+					>
+						{{ strings.includeAllTruSeoTaxonomies }}
+					</base-checkbox>
+
+					<base-checkbox
+						v-if="!licenseStore.isUnlicensed"
+						size="medium"
+						v-model="optionsStore.options.advanced.truSeoObjects.taxonomies.all"
+					>
+						{{ strings.includeAllTruSeoTaxonomies }}
+					</base-checkbox>
+
+					<core-post-type-options
+						v-if="!optionsStore.options.advanced.truSeoObjects.taxonomies.all && !licenseStore.isUnlicensed"
+						:options="optionsStore.options.advanced.truSeoObjects"
+						:excluded="ineligible.taxonomies"
+						type="taxonomies"
+					/>
+
+					<div class="aioseo-description">
+						{{ strings.selectTruSeoTaxonomies }}
+					</div>
+
+					<core-alert
+						class="inline-upsell"
+						v-if="licenseStore.isUnlicensed"
+						type="blue"
+					>
+						<div v-html="strings.truSeoTaxonomiesUpsell" />
+					</core-alert>
+				</template>
+			</core-settings-row>
+
+			<core-settings-row
 				:name="strings.highlighter"
 				v-if="optionsStore.options.advanced.truSeo"
 			>
@@ -69,9 +143,11 @@
 				</template>
 			</core-settings-row>
 
+			<!-- Spelling is independent of the highlighter: it has its own tab and its own fix/jump
+			actions, and the worker only reads the spellChecker option. -->
 			<core-settings-row
 				:name="strings.spellChecker"
-				v-if="optionsStore.options.advanced.truSeo && optionsStore.options.advanced.highlighter"
+				v-if="optionsStore.options.advanced.truSeo"
 			>
 				<template #content>
 					<base-toggle v-model="optionsStore.options.advanced.spellChecker"/>
@@ -228,19 +304,23 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { GLOBAL_STRINGS } from '@/vue/plugins/constants'
 import links from '@/vue/utils/links'
 import {
+	useLicenseStore,
 	useOptionsStore,
+	useRootStore,
 	useWritingAssistantStore,
 	useWritingAssistantSettingsStore
 } from '@/vue/stores'
 
+import CoreAlert from '@/vue/components/common/core/alert/Index'
 import CoreCard from '@/vue/components/common/core/Card'
+import CoreProBadge from '@/vue/components/common/core/ProBadge'
 import CoreSettingsRow from '@/vue/components/common/core/SettingsRow'
 
-import { __ } from '@/vue/plugins/translations'
+import { __, sprintf } from '@/vue/plugins/translations'
 import BaseCheckbox from '@/vue/components/common/base/Checkbox'
 import BaseButton from '@/vue/components/common/base/Button'
 import BaseSelect from '@/vue/components/common/base/Select'
@@ -251,7 +331,9 @@ import DisconnectModal from '@/vue/standalone/writing-assistant/views/partials/a
 
 const td = import.meta.env.VITE_TEXTDOMAIN
 
+const licenseStore = useLicenseStore()
 const optionsStore = useOptionsStore()
+const rootStore    = useRootStore()
 const writingAssistantStore = useWritingAssistantStore()
 const writingAssistantSettingsStore = useWritingAssistantSettingsStore()
 writingAssistantSettingsStore.hookSaveUserOptions()
@@ -259,14 +341,33 @@ writingAssistantSettingsStore.hookSaveUserOptions()
 const showDisconnectModal = ref(false)
 const openLogin = ref(false)
 
+// Object types TruSEO can never analyse, so the include-lists don't offer a checkbox that
+// silently does nothing. Comes from PHP, which owns the exclusion rules, so the two can't drift.
+const ineligible = computed(() => ({
+	postTypes  : rootStore.aioseo.truSeoIneligible?.postTypes || [],
+	taxonomies : rootStore.aioseo.truSeoIneligible?.taxonomies || []
+}))
+
 const strings = {
-	truSeoSettings              : __('TruSEO & Content Settings', td),
-	truSeo                      : __('TruSEO', td),
-	truSeoDescription           : __('Enable TruSEO to analyze your content for basic SEO issues, keyword usage, and readability, and to flag spelling mistakes as you write — helping you optimize every post for maximum traffic.', td),
+	truSeoSettings             : __('TruSEO & Content Settings', td),
+	truSeo                     : __('TruSEO', td),
+	truSeoDescription          : __('Enable TruSEO to analyze your content for basic SEO issues, keyword usage, and readability, and to flag spelling mistakes as you write — helping you optimize every post for maximum traffic.', td),
+	truSeoPostTypes            : __('Post Types', td),
+	includeAllTruSeoPostTypes  : __('Include all post types', td),
+	selectTruSeoPostTypes      : __('Select the post types you want TruSEO to analyze.', td),
+	truSeoTaxonomies           : __('Taxonomies', td),
+	includeAllTruSeoTaxonomies : __('Include all taxonomies', td),
+	selectTruSeoTaxonomies     : __('Select the taxonomies you want TruSEO to analyze. This is most useful for taxonomies whose descriptions act as landing page content, such as WooCommerce product categories.', td),
+	truSeoTaxonomiesUpsell     : sprintf(
+		// Translators: 1 - "PRO", 2 - "Learn more".
+		__('TruSEO for Taxonomies is a %1$s feature. %2$s', td),
+		'PRO',
+		links.getUpsellLink('general-settings', 'truseo-taxonomies', GLOBAL_STRINGS.learnMore, 'liteUpgrade', true)
+	),
 	headlineAnalyzer            : __('Headline Analyzer', td),
 	headlineAnalyzerDescription : __('Enable our Headline Analyzer to help you write irresistible headlines and rank better in search results.', td),
 	spellChecker                : __('Spell Checker', td),
-	spellCheckerDescription     : __('Highlight misspelled words in your content and suggest corrections. Requires TruSEO and the Highlighter to be enabled.', td),
+	spellCheckerDescription     : __('Flag misspelled words in your content and suggest corrections. Requires TruSEO to be enabled.', td),
 	highlighter                 : __('Highlighter', td),
 	highlighterDescription      : __('Highlight sentences that need improvement directly in the editor as you write. This sets the default for all posts; you can still toggle it per post. Requires TruSEO to be enabled.', td),
 	highlightStyle              : __('Highlight style', td),
@@ -329,6 +430,11 @@ const createAccount = () => {
 
 <style lang="scss">
 .aioseo-writing-assistant-settings {
+	.inline-upsell {
+		display: inline-flex;
+		margin-top: 12px;
+	}
+
 	.highlight-style-options {
 		display: flex;
 		gap: 12px;

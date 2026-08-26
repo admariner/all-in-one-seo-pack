@@ -54,7 +54,10 @@ export function calculateOverallScore (seoAnalysis, contentAnalysis) {
 
 	const spellingResult = contentResults.find(result => SPELLING_IDENTIFIER === resultIdentifier(result))
 
-	let readabilityContribution = 0,
+	// Both default to full marks: a content type that produces no readability results (a term, whose
+	// description is one short block and whose Readability tab is hidden) must not silently forfeit
+	// the 20 points the block is worth.
+	let readabilityContribution = 100,
 		spellingContribution    = 100
 
 	if (readabilityResults.length) {

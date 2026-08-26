@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import http from '@/vue/utils/http'
 import links from '@/vue/utils/links'
-import { getAllResultsGrouped } from '@/app/tru-seo/helpers/resultsFilter'
+import { getAllResultsGrouped, KEYWORD_ASSESSMENT_IDS } from '@/app/tru-seo/helpers/resultsFilter'
 import { decodeSpecialChars } from '@/vue/utils/helpers'
 
 import { allowed } from '@/vue/utils/AIOSEO_VERSION'
@@ -48,10 +48,12 @@ export const usePostEditorStore = defineStore('PostEditorStore', {
 			const focusKeywordAnalysis = truseo?.focus_keyword || null
 			const generalAnalysis      = truseo?.general || null
 
-			// Collect identifiers already shown under the focus/additional keyword rows so
-			// they are not displayed again in the basic/readability lists. Scores are
-			// computed from the raw `general` map, so excluding here does not affect them.
-			const excludeIds = new Set()
+			// Keyword checks belong to the Keywords tab, so keep them out of the basic/readability
+			// lists unconditionally — deriving this from the keyword's own results meant that with
+			// no keyword set they all fell through into Basics as "Add a focus keyword" filler and
+			// inflated its issue count. Scores are computed from the raw `general` map, so
+			// excluding here does not affect them.
+			const excludeIds = new Set(KEYWORD_ASSESSMENT_IDS)
 			if (focusKeyword && focusKeywordAnalysis?.items) {
 				Object.keys(focusKeywordAnalysis.items).forEach(id => excludeIds.add(id))
 			}

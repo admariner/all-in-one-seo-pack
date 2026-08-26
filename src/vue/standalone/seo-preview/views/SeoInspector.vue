@@ -54,7 +54,10 @@
 								</div>
 							</div>
 
-							<div class="check">
+							<div
+								v-if="hasReadability"
+								class="check"
+							>
 								<template v-if="groupHasData('readability')">
 									<component
 										:is="getGroupIconComponent('readability')"
@@ -182,6 +185,15 @@ export default {
 	computed : {
 		focusKeyphrase () {
 			return this.rootStore.truseoData?.focusKeyword || false
+		},
+		// False on a term, whose editor hides the Readability tab because its description is a
+		// single short block. Without this the row would read "No data yet" forever.
+		// NOTE: wp_localize_script stringifies PHP booleans, so `false` arrives as ''. Never
+		// strict-compare against false. An absent key defaults to true so a post keeps its row.
+		hasReadability () {
+			const value = this.rootStore.aioseo?.hasReadability
+
+			return undefined === value ? true : !!value
 		},
 		hasHeadlineScore () {
 			return null !== this.headlineScore

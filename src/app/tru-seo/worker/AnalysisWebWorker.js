@@ -41,6 +41,31 @@ import SEOAssessor from '@/app/tru-seo/scoring/assessors/seoAssessor.js'
 import TaxonomyAssessor from '@/app/tru-seo/scoring/assessors/taxonomyAssessor.js'
 
 /**
+ * SEO assessments that never apply to a term. Its description is a single short block, so these
+ * pass unconditionally and inflate the score.
+ */
+const TAXONOMY_EXCLUDED_ASSESSMENTS = [ 'keyphraseDistribution' ]
+
+/**
+ * Assessor types that analyse a term. Keyed off the assessor rather than the `useTaxonomy` config
+ * flag: a term can reach a collection assessor through `customAnalysisType` without that flag ever
+ * being set, so gating on the flag silently misses it.
+ */
+const TAXONOMY_ASSESSOR_TYPES = [
+	'taxonomyAssessor',
+	'collectionSEOAssessor',
+	'collectionCornerstoneSEOAssessor',
+	'relatedKeywordsTaxonomyAssessor',
+	'collectionRelatedKeywordAssessor'
+]
+
+/**
+ * The only content-assessor assessment a term keeps. It lives on the readability assessor but has
+ * its own tab, which terms do show.
+ */
+const SPELLING_IDENTIFIER = 'spellingChecker'
+
+/**
  * Analysis Web Worker.
  *
  * Worker API:     https://developer.mozilla.org/en-US/docs/Web/API/Worker
@@ -65,7 +90,10 @@ export default class AnalysisWebWorker {
 			useTaxonomy           : false,
 			// The locale used for language-specific configurations in Flesch-reading ease and Sentence length assessments.
 			locale                : 'en_US',
-			customAnalysisType    : ''
+			customAnalysisType    : '',
+			// Nouns for result copy, e.g. "Your product category is 43 words long". Null for posts,
+			// where the assessments fall back to their own default noun.
+			contentNouns          : null
 		}
 
 		this._scheduler = new Scheduler()
@@ -419,7 +447,32 @@ export default class AnalysisWebWorker {
 			})
 		}
 
+		// A term is a single short description, so the readability assessments either pass
+		// unconditionally or read as noise — which is why the Readability tab is hidden for terms.
+		// Leaving them running would still persist their results into the stored analysis. Spelling
+		// is kept: it rides on this assessor but has its own tab, which terms do show.
+		if (this.isTaxonomyAnalysis()) {
+			assessor.getAvailableAssessments()
+				.map(assessment => assessment?.identifier)
+				.filter(identifier => identifier && SPELLING_IDENTIFIER !== identifier)
+				.forEach(identifier => assessor.removeAssessment(identifier))
+		}
+
 		return assessor
+	}
+
+	/**
+	 * Returns whether the current configuration analyses a term.
+	 *
+	 * NOTE: Read off the configuration rather than the built SEO assessor, because the content
+	 * assessor can be (re)created before it. A term reaches a collection assessor through
+	 * `customAnalysisType` alone, so the flag on its own is not enough.
+	 *
+	 * @returns {boolean} Whether a term is being analysed.
+	 */
+	isTaxonomyAnalysis () {
+		return true === this._configuration.useTaxonomy ||
+			'collectionPage' === this._configuration.customAnalysisType
 	}
 
 	/**
@@ -485,7 +538,73 @@ export default class AnalysisWebWorker {
 			}
 		})
 
+		if (TAXONOMY_ASSESSOR_TYPES.includes(assessor.type)) {
+			TAXONOMY_EXCLUDED_ASSESSMENTS.forEach(identifier => assessor.removeAssessment(identifier))
+		}
+
+		this.stampContentType(assessor)
+
 		return assessor
+	}
+
+	/**
+	 * Stamps the assessor's type onto any assessment that doesn't carry one.
+	 *
+	 * Assessments built by the assessor receive it through their own config, but ones registered
+	 * dynamically never see the assessor's options — and result copy reads it to pick between
+	 * "post" and "category".
+	 *
+	 *
+	 * @param {Assessor} assessor The assessor to stamp.
+	 * @returns {void}
+	 */
+	stampContentType (assessor) {
+		if (!TAXONOMY_ASSESSOR_TYPES.includes(assessor?.type)) {
+			return
+		}
+
+		const contentNouns = this._configuration.contentNouns
+
+		assessor.getAvailableAssessments().forEach(assessment => {
+			if (!assessment._config) {
+				return
+			}
+
+			if (!assessment._config.customContentType) {
+				assessment._config.customContentType = assessor.type
+			}
+
+			if (contentNouns) {
+				assessment._config.contentNouns = contentNouns
+			}
+		})
+	}
+
+	/**
+	 * Returns whether an assessment is excluded for terms.
+	 *
+	 * NOTE: Registered assessments are added to a live assessor after it is built, so filtering
+	 * only inside createSEOAssessor() would miss them.
+	 *
+	 * @param {Object} assessment The assessment to check.
+	 * @returns {boolean} Whether the assessment is excluded for terms.
+	 */
+	isExcludedForTaxonomy (assessment) {
+		return TAXONOMY_ASSESSOR_TYPES.includes(this._seoAssessor?.type) &&
+			TAXONOMY_EXCLUDED_ASSESSMENTS.includes(assessment?.identifier)
+	}
+
+	/**
+	 * Returns whether a readability assessment is excluded for terms.
+	 *
+	 * NOTE: Registered assessments are added to a live content assessor after it is built, so
+	 * filtering only inside createContentAssessor() would miss them.
+	 *
+	 * @param {Object} assessment The assessment to check.
+	 * @returns {boolean} Whether the assessment is excluded for terms.
+	 */
+	isReadabilityExcludedForTaxonomy (assessment) {
+		return this.isTaxonomyAnalysis() && SPELLING_IDENTIFIER !== assessment?.identifier
 	}
 
 	/**
@@ -547,6 +666,8 @@ export default class AnalysisWebWorker {
 			}
 		})
 
+		this.stampContentType(assessor)
+
 		return assessor
 	}
 
@@ -586,6 +707,9 @@ export default class AnalysisWebWorker {
 		const readability = [
 			'contentAnalysisActive',
 			'useCornerstone',
+			// The content assessor drops every readability assessment for a term, so it has to be
+			// rebuilt when this flips — otherwise the term keeps a post's readability assessments.
+			'useTaxonomy',
 			'locale',
 			'translations',
 			'customAnalysisType'
@@ -762,13 +886,13 @@ export default class AnalysisWebWorker {
 		// Prefix the name with the pluginName so the test name is always unique.
 		const combinedName = pluginName + '-' + name
 
-		if (null !== this._seoAssessor && 'seo' === type) {
+		if (null !== this._seoAssessor && 'seo' === type && !this.isExcludedForTaxonomy(assessment)) {
 			this._seoAssessor.addAssessment(combinedName, assessment)
 		}
-		if (null !== this._contentAssessor && 'readability' === type) {
+		if (null !== this._contentAssessor && 'readability' === type && !this.isReadabilityExcludedForTaxonomy(assessment)) {
 			this._contentAssessor.addAssessment(combinedName, assessment)
 		}
-		if (null !== this._contentAssessor && 'cornerstoneReadability' === type && useCornerstone) {
+		if (null !== this._contentAssessor && 'cornerstoneReadability' === type && useCornerstone && !this.isReadabilityExcludedForTaxonomy(assessment)) {
 			this._contentAssessor.addAssessment(combinedName, assessment)
 		}
 		if (null !== this._relatedKeywordAssessor && 'relatedKeyphrase' === type) {

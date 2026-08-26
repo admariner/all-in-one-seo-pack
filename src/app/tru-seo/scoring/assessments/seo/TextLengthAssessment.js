@@ -134,101 +134,109 @@ export default class TextLengthAssessment extends Assessment {
 			},
 			good : (useCharacter, textLength) => {
 				const wordFeedback = sprintf(
-					/* translators: %1$d expands to the number of words in the post. */
+					/* translators: %1$d expands to the number of words, %2$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d word long — a good length.',
-						'Your post is %1$d words long — a good length.',
+						'Your %2$s is %1$d word long — a good length.',
+						'Your %2$s is %1$d words long — a good length.',
 						textLength,
 						td
 					),
-					textLength
+					textLength,
+					this.getContentNoun()
 				)
 
 				const characterFeedback = sprintf(
-					/* translators: %1$d expands to the number of characters in the post. */
+					/* translators: %1$d expands to the number of characters, %2$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d character long — a good length.',
-						'Your post is %1$d characters long — a good length.',
+						'Your %2$s is %1$d character long — a good length.',
+						'Your %2$s is %1$d characters long — a good length.',
 						textLength,
 						td
 					),
-					textLength
+					textLength,
+					this.getContentNoun()
 				)
 
 				return useCharacter ? characterFeedback : wordFeedback
 			},
 			slightlyBelow : (useCharacter, textLength) => {
 				const wordFeedback = sprintf(
-					/* translators: %1$d expands to the number of words in the post, %2$d expands to the recommended minimum number of words. */
+					/* translators: %1$d expands to the number of words, %2$d expands to the recommended minimum number of words, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d word long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
-						'Your post is %1$d words long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d word long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d words long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
 						textLength,
 						td
 					),
 					textLength,
-					this._config.recommendedMinimum
+					this._config.recommendedMinimum,
+					this.getContentNoun()
 				)
 				const characterFeedback = sprintf(
-					/* translators: %1$d expands to the number of characters in the post, %2$d expands to the recommended minimum number of characters. */
+					/* translators: %1$d expands to the number of characters, %2$d expands to the recommended minimum number of characters, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d character long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
-						'Your post is %1$d characters long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d character long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d characters long — slightly under the recommended %2$d. Add a bit more content. Search engines need enough text to understand the topic.',
 						textLength,
 						td
 					),
 					textLength,
-					this._config.recommendedMinimum
+					this._config.recommendedMinimum,
+					this.getContentNoun()
 				)
 				return useCharacter ? characterFeedback : wordFeedback
 			},
 			below : (useCharacter, textLength) => {
 				const wordFeedback = sprintf(
-					/* translators: %1$d expands to the number of words in the post, %2$d expands to the recommended minimum number of words. */
+					/* translators: %1$d expands to the number of words, %2$d expands to the recommended minimum number of words, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d word long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
-						'Your post is %1$d words long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d word long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d words long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
 						textLength,
 						td
 					),
 					textLength,
-					this._config.recommendedMinimum
+					this._config.recommendedMinimum,
+					this.getContentNoun()
 				)
 				const characterFeedback = sprintf(
-					/* translators: %1$d expands to the number of characters in the post, %2$d expands to the recommended minimum number of characters. */
+					/* translators: %1$d expands to the number of characters, %2$d expands to the recommended minimum number of characters, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d character long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
-						'Your post is %1$d characters long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d character long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
+						'Your %3$s is %1$d characters long — under the recommended %2$d. Add more content. Search engines need enough text to understand the topic.',
 						textLength,
 						td
 					),
 					textLength,
-					this._config.recommendedMinimum
+					this._config.recommendedMinimum,
+					this.getContentNoun()
 				)
 				return useCharacter ? characterFeedback : wordFeedback
 			},
 			farBelow : (useCharacter, textLength) => {
 				const wordFeedback = sprintf(
-					/* translators: %1$d expands to the number of words in the post, %2$d expands to the recommended minimum number of words. */
+					/* translators: %1$d expands to the number of words, %2$d expands to the recommended minimum number of words, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d word long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
-						'Your post is %1$d words long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
+						'Your %3$s is %1$d word long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
+						'Your %3$s is %1$d words long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
 						textLength,
 						td
 					),
 					textLength,
-					this._config.recommendedMinimum
+					this._config.recommendedMinimum,
+					this.getContentNoun()
 				)
 				const characterFeedback = sprintf(
-					/* translators: %1$d expands to the number of characters in the post, %2$d expands to the recommended minimum number of characters. */
+					/* translators: %1$d expands to the number of characters, %2$d expands to the recommended minimum number of characters, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your post is %1$d character long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
-						'Your post is %1$d characters long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
+						'Your %3$s is %1$d character long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
+						'Your %3$s is %1$d characters long — well under the recommended %2$d. Search engines usually need more text to understand the topic.',
 						textLength,
 						td
 					),
 					textLength,
-					this._config.recommendedMinimum
+					this._config.recommendedMinimum,
+					this.getContentNoun()
 				)
 				return useCharacter ? characterFeedback : wordFeedback
 			}

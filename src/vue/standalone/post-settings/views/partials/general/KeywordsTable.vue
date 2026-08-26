@@ -58,29 +58,45 @@
 
 		<div class="aioseo-keywords-divider" />
 
-		<!-- Empty state. -->
+		<!-- Empty state: mocked rows behind the card give the panel height and hint at what a
+		     keyword unlocks. Decorative only, so hidden from assistive tech. -->
 		<div
 			v-if="!keywords.length"
-			class="aioseo-keywords-empty"
+			class="aioseo-keywords-empty-wrapper"
 		>
-			<svg
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.8"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M20.6 13.4l-6.2 6.2a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3.8 11V4.8A1 1 0 0 1 4.8 3.8H11a2 2 0 0 1 1.4.6l8.2 8.2a2 2 0 0 1 0 2.8z" />
-				<circle
-					cx="8"
-					cy="8"
-					r="1.3"
-				/>
-			</svg>
+			<core-blur aria-hidden="true">
+				<div class="aioseo-keywords-empty-preview">
+					<div
+						v-for="check in previewChecks"
+						:key="check"
+						class="aioseo-keywords-empty-preview__row"
+					>
+						<span class="aioseo-keywords-empty-preview__label">{{ check }}</span>
+						<span class="aioseo-keywords-empty-preview__pill" />
+					</div>
+				</div>
+			</core-blur>
 
-			<strong>{{ strings.emptyTitle }}</strong>
-			<span>{{ strings.emptyDesc }}</span>
+			<div class="aioseo-keywords-empty">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M20.6 13.4l-6.2 6.2a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3.8 11V4.8A1 1 0 0 1 4.8 3.8H11a2 2 0 0 1 1.4.6l8.2 8.2a2 2 0 0 1 0 2.8z" />
+					<circle
+						cx="8"
+						cy="8"
+						r="1.3"
+					/>
+				</svg>
+
+				<strong>{{ strings.emptyTitle }}</strong>
+				<span>{{ isTerm ? strings.emptyDescTerm : strings.emptyDesc }}</span>
+			</div>
 		</div>
 
 		<!-- Keyword table. -->
@@ -122,7 +138,7 @@
 											/>
 
 											<template #tooltip>
-												{{ keyword.isFocus ? strings.focusKeyword : strings.assignAsFocus }}
+												{{ keyword.isFocus ? (isTerm ? strings.focusKeywordTerm : strings.focusKeyword) : strings.assignAsFocus }}
 											</template>
 										</core-tooltip>
 
@@ -295,6 +311,7 @@ import { useKeywordsPagination } from '@/vue/standalone/post-settings/composable
 
 import BaseButton from '@/vue/components/common/base/Button'
 import BaseInput from '@/vue/components/common/base/Input'
+import CoreBlur from '@/vue/components/common/core/Blur'
 import CoreTooltip from '@/vue/components/common/core/Tooltip'
 import DiscoverKeywords from './DiscoverKeywords'
 import MetaboxAnalysisDetail from './MetaboxAnalysisDetail'
@@ -316,6 +333,17 @@ const keywordRankTrackerStore = useKeywordRankTrackerStore()
 const truSeo = { value: null }
 const keywordsComposable = useKeywords(truSeo)
 
+// Hardcoded rather than read from the analysis: they sit behind a 3px blur, so real results would
+// only add reactivity and flicker for something nobody can read.
+const previewChecks = [
+	__('Keyword density', td),
+	__('Keyword in SEO title', td),
+	__('Keyword in introduction', td),
+	__('Keyword in slug', td)
+]
+
+const isTerm = computed(() => 'term' === postEditorStore.currentPost.context)
+
 const newKeyword = ref('')
 const editingId = ref(null)
 const editInputEl = ref(null)
@@ -334,12 +362,14 @@ const strings = {
 	improvements                  : __('Improvements', td),
 	actions                       : __('Actions', td),
 	focusKeyword                  : __('Your focus keyword. This is the primary keyword that you want to rank for with this post.', td),
+	focusKeywordTerm              : __('Your focus keyword. This is the primary keyword that you want to rank for with this term.', td),
 	assignAsFocus                 : __('Assign as Focus Keyword', td),
 	editKeyword                   : __('Edit Keyword', td),
 	removeKeyword                 : __('Remove Keyword', td),
 	openKeywordPerformanceTracker : __('Open Keyword Performance Tracker', td),
 	emptyTitle                    : __('No keywords yet', td),
 	emptyDesc                     : __('Add your first keyword above to see how well this post targets it.', td),
+	emptyDescTerm                 : __('Add your first keyword above to see how well this term targets it.', td),
 	additionalKeywordsPro         : __('Additional keywords are a PRO feature.', td),
 	maxAmountReached              : sprintf(
 		// Translators: 1 - Number of maximum keywords.
@@ -497,6 +527,13 @@ const goToAdditionalKeyphrase = (keyphrase) => {
 }
 
 onMounted(async () => {
+	// Open the focus keyword by default. Arming this before the analysis produces
+	// items is safe; the detail row is gated on hasItems and slides open with it.
+	const focusKeyword = keywords.value.find(keyword => keyword.isFocus)
+	if (focusKeyword) {
+		expandedId.value = focusKeyword.id
+	}
+
 	truSeo.value = await getTruSeoInstance()
 
 	// Initialize loading states
@@ -566,6 +603,53 @@ onMounted(async () => {
 		height: 1px;
 		background: $border;
 		margin: 18px 0 2px;
+	}
+
+	.aioseo-keywords-empty-wrapper {
+		position: relative;
+	}
+
+	.aioseo-keywords-empty-preview {
+		padding: 4px 0;
+
+		&__row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 13px 4px;
+			border-bottom: 1px solid $border;
+
+			&:last-child {
+				border-bottom: 0;
+			}
+		}
+
+		&__label {
+			font-size: 13px;
+			color: $black;
+		}
+
+		&__pill {
+			width: 46px;
+			height: 14px;
+			border-radius: 7px;
+			background: $placeholder-color;
+		}
+	}
+
+	.aioseo-keywords-empty-wrapper .aioseo-keywords-empty {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: calc(100% - 24px);
+		max-width: 360px;
+		background: #fff;
+		border: 1px solid $border;
+		border-radius: 4px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+		padding: 22px 20px;
 	}
 
 	.aioseo-keywords-empty {

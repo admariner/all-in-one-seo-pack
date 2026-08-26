@@ -1,5 +1,6 @@
 import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
 import { keyphraseExists } from '@/vue/utils/keyphraseUtils'
+import { additionalKeywordLimitReached } from '@/vue/utils/postData/helpers'
 
 /**
  * Gets keyphrase panel elements.
@@ -151,10 +152,10 @@ export const deleteAdditionalKeyphraseByIndex = ({ postEditorStore, truSeo, inde
  * @returns {number|null}                    Index of added keyphrase or null if failed.
  */
 export const addAdditionalKeyphraseFromInput = ({ postEditorStore, truSeo, screenContext, onSuccess }) => {
-	const maxKeyphrases       = postEditorStore.currentPost.maxAdditionalKeyphrases
+	const maxKeyphrases          = postEditorStore.currentPost.maxAdditionalKeyphrases
 	const currentKeyphrasesCount = postEditorStore.currentPost.keyphrases?.additional?.length || 0
 
-	if (maxKeyphrases <= currentKeyphrasesCount) {
+	if (additionalKeywordLimitReached(maxKeyphrases, currentKeyphrasesCount)) {
 		return null
 	}
 
@@ -225,10 +226,10 @@ export const addAdditionalKeyphraseFromInput = ({ postEditorStore, truSeo, scree
  * @returns {Promise<number|null>}              Index of added keyphrase or null if failed.
  */
 export const addAdditionalKeyphrase = async ({ postEditorStore, truSeo, keyphrase, onStart, onSuccess, onMaxReached, nextTick }) => {
-	const maxKeyphrases       = postEditorStore.currentPost.maxAdditionalKeyphrases
+	const maxKeyphrases          = postEditorStore.currentPost.maxAdditionalKeyphrases
 	const currentKeyphrasesCount = postEditorStore.currentPost.keyphrases?.additional?.length || 0
 
-	if (maxKeyphrases <= currentKeyphrasesCount) {
+	if (additionalKeywordLimitReached(maxKeyphrases, currentKeyphrasesCount)) {
 		if (onMaxReached) {
 			onMaxReached()
 		}

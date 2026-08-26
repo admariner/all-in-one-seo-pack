@@ -207,7 +207,9 @@ const filteredOptions = computed(() => {
 // list is back next time.
 watch(isOpen, (open) => {
 	if (open) {
-		nextTick(() => searchInput.value?.focus())
+		// preventScroll: the popper has already placed the menu inside the viewport, so letting focus
+		// scroll the input into view can only shift the page out from under the pointer.
+		nextTick(() => searchInput.value?.focus({ preventScroll: true }))
 
 		return
 	}
@@ -235,12 +237,42 @@ const handleOutsideClick = (event) => {
 	}
 }
 
+// The menu carries a z-index above the admin bar so it can sit over the card. Once its trigger
+// scrolls out of view the popper keeps following it, which leaves the menu floating over the admin
+// bar with nothing to anchor it to. Close it instead of letting it detach.
+const closeIfTriggerOffScreen = () => {
+	const root = popper.value?.$el
+	if (!root) {
+		return
+	}
+
+	const rect      = root.getBoundingClientRect()
+	// WP pins the admin bar over the top of the page, so anything beneath it is effectively hidden.
+	const adminBar  = document.getElementById('wpadminbar')
+	const topEdge   = adminBar ? adminBar.getBoundingClientRect().height : 0
+
+	if (rect.bottom <= topEdge || rect.top >= window.innerHeight) {
+		popper.value?.doClose()
+	}
+}
+
+watch(isOpen, (open) => {
+	if (open) {
+		window.addEventListener('scroll', closeIfTriggerOffScreen, { passive: true })
+
+		return
+	}
+
+	window.removeEventListener('scroll', closeIfTriggerOffScreen)
+})
+
 onMounted(() => {
 	document.addEventListener('mousedown', handleOutsideClick)
 })
 
 onBeforeUnmount(() => {
 	document.removeEventListener('mousedown', handleOutsideClick)
+	window.removeEventListener('scroll', closeIfTriggerOffScreen)
 })
 </script>
 

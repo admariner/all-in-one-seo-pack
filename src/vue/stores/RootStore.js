@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import http from '@/vue/utils/http'
 import links from '@/vue/utils/links'
 
-import { getAllResultsGrouped } from '@/app/tru-seo/helpers/resultsFilter'
+import { getAllResultsGrouped, KEYWORD_ASSESSMENT_IDS } from '@/app/tru-seo/helpers/resultsFilter'
 
 export const useRootStore = defineStore('RootStore', {
 	state : () => ({
@@ -36,9 +36,12 @@ export const useRootStore = defineStore('RootStore', {
 			// normalize to an array before any iteration here or in the inspector.
 			const additionalKeywordsList = Array.isArray(additionalKeywords) ? additionalKeywords : []
 
-			// Collect identifiers already shown under the focus/additional keyword rows so
-			// they are not counted again under Basic SEO/Readability, matching the metabox.
-			const excludeIds = new Set()
+			// Keyword checks belong to the keyword rows, so keep them out of Basic SEO
+			// unconditionally — exactly what the metabox does. Deriving the list from the keyword's
+			// own results meant that with no keyword set they all fell through into Basic SEO here,
+			// so the inspector's count included checks the metabox had already excluded and the two
+			// screens disagreed. {@see usePostEditorStore().truseoData}
+			const excludeIds = new Set(KEYWORD_ASSESSMENT_IDS)
 			if (focusKeyword && focusKeywordAnalysis?.items) {
 				Object.keys(focusKeywordAnalysis.items).forEach(id => excludeIds.add(id))
 			}

@@ -1,5 +1,4 @@
 import { __, sprintf } from '@/vue/plugins/translations'
-import escape from 'lodash-es/escape'
 import merge from 'lodash-es/merge'
 
 import Assessment from '../assessment'
@@ -43,7 +42,7 @@ class FunctionWordsInKeyphraseAssessment extends Assessment {
 	 */
 	getResult (paper, researcher) {
 		this._functionWordsInKeyphrase = researcher.getResearch('functionWordsInKeyphrase')
-		this._keyword = escape(paper.getKeyword())
+		this._keyword = paper.getKeyword()
 
 		const calculatedScore = this.calculateResult()
 

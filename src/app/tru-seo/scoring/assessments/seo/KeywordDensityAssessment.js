@@ -68,7 +68,7 @@ class KeyphraseDensityAssessment extends Assessment {
 			},
 			scores : {
 				wayOverMaximum    : -50,
-				overMaximum       : -10,
+				overMaximum       : -8,
 				correctDensity    : 9,
 				underMinimum      : 4,
 				noKeyphraseOrText : -50
@@ -119,9 +119,10 @@ class KeyphraseDensityAssessment extends Assessment {
 			this._textLength = this._keyphraseDensityResult.textLength
 			assessmentResult.setHasMarks(0 < this._keyphraseCount.count)
 			if (100 > this._textLength) {
-				// Calculate the score for short texts.
+				// Calculate the score for short texts. A ceiling of 1 flagged a second, entirely
+				// natural mention in a short text (e.g. a term description) as over-optimized.
 				this._minRecommendedKeyphraseCount = 1
-				this._maxRecommendedKeyphraseCount = 50 < this._textLength ? 2 : 1
+				this._maxRecommendedKeyphraseCount = 2
 				calculatedScore = this.calculateResultShortText()
 			} else {
 				// Calculate the score for long texts.
@@ -241,14 +242,15 @@ class KeyphraseDensityAssessment extends Assessment {
 				score       : this._config.scores.underMinimum,
 				resultTitle : __('Keyword density', td),
 				resultText  : sprintf(
-					/* translators: %1$d expands to the recommended minimal number of times the keyword should occur in the text. */
+					/* translators: %1$d expands to the recommended minimal number of times the keyword should occur in the text, %2$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your keyword doesn\'t appear in the post yet. For a post this length, try using it at least %1$d time.',
-						'Your keyword doesn\'t appear in the post yet. For a post this length, try using it at least %1$d times.',
+						'Your keyword doesn\'t appear in the %2$s yet. For a %2$s this length, try using it at least %1$d time.',
+						'Your keyword doesn\'t appear in the %2$s yet. For a %2$s this length, try using it at least %1$d times.',
 						this._minRecommendedKeyphraseCount,
 						td
 					),
-					this._minRecommendedKeyphraseCount
+					this._minRecommendedKeyphraseCount,
+					this.getContentNoun()
 				)
 			}
 		}
@@ -275,15 +277,16 @@ class KeyphraseDensityAssessment extends Assessment {
 				score       : this._config.scores.overMaximum,
 				resultTitle : __('Keyword density', td),
 				resultText  : sprintf(
-					/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text. */
+					/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your keyword appears %1$d time — more than the recommended %2$d for a post this length. Using it too often can hurt readability and look spammy.',
-						'Your keyword appears %1$d times — more than the recommended %2$d for a post this length. Using it too often can hurt readability and look spammy.',
+						'Your keyword appears %1$d time — more than the recommended %2$d for a %3$s this length. Using it too often can hurt readability and look spammy.',
+						'Your keyword appears %1$d times — more than the recommended %2$d for a %3$s this length. Using it too often can hurt readability and look spammy.',
 						this._keyphraseCount.count,
 						td
 					),
 					this._keyphraseCount.count,
-					this._maxRecommendedKeyphraseCount
+					this._maxRecommendedKeyphraseCount,
+					this.getContentNoun()
 				)
 			}
 		}
@@ -293,15 +296,16 @@ class KeyphraseDensityAssessment extends Assessment {
 			score       : this._config.scores.wayOverMaximum,
 			resultTitle : __('Keyword density', td),
 			resultText  : sprintf(
-				/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text. */
+				/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text, %3$s expands to the content type (e.g. "post", "category"). */
 				_n(
-					'Your keyword appears %1$d time — well over the recommended %2$d for a post this length. Cut down to keep the text natural.',
-					'Your keyword appears %1$d times — well over the recommended %2$d for a post this length. Cut down to keep the text natural.',
+					'Your keyword appears %1$d time — well over the recommended %2$d for a %3$s this length. Cut down to keep the text natural.',
+					'Your keyword appears %1$d times — well over the recommended %2$d for a %3$s this length. Cut down to keep the text natural.',
 					this._keyphraseCount.count,
 					td
 				),
 				this._keyphraseCount.count,
-				this._maxRecommendedKeyphraseCount
+				this._maxRecommendedKeyphraseCount,
+				this.getContentNoun()
 			)
 		}
 	}
@@ -329,14 +333,15 @@ class KeyphraseDensityAssessment extends Assessment {
 				score       : this._config.scores.underMinimum,
 				resultTitle : __('Keyword density', td),
 				resultText  : sprintf(
-					/* translators: %1$d expands to the recommended minimal number of times the keyword should occur in the text. */
+					/* translators: %1$d expands to the recommended minimal number of times the keyword should occur in the text, %2$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your keyword doesn\'t appear in the post yet. For a post this length, try using it at least %1$d time.',
-						'Your keyword doesn\'t appear in the post yet. For a post this length, try using it at least %1$d times.',
+						'Your keyword doesn\'t appear in the %2$s yet. For a %2$s this length, try using it at least %1$d time.',
+						'Your keyword doesn\'t appear in the %2$s yet. For a %2$s this length, try using it at least %1$d times.',
 						this._minRecommendedKeyphraseCount,
 						td
 					),
-					this._minRecommendedKeyphraseCount
+					this._minRecommendedKeyphraseCount,
+					this.getContentNoun()
 				)
 			}
 		}
@@ -381,15 +386,16 @@ class KeyphraseDensityAssessment extends Assessment {
 				score       : this._config.scores.overMaximum,
 				resultTitle : __('Keyword density', td),
 				resultText  : sprintf(
-					/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text. */
+					/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text, %3$s expands to the content type (e.g. "post", "category"). */
 					_n(
-						'Your keyword appears %1$d time — more than the recommended %2$d for a post this length. Using it too often can hurt readability and look spammy.',
-						'Your keyword appears %1$d times — more than the recommended %2$d for a post this length. Using it too often can hurt readability and look spammy.',
+						'Your keyword appears %1$d time — more than the recommended %2$d for a %3$s this length. Using it too often can hurt readability and look spammy.',
+						'Your keyword appears %1$d times — more than the recommended %2$d for a %3$s this length. Using it too often can hurt readability and look spammy.',
 						this._keyphraseCount.count,
 						td
 					),
 					this._keyphraseCount.count,
-					this._maxRecommendedKeyphraseCount
+					this._maxRecommendedKeyphraseCount,
+					this.getContentNoun()
 				)
 			}
 		}
@@ -399,15 +405,16 @@ class KeyphraseDensityAssessment extends Assessment {
 			score       : this._config.scores.wayOverMaximum,
 			resultTitle : __('Keyword density', td),
 			resultText  : sprintf(
-				/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text. */
+				/* translators: %1$d expands to the number of times the keyword occurred in the text. %2$d expands to the recommended maximum number of times the keyword should occur in the text, %3$s expands to the content type (e.g. "post", "category"). */
 				_n(
-					'Your keyword appears %1$d time — well over the recommended %2$d for a post this length. Cut down to keep the text natural.',
-					'Your keyword appears %1$d times — well over the recommended %2$d for a post this length. Cut down to keep the text natural.',
+					'Your keyword appears %1$d time — well over the recommended %2$d for a %3$s this length. Cut down to keep the text natural.',
+					'Your keyword appears %1$d times — well over the recommended %2$d for a %3$s this length. Cut down to keep the text natural.',
 					this._keyphraseCount.count,
 					td
 				),
 				this._keyphraseCount.count,
-				this._maxRecommendedKeyphraseCount
+				this._maxRecommendedKeyphraseCount,
+				this.getContentNoun()
 			)
 		}
 	}

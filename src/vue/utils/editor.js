@@ -10,17 +10,22 @@ export const getEditorIframe = () => {
 }
 
 /**
- * Detects if the block editor is rendered inside an iframe (WordPress 7.0+).
+ * Detects if the block editor is rendered inside an iframe (WordPress 6.3+).
  *
  * @since 4.9.6
  *
  * @returns {boolean} Whether the editor is in iframe mode.
  */
 export const isIframedEditor = () => {
-	const hasIframedClass = !!document.querySelector('.editor-visual-editor.is-iframed')
-	const hasEditorIframe = !!getEditorIframe()
-
-	return hasIframedClass && hasEditorIframe
+	// WordPress renders `iframe[name="editor-canvas"]` only when the canvas is
+	// actually iframed, so the element alone identifies the mode. This used to
+	// also require `.editor-visual-editor.is-iframed`, which WP 7.1 removed —
+	// leaving every consumer below reading the admin page instead of the canvas.
+	//
+	// The body class is the readiness guard the removed class used to provide:
+	// core portals that body in only once the iframe's document exists, so until
+	// then `contentDocument` is a blank document that WordPress replaces.
+	return !!getEditorIframe()?.contentDocument?.body?.classList.contains('block-editor-iframe__body')
 }
 
 /**

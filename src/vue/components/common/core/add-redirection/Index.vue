@@ -291,6 +291,7 @@ const genericError      = ref(false)
 const addingRedirect    = ref(false)
 const targetUrlErrors   = ref([])
 const targetUrlWarnings = ref([])
+const targetUrlTouched  = ref(false)
 const customRulesError  = ref(false)
 const showCustomRules   = ref(false)
 const sourceDisabled    = ref(false)
@@ -435,6 +436,8 @@ const addRedirectLabel = computed(() => {
 	return 1 < sourceUrls.value.length ? __('Add Redirects', td) : __('Add Redirect', td)
 })
 
+const isRegexRedirect = computed(() => sourceUrls.value.every(url => url.regex))
+
 const hasTargetUrlErrors = computed(() => {
 	if (!targetUrl.value) {
 		return []
@@ -450,8 +453,7 @@ const hasTargetUrlErrors = computed(() => {
 
 	if (
 		targetUrl.value &&
-		!beginsWith(targetUrl.value, 'https://') &&
-		!beginsWith(targetUrl.value, 'http://') &&
+		!/^https?:\/\//i.test(targetUrl.value) &&
 		'/' !== targetUrl.value.substr(0, 1)
 	) {
 		errors.push(sprintf(
@@ -463,16 +465,12 @@ const hasTargetUrlErrors = computed(() => {
 	}
 
 	const matches = targetUrl.value.match(/[|\\$]/g)
-	if (null !== matches) {
-		// Let's make sure that all URLs have regex enabled or else we fail.
-		const regex = sourceUrls.value.map(u => u.regex)
-		if (!regex.every(a => a)) {
-			errors.push(sprintf(
-				// Translators: 1 - Adds a html tag with an option like: <code>^</code>.
-				__('Your target URL contains the invalid character(s) %1$s', td),
-				'<code>' + matches + '</code>'
-			))
-		}
+	if (null !== matches && !isRegexRedirect.value) {
+		errors.push(sprintf(
+			// Translators: 1 - Adds a html tag with an option like: <code>^</code>.
+			__('Your target URL contains the invalid character(s) %1$s', td),
+			'<code>' + matches + '</code>'
+		))
 	}
 
 	return errors
@@ -491,6 +489,11 @@ const hasTargetUrlWarnings = computed(() => {
 			'<code>' + getRelativeAbsolute.value + '</code>',
 			'<code>https:/' + getRelativeAbsolute.value + '</code>'
 		))
+	}
+
+	const domainWarning = getDomainTypoWarning(targetUrl.value)
+	if (domainWarning) {
+		warnings.push(domainWarning)
 	}
 
 	return warnings
@@ -576,17 +579,80 @@ watch(sourceUrls, () => {
 	debounce(() => checkForDuplicates(), 500)
 }, { deep: true })
 
-// Methods
-function beginsWith (str, match) {
-	return 0 === match.indexOf(str) || str.substr(0, match.length) === match
-}
+// The target checks are only refreshed while typing, but the regex toggle changes whether
+// `$1` placeholders are valid, so a stale message would otherwise stay on screen. An untouched
+// field stays silent, since mounting an edit row populates the source URLs and flips this too.
+watch(isRegexRedirect, () => {
+	if (!targetUrlTouched.value || !targetUrl.value) {
+		return
+	}
 
+	targetUrlErrors.value   = hasTargetUrlErrors.value
+	targetUrlWarnings.value = hasTargetUrlWarnings.value
+})
+
+// Methods
 function addUrl () {
 	sourceUrls.value.push(JSON.parse(JSON.stringify(getDefaultSourceUrl.value)))
 }
 
 function removeUrl (index) {
 	sourceUrls.value.splice(index, 1)
+}
+
+function getDomainTypoWarning (url) {
+	if (!url) {
+		return null
+	}
+
+	const domainMatch = url.match(/^https?:\/\/([^/?#]+)/i)
+	if (!domainMatch) {
+		return null
+	}
+
+	const domain = domainMatch[1]
+
+	// A regex redirect substitutes `$1`-style placeholders anywhere in the target, host included.
+	const checkedDomain = isRegexRedirect.value ? domain.replace(/\$\d+/g, '') : domain
+	const invalidChars  = checkedDomain.match(/[^a-zA-Z0-9.\-:]/g)
+	if (!invalidChars) {
+		return null
+	}
+
+	const fixDomainPart = part => part.replace(/[,;_]/g, '.')
+		.replace(/\s+/g, '')
+		.replace(/[^a-zA-Z0-9.\-:]/g, '')
+
+	// Splitting on the placeholders keeps them out of the suggestion's cleanup.
+	const fixedDomain = (isRegexRedirect.value ? domain.split(/(\$\d+)/) : [ domain ])
+		.map(part => /^\$\d+$/.test(part) ? part : fixDomainPart(part))
+		.join('')
+		.replace(/\.{2,}/g, '.')
+		.replace(/^\.+|\.+$/g, '')
+
+	// If we can't produce a plausible domain (needs at least a dot-separated TLD), warn without a suggestion.
+	if (!fixedDomain || !/\.[a-zA-Z]{2,}$/.test(fixedDomain)) {
+		return sprintf(
+			// Translators: 1 - The entered domain with invalid characters.
+			__('Your URL appears to contain invalid characters in the domain %1$s. Please enter a valid domain.', td),
+			'<code>' + sanitizeString(domain) + '</code>'
+		)
+	}
+
+	return sprintf(
+		// Translators: 1 - The entered domain with invalid characters, 2 - The suggested corrected domain.
+		__('Your URL appears to contain invalid characters in the domain %1$s. Did you mean %2$s?', td),
+		'<code>' + sanitizeString(domain) + '</code>',
+		'<code>' + sanitizeString(fixedDomain) + '</code>'
+	)
+}
+
+function normalizeTargetUrlScheme (value) {
+	if (!value) {
+		return value
+	}
+
+	return value.replace(/^(https?:\/\/)/i, match => match.toLowerCase())
 }
 
 function addRedirects () {
@@ -615,7 +681,7 @@ function addRedirects () {
 
 	redirectsStore.create({
 		sourceUrls            : sourceUrls.value,
-		targetUrl             : targetUrl.value,
+		targetUrl             : normalizeTargetUrlScheme(targetUrl.value),
 		queryParam            : queryParam.value.value,
 		customRules           : redirectCustomRules.value,
 		redirectType          : redirectType.value.value,
@@ -646,7 +712,7 @@ function saveChanges () {
 		id      : sourceUrls.value[0].id,
 		payload : {
 			sourceUrls            : sourceUrls.value,
-			targetUrl             : targetUrl.value,
+			targetUrl             : normalizeTargetUrlScheme(targetUrl.value),
 			queryParam            : queryParam.value.value,
 			customRules           : redirectCustomRules.value,
 			redirectType          : redirectType.value.value,
@@ -698,6 +764,7 @@ function handleError (error) {
 
 function updateTargetUrl (value) {
 	targetUrl.value         = value
+	targetUrlTouched.value  = true
 	targetUrlErrors.value   = hasTargetUrlErrors.value
 	targetUrlWarnings.value = hasTargetUrlWarnings.value
 }
@@ -721,6 +788,7 @@ function reset () {
 	targetUrl.value         = null
 	targetUrlErrors.value   = []
 	targetUrlWarnings.value = []
+	targetUrlTouched.value  = false
 	redirectType.value      = newRedirectType || { label: '301 ' + __('Moved Permanently', td), value: 301 }
 	queryParam.value        = newQueryParam || { label: __('Ignore all parameters', td), value: 'ignore' }
 	redirectCustomRules.value = []

@@ -94,6 +94,12 @@ export const getPostTitle = () => {
 export const getPostEditedTitle = () => {
 	let postTitle
 
+	// A term's name is its visible heading on the archive, so it stands in for the post title.
+	const termName = document.querySelector('#edittag input#name')
+	if (termName) {
+		return termName.value || ''
+	}
+
 	if (isClassicEditor() || isClassicNoEditor()) {
 		const titleInput = document.querySelector('#post input#title')
 		postTitle = titleInput ? titleInput.value : ''

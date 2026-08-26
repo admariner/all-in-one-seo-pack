@@ -42,6 +42,7 @@ import {
 import AdditionalKeyphrasesDisplay from './additional-keyphrases/AdditionalKeyphrasesDisplay'
 import AdditionalKeyphraseInput from './additional-keyphrases/AdditionalKeyphraseInput'
 import AdditionalKeyphrasesUpsell from './additional-keyphrases/AdditionalKeyphrasesUpsell'
+import { additionalKeywordLimitReached } from '@/vue/utils/postData/helpers'
 
 export default {
 	setup () {
@@ -74,7 +75,10 @@ export default {
 			return this.rootStore.isPro && this.licenseStore.license.isActive
 		},
 		maxReached () {
-			return this.postEditorStore.currentPost.maxAdditionalKeyphrases <= (this.postEditorStore.currentPost.keyphrases?.additional?.length || 0)
+			return additionalKeywordLimitReached(
+				this.postEditorStore.currentPost.maxAdditionalKeyphrases,
+				this.postEditorStore.currentPost.keyphrases?.additional?.length || 0
+			)
 		}
 	},
 	methods : {

@@ -1,4 +1,5 @@
 import {
+	usePostEditorStore,
 	useTagsStore
 } from '@/vue/stores'
 
@@ -96,6 +97,15 @@ export const getPostSlug = () => {
  */
 export const getPostEditedSlug = () => {
 	let postSlug = ''
+
+	// A term's slug lives on the term form, and the classic branch below would dereference
+	// `#title`, which doesn't exist on term.php.
+	if ('term' === usePostEditorStore().currentPost.context) {
+		const termSlug = document.querySelector('#edittag input#slug')?.value ||
+			document.querySelector('#edittag input#name')?.value || ''
+
+		return termSlug ? cleanForSlug(termSlug) : ''
+	}
 
 	if (isClassicEditor() || isClassicNoEditor()) {
 		const postName    = document.querySelector('#post_name')?.value || document.querySelector('#editable-post-name-full')?.textContent

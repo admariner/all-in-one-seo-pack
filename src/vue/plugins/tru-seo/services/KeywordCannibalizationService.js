@@ -22,11 +22,12 @@ export default class KeywordCannibalizationService {
 	 *
 	 * @since 5.0.0
 	 *
-	 * @param {string} keyphrase The focus keyphrase.
-	 * @param {number} postId    The current post ID.
+	 * @param {string} keyphrase  The focus keyphrase.
+	 * @param {number} postId     The current post or term ID.
+	 * @param {string} objectType Either 'post' or 'term' — decides how the ID is resolved server-side.
 	 * @returns {Promise<Object>} The cannibalization result.
 	 */
-	async fetch (keyphrase, postId) {
+	async fetch (keyphrase, postId, objectType = 'post') {
 		const normalized = keyphrase.toLowerCase().trim()
 
 		if ('' === normalized) {
@@ -39,7 +40,7 @@ export default class KeywordCannibalizationService {
 
 		try {
 			const response = await http.post(links.restUrl('tru-seo/keyword-cannibalization'))
-				.send({ keyphrase: normalized, postId })
+				.send({ keyphrase: normalized, postId, objectType })
 
 			if (response?.body?.success) {
 				this._cachedKeyphrase = normalized

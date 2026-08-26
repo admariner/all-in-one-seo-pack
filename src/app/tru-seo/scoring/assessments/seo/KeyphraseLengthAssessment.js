@@ -427,18 +427,20 @@ export default class KeyphraseLengthAssessment extends Assessment {
 			return {
 				score       : this._config.scores.veryBad,
 				resultTitle : __('Keyword length', td),
-				resultText  : __(
-					'Add a focus keyword to start scoring this post.',
-					td
+				resultText  : sprintf(
+					/* translators: 1 - The content type (e.g. "post", "category"). */
+					__('Add a focus keyword to start scoring this %1$s.', td),
+					this.getContentNoun()
 				)
 			}
 		}
 		return {
 			score       : this._config.scores.veryBad,
 			resultTitle : __('Keyword length', td),
-			resultText  : __(
-				'Add a focus keyword to start scoring this post.',
-				td
+			resultText  : sprintf(
+				/* translators: 1 - The content type (e.g. "post", "category"). */
+				__('Add a focus keyword to start scoring this %1$s.', td),
+				this.getContentNoun()
 			)
 		}
 	}

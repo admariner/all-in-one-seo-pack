@@ -54,7 +54,7 @@ export const useSeoSiteScore = (params = {}) => {
 			}
 		}
 
-		switch (analyzerStore.analyzeError) {
+		switch (analyzerStore.analyzeErrorCode) {
 			case 'invalid-token':
 				return {
 					description : sprintf(

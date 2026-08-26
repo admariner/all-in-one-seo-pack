@@ -5,6 +5,7 @@ import {
 
 import { getTruSeoInstance } from '@/vue/plugins/tru-seo/TruSeoSingleton'
 import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
+import { requestPostUpdate } from '@/vue/plugins/tru-seo/spellingSuggestions'
 import { cleanForSlug } from '@/vue/utils/cleanForSlug'
 
 export const maybeUpdateTerm = async (run = false) => {
@@ -21,15 +22,17 @@ export const maybeUpdateTerm = async (run = false) => {
 		tagsStore.updateTaxonomyTitle(titleInput.value)
 		titleInput.addEventListener('input', () => {
 			tagsStore.updateTaxonomyTitle(titleInput.value)
+			requestPostUpdate()
 		})
 	}
 
-	// Term Description
+	// Term Description — this doubles as the analyzed content, so edits must re-run the analysis.
 	const descriptionInput = document.querySelector('#edittag textarea#description')
 	if (descriptionInput) {
 		tagsStore.updateTaxonomyDescription(descriptionInput.value)
 		descriptionInput.addEventListener('input', () => {
 			tagsStore.updateTaxonomyDescription(descriptionInput.value)
+			requestPostUpdate()
 		})
 	}
 

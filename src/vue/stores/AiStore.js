@@ -39,23 +39,6 @@ export const useAiStore = defineStore('AiStore', {
 		},
 		isModalOpened : null
 	}),
-	getters : {
-		isFreeAndOutOfCredits : (state) => {
-			const optionsStore = useOptionsStore()
-
-			// Check if we have a trial access token.
-			if (!optionsStore.internalOptions.internal.ai.isTrialAccessToken || state.isModalOpened) {
-				return false
-			}
-
-			// Check that we don't have a license with credits.
-			if (1 < optionsStore.internalOptions.internal.ai.credits?.remaining) {
-				return false
-			}
-
-			return true
-		}
-	},
 	actions : {
 		storeAccessToken (accessToken) {
 			const sensitiveOptionsStore = useSensitiveOptionsStore()

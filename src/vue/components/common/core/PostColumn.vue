@@ -661,7 +661,13 @@ export default {
 		window.aioseoBus.$off('batchScanScoreUpdate' + this.postId, this.updateScore)
 	},
 	created () {
-		this.showTruSeo = shouldShowTruSeoScore()
+		// PHP resolves eligibility per post (master toggle, the analysed post-type list, the
+		// never-analysable types, special pages), so prefer its answer — excluding a post type used to
+		// hide only the Optimization tab and leave a stale score in this column. The screen-level helper
+		// remains the fallback for any caller that renders the column without the per-post payload.
+		this.showTruSeo = undefined !== this.post?.showScore
+			? !!this.post.showScore
+			: shouldShowTruSeoScore()
 	}
 }
 </script>

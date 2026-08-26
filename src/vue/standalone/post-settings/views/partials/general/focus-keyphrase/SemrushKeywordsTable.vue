@@ -94,6 +94,7 @@ import SvgLogoSemrush from '@/vue/components/common/svg/logo/Semrush'
 import SemrushKeywordTableRow from './SemrushKeywordTableRow'
 
 import { __, sprintf } from '@/vue/plugins/translations'
+import { additionalKeywordLimitReached } from '@/vue/utils/postData/helpers'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
 
@@ -145,7 +146,7 @@ export default {
 	},
 	computed : {
 		maxReached () {
-			return this.maxAdditionalKeyphrases <= (this.additionalKeyphrases?.length || 0)
+			return additionalKeywordLimitReached(this.maxAdditionalKeyphrases, this.additionalKeyphrases?.length || 0)
 		},
 		formattedError () {
 			if (this.error && this.error.includes('TOTAL LIMIT EXCEEDED')) {

@@ -62,8 +62,10 @@ export default {
 				this.isValidNumber = true
 
 				// The formatted value is used for display inside our Business Info block/widget/shortcode.
-				if (phoneObject.countryCallingCode && phoneObject.nationalNumber) {
-					this.$emit('inputFormatted', '+' + phoneObject.countryCallingCode + ' ' + phoneObject.nationalNumber)
+				// Use `phoneObject.formatted` so the national trunk prefix (e.g. leading 0 in IN/GB/FR) and
+				// digit grouping are preserved; `nationalNumber` is the E.164 NSN, which strips both.
+				if (phoneObject.countryCallingCode && phoneObject.formatted) {
+					this.$emit('inputFormatted', '+' + phoneObject.countryCallingCode + ' ' + phoneObject.formatted)
 				}
 
 				this.$emit('update:modelValue', phoneObject.number)
@@ -76,9 +78,12 @@ export default {
 				this.isInvalidNumber = true
 			}
 
-			// If the input is cleared, also clear the model value.
+			// If the input is cleared, also clear the model value AND the formatted
+			// display value, otherwise the stale phoneFormatted lingers in the DB
+			// and keeps rendering in the Business Info block/widget/shortcode.
 			if (!number) {
 				this.$emit('update:modelValue', '')
+				this.$emit('inputFormatted', '')
 			}
 		}
 	},

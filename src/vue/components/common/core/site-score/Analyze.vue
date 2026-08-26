@@ -50,7 +50,7 @@
 		</div>
 
 		<div
-			v-if="!analyzerStore.analyzeError && analyzerStore.homeResults?.results?.advanced?.mobileSnapshot"
+			v-if="!analyzerStore.analyzeError && mobileSnapshot"
 			class="seo-analysis-mobile-snapshot"
 		>
 			<div class="mobile-snapshot-image">
@@ -61,10 +61,30 @@
 				/>
 
 				<img
+					v-if="!snapshotFailed"
 					class="mobile-snapshot-image__content"
 					alt="Mobile Snapshot"
-					:src="analyzerStore.homeResults?.results?.advanced?.mobileSnapshot"
+					:src="mobileSnapshot"
+					@error="snapshotFailed = true"
 				/>
+
+				<div
+					v-else
+					class="mobile-snapshot-image__fallback"
+				>
+					<svg-image-seo />
+
+					<span>{{ strings.snapshotUnavailable }}</span>
+				</div>
+			</div>
+
+			<div
+				v-if="snapshotFailed"
+				class="mobile-snapshot-caption"
+			>
+				<svg-info />
+
+				<span v-html="strings.snapshotBlockedNotice" />
 			</div>
 		</div>
 
@@ -88,7 +108,7 @@
 					:href="button.url ? button.url : ''"
 					size="medium"
 					:loading="button?.runAgain && analyzerStore.analyzing"
-					@click="button?.runAgain ? analyzerStore.runSiteAnalyzer() : ''"
+					@click="button?.runAgain ? analyzerStore.runSiteAnalyzer({ refresh: true }) : ''"
 				>
 					{{ button.text }}
 				</base-button>
@@ -118,6 +138,8 @@ import CoreDonutChart from '@/vue/components/common/core/DonutChart'
 import CoreSiteScore from '@/vue/components/common/core/site-score/Index'
 import SvgBook from '@/vue/components/common/svg/Book'
 import SvgDannieLab from '@/vue/components/common/svg/dannie/Lab'
+import SvgImageSeo from '@/vue/components/common/svg/ImageSeo'
+import SvgInfo from '@/vue/components/common/svg/Info'
 
 import { __, sprintf } from '@/vue/plugins/translations'
 
@@ -146,7 +168,9 @@ export default {
 		CoreDonutChart,
 		CoreSiteScore,
 		SvgBook,
-		SvgDannieLab
+		SvgDannieLab,
+		SvgImageSeo,
+		SvgInfo
 	},
 	props : {
 		score       : [ Number, String ],
@@ -161,9 +185,17 @@ export default {
 	},
 	data () {
 		return {
-			strings : merge({
-				yourHomepageScore : __('Your Homepage Score:', td),
-				goodResult        : sprintf(
+			snapshotFailed : false,
+			strings        : merge({
+				yourHomepageScore     : __('Your Homepage Score:', td),
+				snapshotUnavailable   : __('Preview unavailable', td),
+				snapshotBlockedNotice : sprintf(
+					// Translators: 1 - Opening link tag, 2 - Closing link tag.
+					__('A firewall or security service such as Cloudflare may have blocked our screenshot. This doesn\'t affect your SEO score. %1$sLearn more%2$s', td),
+					`<a href="${links.getDocUrl('seoAnalyzerIssues')}" target="_blank">`,
+					'</a>'
+				),
+				goodResult : sprintf(
 					// Translators: 1 - Opening bold HTML tag, 2 - Closing bold HTML tag, 3 - Initial score range, 4 - Final score range.
 					__('A very good score is between %1$s%3$d and %4$d%2$s.', td),
 					'<strong>',
@@ -182,7 +214,16 @@ export default {
 			}, this.composableStrings)
 		}
 	},
+	watch : {
+		// A fresh analysis can return a new snapshot URL, so retry the load.
+		mobileSnapshot () {
+			this.snapshotFailed = false
+		}
+	},
 	computed : {
+		mobileSnapshot () {
+			return this.analyzerStore.homeResults?.results?.advanced?.mobileSnapshot
+		},
 		sortedParts () {
 			return getSortedParts({
 				good     : this.summary.good,
@@ -268,6 +309,51 @@ export default {
 					width: 100%;
 					height: 100%;
 				}
+
+				&__fallback {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					gap: $gutter-half;
+					width: 100%;
+					height: 100%;
+					padding: $gutter;
+					text-align: center;
+					background-color: $box-background;
+					color: $placeholder-color;
+
+					svg {
+						width: 48px;
+						height: 48px;
+					}
+
+					span {
+						font-size: $font-sm;
+					}
+				}
+			}
+		}
+
+		.mobile-snapshot-caption {
+			display: flex;
+			align-items: flex-start;
+			gap: 6px;
+			margin-top: $gutter-half;
+			font-size: $font-sm;
+			line-height: 1.5;
+			color: $placeholder-color;
+
+			svg {
+				flex-shrink: 0;
+				width: 14px;
+				height: 14px;
+				margin-top: 1px;
+				color: $placeholder-color;
+			}
+
+			a {
+				font-weight: 600;
 			}
 		}
 	}

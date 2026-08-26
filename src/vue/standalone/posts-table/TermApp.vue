@@ -6,6 +6,35 @@
 				editing: showEditTitle || showEditDescription
 			}"
 		>
+			<div
+				v-if="showScore && allowed('aioseo_page_analysis')"
+				class="edit-row scores"
+			>
+				<core-tooltip>
+					<div class="aioseo-details-column__truseo">
+						<div
+							v-if="truSeoScanning"
+							class="aioseo-details-column__loading"
+						>
+							<core-loader dark />
+						</div>
+
+						<core-score-button
+							v-else
+							:score="score"
+						>
+							<template #icon>
+								<svg-aioseo-logo-gear />
+							</template>
+						</core-score-button>
+					</div>
+
+					<template #tooltip>
+						{{ strings.seoScoreTooltipTerm }}
+					</template>
+				</core-tooltip>
+			</div>
+
 			<details-field
 				v-if="showTitle"
 				v-model="title"
@@ -57,9 +86,12 @@ import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 import { useTruSeoScore } from '@/vue/composables/TruSeoScore'
 
 import { MIN_WIDTH_FOR_BADGES, useDetailsFieldLength } from '@/vue/composables/DetailsFieldLength'
-import { truSeoShouldAnalyze } from '@/vue/plugins/tru-seo/components/helpers'
 
+import CoreLoader from '@/vue/components/common/core/Loader'
+import CoreScoreButton from '@/vue/components/common/core/ScoreButton'
+import CoreTooltip from '@/vue/components/common/core/Tooltip'
 import DetailsField from '@/vue/components/common/core/DetailsField'
+import SvgAioseoLogoGear from '@/vue/components/common/svg/aioseo/LogoGear'
 import '@/vue/assets/scss/main.scss'
 
 import { __ } from '@/vue/plugins/translations'
@@ -72,6 +104,7 @@ export default {
 		const { getTitleLength, getDescriptionLength } = useDetailsFieldLength()
 
 		return {
+			allowed,
 			composableStrings : strings,
 			getTagText        : tags.getTagText,
 			getTitleLength,
@@ -79,7 +112,11 @@ export default {
 		}
 	},
 	components : {
-		DetailsField
+		CoreLoader,
+		CoreScoreButton,
+		CoreTooltip,
+		DetailsField,
+		SvgAioseoLogoGear
 	},
 	props : {
 		term  : Object,
@@ -96,12 +133,14 @@ export default {
 			descriptionParsed   : null,
 			showEditTitle       : false,
 			showEditDescription : false,
-			showTruSeo          : false,
 			termLoading         : false,
 			showTitle           : true,
 			showDescription     : true,
 			columnWidth         : 0,
 			resizeObserver      : null,
+			scoreValue          : 0,
+			hasScore            : false,
+			truSeoScanning      : false,
 			strings             : merge(this.composableStrings, {
 				seoTitle           : __('SEO Title', td),
 				metaDescription    : __('Meta Description', td),
@@ -129,12 +168,41 @@ export default {
 		},
 		showLengthBadges () {
 			return !this.columnWidth || this.columnWidth >= MIN_WIDTH_FOR_BADGES
+		},
+		// Set per term in PHP — only TruSEO-eligible taxonomies get a score. Held locally so a row
+		// created after page load (Add New Term) can turn the badge on once its data arrives.
+		showScore () {
+			return this.hasScore
+		},
+		score () {
+			return this.scoreValue
 		}
 	},
 	methods : {
 		// An editor left at the template means "keep using the default", which is stored empty.
 		storedValue (value, template) {
 			return value === template ? '' : value
+		},
+		// `showScore` only arrives for TruSEO-eligible taxonomies, so an absent key means "leave the
+		// badge as it is" rather than "hide it".
+		applyScore (data) {
+			if (undefined !== data?.showScore) {
+				this.hasScore        = !!data.showScore
+				this.term.showScore  = data.showScore
+			}
+
+			if (undefined !== data?.value) {
+				this.scoreValue = data.value || 0
+				this.term.value = this.scoreValue
+			}
+		},
+		updateScanningState (isScanning) {
+			this.truSeoScanning = isScanning
+		},
+		updateScore (score) {
+			this.scoreValue = score
+			this.term.value = score
+			this.hasScore   = true
 		},
 		refreshParsedValues () {
 			this.termLoading = true
@@ -151,6 +219,8 @@ export default {
 					this.descriptionParsed      = fresh.descriptionParsed
 					this.term.titleParsed       = fresh.titleParsed
 					this.term.descriptionParsed = fresh.descriptionParsed
+
+					this.applyScore(fresh)
 				})
 				.catch(error => {
 					console.error(`Unable to refresh term ${this.term.id}: ${error}`)
@@ -217,6 +287,8 @@ export default {
 		this.showTitle         = this.term.showTitle
 		this.showDescription   = this.term.showDescription
 
+		this.applyScore(this.term)
+
 		// If the term data changed, we need to parse the title and description again.
 		// This can happen after using the quick-edit feature.
 		// Re-read the parsed values rather than re-saving: save() would post the editor's
@@ -236,14 +308,17 @@ export default {
 
 			this.resizeObserver.observe(this.$el.parentNode || this.$el)
 		}
+
+		window.aioseoBus.$on('batchScanLoading' + this.termId, this.updateScanningState)
+		window.aioseoBus.$on('batchScanScoreUpdate' + this.termId, this.updateScore)
 	},
 	beforeUnmount () {
 		if (this.resizeObserver) {
 			this.resizeObserver.disconnect()
 		}
-	},
-	async created () {
-		this.showTruSeo = truSeoShouldAnalyze()
+
+		window.aioseoBus.$off('batchScanLoading' + this.termId, this.updateScanningState)
+		window.aioseoBus.$off('batchScanScoreUpdate' + this.termId, this.updateScore)
 	}
 }
 </script>

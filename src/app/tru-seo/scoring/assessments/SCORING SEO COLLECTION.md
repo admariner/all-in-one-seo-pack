@@ -12,11 +12,17 @@ For information on how the assessments scoring system works, check out these exp
 - [Keyphrase in meta description](SCORING%20SEO.md#4-keyphrase-in-meta-description)
 - [Keyphrase in SEO title](SCORING%20SEO.md#8-keyphrase-in-seo-title)
 - [Keyphrase in slug](SCORING%20SEO.md#9-keyphrase-in-slug)
-- [Keyphrase distribution](SCORING%20SEO.md#11-keyphrase-distribution)
 - [SEO title width](SCORING%20SEO.md#4-seo-title-width)
 - [Meta description length](SCORING%20SEO.md#5-meta-description-length)
-- [Single title](SCORING%20SEO.md#6-single-title)
 - [Function words in keyphrase](SCORING%20SEO.md#7-function-words-in-keyphrase)
+- [Title](SCORING%20SEO.md#9-title)
+- Keyword cannibalization (registered for licensed installs)
+
+### Assessments specific to terms
+- **Keyword in term name** — the term name is the archive's visible heading, so this is the taxonomy
+  counterpart of checking the keyword against a post's H1. All of the keyword's words present in the
+  name scores 9, some of them 6, none of them 3. Matching is done on the words themselves rather than
+  through the morphology researcher, since a term name is only a few words long.
 
 ### Assessments with the same scoring criteria as with the taxonomy assessor
 - [Text length assessment](SCORING%20TAXONOMY.md#1-text-length-assessment)
@@ -28,6 +34,9 @@ For information on how the assessments scoring system works, check out these exp
 - Images
 - Internal links
 - Outbound links
+- Keyphrase distribution
+- Single title
+- Readability analysis (the whole tab is hidden for terms)
 
 The assessments related to images are unavailable because they might not make sense for this type of content from an SEO perspective. In addition, collection pages are advised to have minimal content.
 
@@ -35,7 +44,10 @@ Internal and outbound links are unavailable for the same reason they are on prod
 collection page exists to move the visitor into a product, so links away from it are not actively
 encouraged.
 
+Keyphrase distribution and Single title are unavailable because a term description is one short block: it has no headings, so Single title would always pass, and there is nothing for distribution to measure. Both would return a free good result and inflate the score. Readability is unavailable for the same reason — its assessments assume prose with paragraphs and subheadings.
+
+Note that keyphrase density applies the short-text branch here (under 100 words): a minimum of 1 and a maximum of 2 occurrences, rather than the percentage-based boundaries.
+
 **Note on "Previously used keyphrase"**: this was previously listed as unavailable, but
-`keywordCannibalization` is registered at runtime to every SEO assessor
-(`AnalysisWebWorker.js:468`), so collection pages do receive it. The list above reflects what the
-code actually does.
+`keywordCannibalization` is registered at runtime to every SEO assessor, so collection pages do
+receive it. The list above reflects what the code actually does.

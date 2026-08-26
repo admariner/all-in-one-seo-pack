@@ -346,7 +346,11 @@ const tabs = computed(() => {
 			list.push({ slug: 'spelling', label: strings.spellingTitle })
 		}
 
-		list.push({ slug: 'readability', label: strings.readabilityTitle })
+		// Readability assumes prose with paragraphs and subheadings. A term description is a
+		// single short block, so the assessments return misleading passes.
+		if ('term' !== postEditorStore.currentPost.context) {
+			list.push({ slug: 'readability', label: strings.readabilityTitle })
+		}
 	}
 
 	if (headlineAnalyzerEnabled.value) {
@@ -429,7 +433,11 @@ const canManageDictionary = computed(() => {
 // Base gate shared by TruSEO and the Headline Analyzer: a real post (not a term),
 // outside the snippet-editor modal, with permission, and not a bbPress forum type.
 const canShowAnalysisCard = computed(() => {
-	return 'post' === postEditorStore.currentPost.context && 'modal' !== props.parentComponentContext && allowed('aioseo_page_analysis') && !isForum.value
+	// Terms are allowed through on the strength of `supportsPageAnalysis`, which PHP only sets
+	// for TruSEO-eligible taxonomies.
+	const isAnalyzableContext = [ 'post', 'term' ].includes(postEditorStore.currentPost.context)
+
+	return isAnalyzableContext && 'modal' !== props.parentComponentContext && allowed('aioseo_page_analysis') && !isForum.value
 })
 
 const displayTruSeoMetaboxCard = computed(() => canShowAnalysisCard.value && truSeoShouldAnalyze())

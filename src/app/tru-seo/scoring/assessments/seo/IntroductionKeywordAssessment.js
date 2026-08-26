@@ -1,4 +1,4 @@
-import { __ } from '@/vue/plugins/translations'
+import { __, sprintf } from '@/vue/plugins/translations'
 import merge from 'lodash-es/merge'
 
 import Assessment from '../assessment'
@@ -107,9 +107,10 @@ export default class IntroductionKeywordAssessment extends Assessment {
 		return {
 			score       : this._config.scores.bad,
 			resultTitle : __('Keyword in introduction', td),
-			resultText  : __(
-				'Your keyword doesn\'t appear in the first paragraph. Mention it early so readers and search engines see what the post is about.',
-				td
+			resultText  : sprintf(
+				/* translators: 1 - The content type (e.g. "post", "category"). */
+				__('Your keyword doesn\'t appear in the first paragraph. Mention it early so readers and search engines see what the %1$s is about.', td),
+				this.getContentNoun()
 			)
 		}
 	}

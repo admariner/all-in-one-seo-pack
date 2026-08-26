@@ -163,7 +163,52 @@ if (window.aioseo.terms && 0 < window.aioseo.terms.length && 0 === window.aioseo
 			window.aioseo.terms.forEach((term) => {
 				loadTermsTable(term)
 			})
+
+			startTermBatchScan(window.aioseo.terms)
 		})
+}
+
+/**
+ * Starts a TruSEO batch scan over the given terms.
+ *
+ * Terms only get a score when someone opens the editor, so the list backfills them the same way
+ * posts do. Ineligible taxonomies come back without an analysis payload and are filtered out by
+ * the manager.
+ *
+ * @param {Array} terms The terms to scan.
+ * @returns {void}
+ */
+const startTermBatchScan = (terms) => {
+	if (!shouldInitializeTermBatchScan(terms)) {
+		return
+	}
+
+	const batchScanManager = new BatchScanManager({
+		maxWorkers : window.aioseo?.batchScanConcurrency || 3,
+		startDelay : window.aioseo?.batchScanStartDelay || 2000,
+		posts      : terms,
+		objectType : 'term'
+	})
+	batchScanManager.start()
+}
+
+/**
+ * Determines if term batch scanning should be initialized.
+ * Only enable on term list pages for TruSEO-eligible taxonomies.
+ *
+ * @param {Array} terms The terms about to be scanned.
+ * @returns {boolean} Whether to initialize term batch scanning.
+ */
+const shouldInitializeTermBatchScan = (terms = []) => {
+	if (!window.aioseo?.batchScanEnabled) {
+		return false
+	}
+
+	if ('edit-tags' !== window.aioseo?.screen?.base) {
+		return false
+	}
+
+	return !!terms.length
 }
 
 /**
@@ -312,16 +357,20 @@ addHiddenField(document.getElementById('addtag'))
 
 		// Add new tag.
 		if ('add-tag' === action) {
-			const termId       = $(jqXHR.responseXML).find('term_id').text()
+			const termId       = parseInt($(jqXHR.responseXML).find('term_id').text())
 			const taxonomy     = $(jqXHR.responseXML).find('term taxonomy').text()
 			const optionsStore = useOptionsStore()
+
+			if (!termId) {
+				return
+			}
 
 			// The taxonomy's templates seed the editors; they are not the term's own values, so
 			// they'd otherwise show as a custom title/description on a term nobody has touched.
 			// titleParsed/descriptionParsed are left for the reload to fetch — a brand new term
 			// has nothing rendered yet.
-			loadTermsTable({
-				id                 : parseInt(termId),
+			const term = {
+				id                 : termId,
 				columnName         : 'aioseo-details',
 				taxonomy,
 				title              : '',
@@ -331,7 +380,27 @@ addHiddenField(document.getElementById('addtag'))
 				showTitle          : true,
 				showDescription    : true,
 				reload             : true
-			})
+			}
+
+			loadTermsTable(term)
+
+			// The row is created after the page's own batch scan has already finished, so fetch its
+			// payload and give it a scan of its own — otherwise its score only turns up on the next
+			// page load. Also registers it for the quick-edit branch above.
+			http.post(links.restUrl('terms-list/load-details-column'))
+				.send({ ids: [ termId ] })
+				.then(response => {
+					const hydrated = {
+						...term,
+						...response.body?.terms?.find(t => t.id === termId),
+						reload : false
+					}
+
+					window.aioseo.terms = [ ...(window.aioseo.terms || []), hydrated ]
+
+					loadTermsTable(hydrated)
+					startTermBatchScan([ hydrated ])
+				})
 		}
 	})
 })(window.jQuery)

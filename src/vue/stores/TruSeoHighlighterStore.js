@@ -373,11 +373,18 @@ const clearAdvanceTimers = () => {
 	}
 }
 
+// Read from the localized payload rather than the post-editor store: the state initializer runs
+// before any store can be used, and the value never changes within a page load.
+const isTermEditor = () => 'term' === window.aioseo?.currentPost?.context
+
 export const useTruSeoHighlighterStore = defineStore('TruSeoHighlighterStore', {
 	state : () => ({
 		allowHighlighting            : true,
-		enabled                      : true,
-		highlightingEnabled          : window.aioseo?.options?.advanced?.highlighter ?? true,
+		// A term's description is a plain <textarea>, which cannot host the <mark> elements the
+		// highlighter paints. Offering the toggle there would be a control that visibly does nothing,
+		// so the subsystem stays off — the Spelling tab reads and rewrites the textarea directly.
+		enabled                      : !isTermEditor(),
+		highlightingEnabled          : !isTermEditor() && (window.aioseo?.options?.advanced?.highlighter ?? true),
 		highlightAnalyzers           : [],
 		rememberedHighlightAnalyzers : null,
 		deselectedHighlightAnalyzers : [],
@@ -1742,6 +1749,12 @@ export const useTruSeoHighlighterStore = defineStore('TruSeoHighlighterStore', {
 		 * @returns {void}
 		 */
 		initTruSeoHighlighting () {
+			// Terms have nothing to paint into, so a preference carried over from a post must not
+			// switch the subsystem back on.
+			if (!this.enabled) {
+				return
+			}
+
 			const perPost = usePostEditorStore().currentPost?.options?.truSeo?.highlightingEnabled
 			if ('boolean' === typeof perPost) {
 				this.highlightingEnabled = perPost

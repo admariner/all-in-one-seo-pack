@@ -351,9 +351,14 @@ const showOptimizationTab = computed(() => supportsPageAnalysis() && (truSeoShou
 const getTabs = computed(() => {
 	if ('term' === postEditorStore.currentPost.context || postEditorStore.currentPost.isWooCommercePageWithoutSchema) {
 		return tabs.value.filter((tab) => {
-			// Analysis is post-only — terms and schema-less WooCommerce pages aren't TruSEO-eligible.
-			const excludedTabs = [ 'aiContent', 'schema', 'analysis' ]
+			const excludedTabs = [ 'aiContent', 'schema' ]
 			if (excludedTabs.includes(tab.slug)) {
+				return false
+			}
+
+			// Eligibility is decided in PHP — terms only qualify on WooCommerce collection
+			// taxonomies, and schema-less WooCommerce pages never do.
+			if ('analysis' === tab.slug && !showOptimizationTab.value) {
 				return false
 			}
 

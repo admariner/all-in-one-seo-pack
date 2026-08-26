@@ -21,10 +21,11 @@ export const useAnalyzerStore = defineStore('AnalyzerStore', {
 		siteAudit : {
 			activeTab : 'error'
 		},
-		analyzer     : null,
-		analyzing    : false,
-		analyzeError : null,
-		homeResults  : {
+		analyzer         : null,
+		analyzing        : false,
+		analyzeError     : null,
+		analyzeErrorCode : null,
+		homeResults      : {
 			results : [],
 			score   : 0
 		},
@@ -122,8 +123,10 @@ export const useAnalyzerStore = defineStore('AnalyzerStore', {
 				return
 			}
 
-			this.analyzing = true
-			this.analyzer  = 'competitor-site'
+			this.analyzing        = true
+			this.analyzer         = 'competitor-site'
+			this.analyzeError     = null
+			this.analyzeErrorCode = null
 
 			return http.post(links.restUrl('analyze'))
 				.send({
@@ -140,13 +143,9 @@ export const useAnalyzerStore = defineStore('AnalyzerStore', {
 					this.analyzing = false
 				})
 				.catch(error => {
-					this.analyzing = false
-					let message = __('We couldn\'t connect to the site, please try again later.', td)
-					if (error.response?.body?.response?.error) {
-						message = error.response.body.response.error
-					}
-
-					this.analyzeError = message
+					this.analyzing        = false
+					this.analyzeErrorCode = error.response?.body?.error || null
+					this.analyzeError     = error.response?.body?.message || __('We couldn\'t connect to the site, please try again later.', td)
 				})
 		},
 		runHeadlineAnalyzer (payload = {}) {
@@ -162,13 +161,9 @@ export const useAnalyzerStore = defineStore('AnalyzerStore', {
 					this.analyzing = false
 				})
 				.catch(error => {
-					this.analyzing = false
-					let message = __('We couldn\'t analyze your title, please try again later.', td)
-					if (error.response.body?.message) {
-						message = error.response.body.message
-					}
-
-					this.analyzeError = message
+					this.analyzing        = false
+					this.analyzeErrorCode = null
+					this.analyzeError     = error.response?.body?.message || __('We couldn\'t analyze your title, please try again later.', td)
 				})
 		},
 		deleteCompetitorSite (url) {
@@ -277,10 +272,12 @@ export const useAnalyzerStore = defineStore('AnalyzerStore', {
 		changeSeoAnalyzerTab (value) {
 			this.activeTab = value
 		},
-		doAddFocusKeyword (id, value) {
+		// `objectType` decides which table the ID resolves against — a term row's ID is a term ID.
+		doAddFocusKeyword (id, value, objectType = 'post') {
 			return http.post(links.restUrl(`seo-analysis/objects/${id}/keywords`))
 				.send({
-					keyphrase : value
+					keyphrase : value,
+					objectType
 				})
 		},
 		toggleProcessingPopup () {

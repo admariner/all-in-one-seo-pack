@@ -55,12 +55,12 @@ export default class KeywordCannibalizationAssessment extends Assessment {
 
 		const cannibalizingPosts = cannibalizationData.cannibalizingPosts || []
 
+		// The check spans posts and terms — a category and a post competing for one keyword
+		// cannibalize each other — so the copy commits to neither noun.
 		if (0 === cannibalizingPosts.length) {
 			assessmentResult.setScore(this._config.scores.good)
 			assessmentResult.setTitle(__('Keyword cannibalization', td))
-			assessmentResult.setText(
-				__('No other posts on your site target this keyword.', td)
-			)
+			assessmentResult.setText(__('No other content on your site targets this keyword.', td))
 		} else {
 			assessmentResult.setScore(this._config.scores.bad)
 			assessmentResult.setTitle(__('Keyword cannibalization', td))
@@ -68,8 +68,8 @@ export default class KeywordCannibalizationAssessment extends Assessment {
 			const postTitles = cannibalizingPosts.map(p => `"${p.title}"`).join(', ')
 			assessmentResult.setText(
 				sprintf(
-					/* translators: 1 - A list of post titles. */
-					__('These posts also target the same keyword: %1$s. Consider giving each post a different keyword, or combining them into one.', td),
+					/* translators: 1 - A comma-separated list of post and term titles. */
+					__('This keyword is also targeted by: %1$s. Consider giving each a different keyword, or combining them into one.', td),
 					postTitles
 				)
 			)

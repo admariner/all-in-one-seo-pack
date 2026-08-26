@@ -37,10 +37,30 @@
 				/>
 
 				<img
+					v-if="!snapshotFailed"
 					class="mobile-snapshot-image__content"
 					alt="Mobile Snapshot"
 					:src="mobileSnapshot"
+					@error="snapshotFailed = true"
 				/>
+
+				<div
+					v-else
+					class="mobile-snapshot-image__fallback"
+				>
+					<svg-image-seo />
+
+					<span>{{ strings.snapshotUnavailable }}</span>
+				</div>
+			</div>
+
+			<div
+				v-if="snapshotFailed"
+				class="mobile-snapshot-caption"
+			>
+				<svg-info />
+
+				<span v-html="strings.snapshotBlockedNotice" />
 			</div>
 		</div>
 	</div>
@@ -56,14 +76,17 @@ import {
 import { merge } from 'lodash-es'
 import { useSeoSiteScore } from '@/vue/composables/SeoSiteScore'
 
+import links from '@/vue/utils/links'
 import { getAssetUrl } from '@/vue/utils/helpers'
 import { getSortedParts } from '@/vue/pages/seo-analysis/utils'
 import iphoneFrame from '@/vue/assets/images/seo-analysis/iphone-frame.png'
 
 import CoreDonutChartWithLegend from '@/vue/components/common/core/DonutChartWithLegend'
 import SvgRefresh from '@/vue/components/common/svg/Refresh'
+import SvgImageSeo from '@/vue/components/common/svg/ImageSeo'
+import SvgInfo from '@/vue/components/common/svg/Info'
 
-import { __ } from '@/vue/plugins/translations'
+import { __, sprintf } from '@/vue/plugins/translations'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
 
@@ -86,7 +109,9 @@ export default {
 	},
 	components : {
 		CoreDonutChartWithLegend,
-		SvgRefresh
+		SvgRefresh,
+		SvgImageSeo,
+		SvgInfo
 	},
 	props : {
 		score   : Number,
@@ -105,12 +130,26 @@ export default {
 	},
 	data () {
 		return {
-			isAnalyzing : false,
-			strings     : merge(this.composableStrings, {
-				refreshResults : __('Refresh Results', td),
-				mobileSnapshot : __('Mobile Snapshot', td),
-				analyzing      : __('Analyzing...', td)
+			isAnalyzing    : false,
+			snapshotFailed : false,
+			strings        : merge(this.composableStrings, {
+				refreshResults        : __('Refresh Results', td),
+				mobileSnapshot        : __('Mobile Snapshot', td),
+				analyzing             : __('Analyzing...', td),
+				snapshotUnavailable   : __('Preview unavailable', td),
+				snapshotBlockedNotice : sprintf(
+					// Translators: 1 - Opening link tag, 2 - Closing link tag.
+					__('A firewall or security service such as Cloudflare may have blocked our screenshot. This doesn\'t affect the SEO score. %1$sLearn more%2$s', td),
+					`<a href="${links.getDocUrl('seoAnalyzerIssues')}" target="_blank">`,
+					'</a>'
+				)
 			})
+		}
+	},
+	watch : {
+		// A refreshed competitor analysis can return a new snapshot URL, so retry the load.
+		mobileSnapshot () {
+			this.snapshotFailed = false
 		}
 	},
 	computed : {
@@ -200,6 +239,52 @@ export default {
 			&__content {
 				width: 100%;
 				height: auto;
+			}
+
+			&__fallback {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: $gutter-half;
+				width: 100%;
+				height: 100%;
+				padding: $gutter;
+				text-align: center;
+				background-color: $box-background;
+				color: $placeholder-color;
+
+				svg {
+					width: 48px;
+					height: 48px;
+				}
+
+				span {
+					font-size: $font-sm;
+				}
+			}
+		}
+
+		.mobile-snapshot-caption {
+			display: flex;
+			align-items: flex-start;
+			gap: 6px;
+			margin: $gutter-half 0 0;
+			font-size: $font-sm;
+			font-weight: 400;
+			line-height: 1.5;
+			color: $placeholder-color;
+
+			svg {
+				flex-shrink: 0;
+				width: 14px;
+				height: 14px;
+				margin-top: 1px;
+				color: $placeholder-color;
+			}
+
+			a {
+				font-weight: 600;
 			}
 		}
 

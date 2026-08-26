@@ -1,53 +1,18 @@
-import SEOAssessor from '../seoAssessor.js'
-import IntroductionKeywordAssessment from '../../assessments/seo/IntroductionKeywordAssessment.js'
-import KeyphraseLengthAssessment from '../../assessments/seo/KeyphraseLengthAssessment.js'
-import KeyphraseDensityAssessment from '../../assessments/seo/KeywordDensityAssessment.js'
-import MetaDescriptionKeywordAssessment from '../../assessments/seo/MetaDescriptionKeywordAssessment.js'
-import FunctionWordsInKeyphraseAssessment from '../../assessments/seo/FunctionWordsInKeyphraseAssessment.js'
-import MetaDescriptionLengthAssessment from '../../assessments/seo/MetaDescriptionLengthAssessment.js'
-import TextLengthAssessment from '../../assessments/seo/TextLengthAssessment.js'
-import KeyphraseInSEOTitleAssessment from '../../assessments/seo/KeyphraseInSEOTitleAssessment.js'
-import PageTitleWidthAssessment from '../../assessments/seo/PageTitleWidthAssessment.js'
-import SlugKeywordAssessment from '../../assessments/seo/UrlKeywordAssessment.js'
-import SingleH1Assessment from '../../assessments/seo/SingleH1Assessment.js'
-import ValidOnlyResultsScoreAggregator from '../../scoreAggregators/ValidOnlyResultsScoreAggregator'
+import TaxonomyAssessor from '../taxonomyAssessor.js'
 
 /**
  * The CollectionSEOAssessor class is used for the SEO analysis for collections.
+ *
+ * A collection page is a term, so the assessment list lives on {@see TaxonomyAssessor}. Only the
+ * type differs, which is what the result copy and the worker's taxonomy handling key off.
  */
-export default class CollectionSEOAssessor extends SEOAssessor {
+export default class CollectionSEOAssessor extends TaxonomyAssessor {
 	/**
-	 * Creates a new CollectionSEOAssessor instance.
-	 * @param {Researcher}	researcher	The researcher to use.
-	 * @param {Object}		[options]	The assessor options.
+	 * Returns the assessor type.
+	 *
+	 * @returns {string} The assessor type.
 	 */
-	constructor (researcher, options) {
-		super(researcher, options)
-		this.type = 'collectionSEOAssessor'
-
-		this._assessments = [
-			new IntroductionKeywordAssessment(),
-			new KeyphraseLengthAssessment(),
-			new KeyphraseDensityAssessment(),
-			new MetaDescriptionKeywordAssessment(),
-			new MetaDescriptionLengthAssessment(),
-			new TextLengthAssessment({
-				recommendedMinimum   : 30,
-				slightlyBelowMinimum : 10,
-				veryFarBelowMinimum  : 1,
-				customContentType    : this.type
-			}),
-			new KeyphraseInSEOTitleAssessment(),
-			new PageTitleWidthAssessment({
-				scores : {
-					widthTooShort : 9
-				}
-			}, true),
-			new SlugKeywordAssessment(),
-			new FunctionWordsInKeyphraseAssessment(),
-			new SingleH1Assessment()
-		]
-
-		this._scoreAggregator = new ValidOnlyResultsScoreAggregator()
+	assessorType () {
+		return 'collectionSEOAssessor'
 	}
 }

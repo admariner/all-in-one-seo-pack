@@ -44,7 +44,7 @@
 							<span class="aioseo-spelling-analysis__word">{{ word.word }}</span>
 
 							<button
-								v-if="truSeoHighlighterStore.highlightingEnabled"
+								v-if="canJump"
 								type="button"
 								class="aioseo-spelling-analysis__jump"
 								:aria-label="strings.jumpToWord(word.word)"
@@ -245,6 +245,14 @@ watch(words, () => {
 		page.value = totalPages.value
 	}
 })
+
+// The term editor's description textarea, when that is what is being analysed.
+const getTermDescription = () => document.querySelector('#edittag textarea#description')
+
+// Jump is marks-independent (it can find the word in the raw editor content), but on a post it is
+// only offered alongside highlighting. A term has no highlighting at all, and its textarea can
+// always be searched, so it gets the action unconditionally.
+const canJump = computed(() => !!getTermDescription() || truSeoHighlighterStore.highlightingEnabled)
 
 const suggestionsFor = (word) => truSeoHighlighterStore.suggestionsCache[word] || []
 
@@ -451,7 +459,33 @@ const getStickyEditorOffset = () => {
 	return Math.round(height) + 16
 }
 
+// A term's description is a plain textarea, so there is no <mark> to scroll to. Selecting the word
+// gives the same "here it is" feedback using the browser's own selection highlight, and focusing
+// leaves the caret where the user can start typing over it.
+const jumpToWordInTermDescription = (textarea, word) => {
+	const match = new RegExp(wordBoundaryPattern(word), 'u').exec(textarea.value || '')
+	if (!match) {
+		return false
+	}
+
+	textarea.style.scrollMarginTop = `${getStickyEditorOffset()}px`
+	textarea.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+	// preventScroll so focusing doesn't fight the smooth scroll above with a jump.
+	textarea.focus({ preventScroll: true })
+	textarea.setSelectionRange(match.index, match.index + match[0].length)
+
+	return true
+}
+
 const jumpToWord = (word) => {
+	const textarea = getTermDescription()
+	if (textarea) {
+		jumpToWordInTermDescription(textarea, word)
+
+		return
+	}
+
 	const node = findScrollTarget(word)
 	if (!node) {
 		return

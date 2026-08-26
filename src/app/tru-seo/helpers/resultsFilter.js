@@ -1,3 +1,21 @@
+// Assessments that only mean anything with a keyword set. They render under the keyword rows on
+// the Keywords tab, so consumers building the basic/readability lists exclude them from there.
+export const KEYWORD_ASSESSMENT_IDS = [
+	'introductionKeyword',
+	'keyphraseLength',
+	'keyphraseDensity',
+	'keyphraseDistribution',
+	'keywordCannibalization',
+	'metaDescriptionKeyword',
+	'subheadingsKeyword',
+	'textCompetingLinks',
+	'imageKeyphrase',
+	'keyphraseInSEOTitle',
+	'keyphraseInTermName',
+	'slugKeyword',
+	'functionWordsInKeyphrase'
+]
+
 export function getAllResultsGrouped (results, excludeIds = new Set()) {
 	return {
 		basic       : getBasicResults(results, excludeIds),
@@ -56,22 +74,7 @@ export function getSpellingResults (results, excludeIds = new Set()) {
 }
 
 export function getFocusKeywordResults (results) {
-	const identifiers = [
-		'introductionKeyword',
-		'keyphraseLength',
-		'keyphraseDensity',
-		'keyphraseDistribution',
-		'keywordCannibalization',
-		'metaDescriptionKeyword',
-		'subheadingsKeyword',
-		'textCompetingLinks',
-		'imageKeyphrase',
-		'keyphraseInSEOTitle',
-		'slugKeyword',
-		'functionWordsInKeyphrase'
-	]
-
-	return getResultsByIdentifiers(identifiers, results)
+	return getResultsByIdentifiers(KEYWORD_ASSESSMENT_IDS, results)
 }
 
 // Whether an analysis-items object has at least one check worth expanding.

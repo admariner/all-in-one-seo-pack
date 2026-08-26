@@ -373,6 +373,13 @@ export default ({ mode }) => {
 			strictPort : true,
 			port       : process.env.VITE_AIOSEO_DEV_PORT,
 			host       : 'localhost' === process.env.VITE_AIOSEO_DOMAIN ? '0.0.0.0' : process.env.VITE_AIOSEO_DOMAIN,
+			// WP 7.1 serves editor screens under `Document-Isolation-Policy:
+			// isolate-and-credentialless`, which drops any cross-origin subresource
+			// that doesn't opt in. The dev server is a different origin (port), so
+			// without this the editor refuses everything it serves.
+			headers    : {
+				'Cross-Origin-Resource-Policy' : 'cross-origin'
+			},
 			hmr        : {
 				port : process.env.VITE_AIOSEO_DEV_PORT,
 				host : process.env.VITE_AIOSEO_DOMAIN

@@ -1,5 +1,4 @@
 import { __, sprintf } from '@/vue/plugins/translations'
-import escape from 'lodash-es/escape'
 import merge from 'lodash-es/merge'
 import getLanguage from '../../../languageProcessing/helpers/language/getLanguage'
 
@@ -72,7 +71,7 @@ export default class KeyphraseInSEOTitleAssessment extends Assessment {
 
 		if (paper.hasKeyword() && paper.hasTitle()) {
 			this._keyphraseMatches = researcher.getResearch('findKeyphraseInSEOTitle')
-			this._keyphrase = escape(paper.getKeyword())
+			this._keyphrase = paper.getKeyword()
 			this._canAssess = true
 		}
 

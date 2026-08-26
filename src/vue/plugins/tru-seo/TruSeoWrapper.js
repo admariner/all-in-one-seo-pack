@@ -48,6 +48,8 @@ export default class TruSeoWrapper {
 		this.locale = options?.locale || null // NEW: explicit locale config
 		this.customAnalysisType = options?.customAnalysisType || '' // NEW: explicit analysis type
 		this.useCornerstone = options?.useCornerstone || false // NEW: explicit cornerstone flag
+		this.useTaxonomy = options?.useTaxonomy || false // Selects the taxonomy assessors for terms
+		this.contentNouns = options?.contentNouns || null // Taxonomy labels used in result copy
 		this._lastPostId = null // Track post ID for cache clearing
 		this._lastLocale = null // Track locale for worker re-initialization
 		this.workerInitError = null // Track initialization errors
@@ -115,10 +117,10 @@ export default class TruSeoWrapper {
 					useCornerstone        : postEditorStore.currentPost?.cornerstone || false,
 					customAnalysisType    : customAnalysisType,
 					// Terms get the taxonomy assessors, which apply taxonomy text-length
-					// thresholds instead of post ones. Only the editor sets this: the batch
-					// scanner never runs on terms (DetailsColumn.php gates it to `edit` screens,
-					// and the term list is `edit-tags`).
+					// thresholds instead of post ones. The batch scanner sets the same flag from
+					// its analysis payload, so a list score matches what the term editor shows.
 					useTaxonomy           : 'term' === postEditorStore.currentPost?.context,
+					contentNouns          : postEditorStore.currentPost?.contentNouns || null,
 					spellChecker          : {
 						enabled           : window.aioseo?.spellChecker?.enabled ?? false,
 						dictionaryBaseUrl : window.aioseo?.spellChecker?.dictionaryBaseUrl || '',
@@ -260,6 +262,8 @@ export default class TruSeoWrapper {
 			const locale = this.locale || window.aioseo?.user?.locale || 'en_US'
 			const customAnalysisType = this.customAnalysisType || '' // Empty string default
 			const useCornerstone = this.useCornerstone || false // False default
+			const useTaxonomy = this.useTaxonomy || false // False default
+			const contentNouns = this.contentNouns || null // Null default (posts)
 
 			if (useWebWorker) {
 				const webWorker = new TruSeoWorkerModule()
@@ -275,6 +279,8 @@ export default class TruSeoWrapper {
 				keywordAnalysisActive : true,
 				useCornerstone,
 				customAnalysisType,
+				useTaxonomy,
+				contentNouns,
 				// Same spell-checker config the shared (editor) worker gets, so the batch
 				// worker loads the dictionary and scores spelling too. Without it the
 				// assessment scores 0, calculateOverallScore awards full spelling marks,
@@ -434,7 +440,10 @@ export default class TruSeoWrapper {
 		const focusKeyphrase = truseoData?.focusKeyword || ''
 		const customData = {}
 		if (!useLicenseStore().isUnlicensed && focusKeyphrase && postId) {
-			const cannibalizationResult = await this._cannibalizationService.fetch(focusKeyphrase, postId)
+			// The ID is a term ID in the term editor, so the route has to be told which table to
+			// resolve it against — otherwise it looks up an unrelated post and the check never fires.
+			const objectType = 'term' === postEditorStore.currentPost?.context ? 'term' : 'post'
+			const cannibalizationResult = await this._cannibalizationService.fetch(focusKeyphrase, postId, objectType)
 			customData.keywordCannibalization = cannibalizationResult
 		} else {
 			// No focus keyphrase, or the feature is unsupported on this build — clear any cache.

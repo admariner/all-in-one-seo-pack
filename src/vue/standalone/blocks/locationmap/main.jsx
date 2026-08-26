@@ -1,7 +1,7 @@
 import { registerBlock, useBlockProps } from '../utils'
 import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 
-import { h, createApp } from 'vue'
+import { h, createApp, watch } from 'vue'
 import { observeElement } from '@/vue/utils/helpers'
 
 import icon from './icon'
@@ -40,7 +40,6 @@ const withSelect        = wp.data.withSelect
 
 const initialBlockState = {}
 const locationMapSidebarApps = []
-const locationMapSidebarWatcherApps = []
 
 export const settings = {
 	title,
@@ -74,7 +73,25 @@ export const settings = {
 		// Default dynamic attribute
 		attributes.label      = attributes.label || __('Our location:', td)
 		attributes.updated    = attributes.updated || Date.now()
-		attributes.dataObject = attributes.dataObject || isLocationPostType ? JSON.stringify(postEditorStore.currentPost.local_seo.maps) : null
+
+		// Snapshot of the location's current settings, so the preview reflects unsaved changes.
+		// Deliberately kept out of `attributes` — persisting it would freeze the front-end output.
+		const dataObject = isLocationPostType ? JSON.stringify(postEditorStore.currentPost.local_seo.maps) : null
+
+		// This is a React component, so it is blind to the Pinia mutations the metabox makes. Without
+		// a nudge the preview keeps rendering the snapshot taken when the block last rendered.
+		const [ , refreshPreview ] = React.useState(0)
+		React.useEffect(() => {
+			if (!isLocationPostType) {
+				return
+			}
+
+			return watch(
+				() => postEditorStore.currentPost.local_seo.maps,
+				() => refreshPreview(count => count + 1),
+				{ deep: true }
+			)
+		}, [isLocationPostType])
 
 		if (multipleLocations && null === locations) {
 			return (
@@ -149,41 +166,6 @@ export const settings = {
 
 		if ('edit-post/block' === generalSidebarName) {
 			'function' !== typeof toggleSelection || toggleSelection(true)
-		}
-
-		if (isLocationPostType) {
-			observeElement({
-				id      : vueAioseoId + '-watcher',
-				parent  : document.querySelector('.block-editor'),
-				subtree : true,
-				done    : function (el) {
-					maybeDeleteBlockVueApp(clientId, locationMapSidebarWatcherApps)
-
-					let app = createApp({
-						name : 'Blocks/LocationMapWatcher',
-						data : function () {
-							return postEditorStore.currentPost.local_seo.maps
-						},
-						watch : {
-							$data : {
-								handler : function () {
-									setAttributes({
-										updated : Date.now()
-									})
-								},
-								deep : true
-							}
-						},
-						render : () => h('div') // This stops the watcher from rendering multiple times.
-					})
-
-					app = loadPlugins(app)
-
-					app.mount(el)
-
-					locationMapSidebarWatcherApps.push({ id: clientId, app })
-				}
-			})
 		}
 
 		if (multipleLocations) {
@@ -264,11 +246,10 @@ export const settings = {
 						<Disabled>
 							<ServerSideRender
 								block={name}
-								attributes={{ ...attributes }}
+								attributes={{ ...attributes, dataObject }}
 							/>
 						</Disabled>
 					</div>
-					<div id={`${vueAioseoId}-watcher`}></div>
 				</div>
 			</>
 		)

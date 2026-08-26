@@ -77,17 +77,13 @@ Thus, this calculation make the overall score work on a 0-100/0-10 scale rather 
 | Red	                 | 4	     | Keyphrase not found in content		                       | **Keyword density**: Your keyword doesn't appear in the post yet. For a post this length, **try using it at least X times**.                                                                          |
 | **Texts 100+ words** |
 | Red	                 | -50	   | kd > 4		                                               | **Keyword density**: Your keyword appears X times — well over the recommended Y for a post this length. **Cut down to keep the text natural**.                                                        |
-| Red	                 | -10	   | 3 < kd ≤ 4 (3.5 < kd ≤ 4 for multiple word forms)		    | **Keyword density**: Your keyword appears X times — more than the recommended Y for a post this length. **Using it too often can hurt readability and look spammy**.                                  |
+| Red	                 | -8	   | 3 < kd ≤ 4 (3.5 < kd ≤ 4 for multiple word forms)		    | **Keyword density**: Your keyword appears X times — more than the recommended Y for a post this length. **Using it too often can hurt readability and look spammy**.                                  |
 | Red	                 | 4	     | 0 < kd < 0.5		                                         | **Keyword density**: Your keyword appears X times — less than the recommended Y for a post this length.                                                                                               |
 | Green	               | 9	     | 0.5 ≤ kd ≤ 3 (0.5 ≤ kd ≤ 3.5 for multiple word forms)	 | **Keyword density**: Your keyword appears X times — that's a healthy amount.                                                                                                                          |
-| **Texts 51-99 words** |
+| **Texts <100 words** |
 | Red	                 | -50	   | Keyphrase found 4+ times		                             | **Keyword density**: Your keyword appears X times — well over the recommended Y for a post this length. **Cut down to keep the text natural**.                                                        |
-| Red	                 | -10	   | Keyphrase found 3 times	                               | **Keyword density**: Your keyword appears X times — more than the recommended Y for a post this length. **Using it too often can hurt readability and look spammy**.                                  |
+| Red	                 | -8	   | Keyphrase found 3 times	                               | **Keyword density**: Your keyword appears X times — more than the recommended Y for a post this length. **Using it too often can hurt readability and look spammy**.                                  |
 | Green	               | 9	     | Keyphrase found 1-2 times                              | **Keyword density**: Your keyword appears X times — that's a healthy amount.                                                                                                                          |
-| **Texts <51 words**  |
-| Red	                 | -50	   | Keyphrase found 3+ times		                             | **Keyword density**: Your keyword appears X times — well over the recommended Y for a post this length. **Cut down to keep the text natural**.                                                        |
-| Red	                 | -10	   | Keyphrase found 2 times	                               | **Keyword density**: Your keyword appears X times — more than the recommended Y for a post this length. **Using it too often can hurt readability and look spammy**.                                  |
-| Green	               | 9	     | Keyphrase found once		                                 | **Keyword density**: Your keyword appears 1 time — that's a healthy amount.                                                                                                                           |
 
 
 #### More on our minimal keyphrase usage requirements
@@ -395,7 +391,7 @@ It was removed in 5.0.x. Nothing in the plugin ever populated `paper.textTitle`,
 would have scored 0 on every post had it been wired.
 
 ### 10) Keyword Cannibalization
-**What it does**: Checks whether other posts on the site target the same focus keyphrase, which can cause them to compete against each other in search results.
+**What it does**: Checks whether other content on the site targets the same focus keyphrase, which can cause them to compete against each other in search results. Posts and TruSEO-eligible terms are both searched, whichever of the two is being edited.
 
 **Uses synonyms**: no
 
@@ -407,8 +403,8 @@ would have scored 0 on every post had it been wired.
 
 | Traffic light | Score | Criterion                                    | Feedback                                                                                                                                                     |
 |---------------|-------|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Red           | 3     | Other posts target the same focus keyphrase  | **Keyword cannibalization**: These posts also target the same keyword: "Post A", "Post B". **Consider giving each post a different keyword, or combining them into one**. |
-| Green         | 9     | No other posts target the same keyphrase     | **Keyword cannibalization**: No other posts on your site target this keyword.                                                                                              |
+| Red           | 3     | Other content targets the same focus keyphrase | **Keyword cannibalization**: This keyword is also targeted by: "Post A", "Category B". **Consider giving each a different keyword, or combining them into one**. |
+| Green         | 9     | No other content targets the same keyphrase    | **Keyword cannibalization**: No other content on your site targets this keyword.                                                                                            |
 
 **Notes**:
 * Cannibalization data is fetched from the `tru-seo/keyword-cannibalization` REST endpoint.

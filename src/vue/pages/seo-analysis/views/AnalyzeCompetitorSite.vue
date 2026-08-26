@@ -149,7 +149,7 @@ export default {
 	},
 	computed : {
 		getError () {
-			switch (this.analyzerStore.analyzeError) {
+			switch (this.analyzerStore.analyzeErrorCode) {
 				case 'invalid-url':
 					return __('The URL provided is invalid.', td)
 				case 'missing-content':

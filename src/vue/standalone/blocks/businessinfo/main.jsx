@@ -1,7 +1,7 @@
 import { registerBlock, useBlockProps } from '../utils'
 import { allowed } from '@/vue/utils/AIOSEO_VERSION'
 
-import { h, createApp } from 'vue'
+import { h, createApp, watch } from 'vue'
 import { observeElement } from '@/vue/utils/helpers'
 
 import icon from './icon'
@@ -39,7 +39,6 @@ const withSelect        = wp.data.withSelect
 
 const initialBlockState = {}
 const sidebarMounted    = []
-const businessInfoSidebarWatcherApps = []
 
 export const settings = {
 	title,
@@ -72,7 +71,26 @@ export const settings = {
 		attributes.faxLabel = attributes.faxLabel || __('Fax', td)
 		attributes.emailLabel = attributes.emailLabel || __('Email', td)
 		attributes.updated = attributes.updated || Date.now()
-		attributes.dataObject = postEditorStore.currentPost.postType === rootStore.aioseo.localBusiness.postTypeName ? JSON.stringify(postEditorStore.currentPost.local_seo.locations.business) : null
+
+		// Snapshot of the location's current settings, so the preview reflects unsaved changes.
+		// Deliberately kept out of `attributes` — persisting it would freeze the front-end output.
+		const isLocationPostType = postEditorStore.currentPost.postType === rootStore.aioseo.localBusiness.postTypeName
+		const dataObject         = isLocationPostType ? JSON.stringify(postEditorStore.currentPost.local_seo.locations.business) : null
+
+		// This is a React component, so it is blind to the Pinia mutations the metabox makes. Without
+		// a nudge the preview keeps rendering the snapshot taken when the block last rendered.
+		const [ , refreshPreview ] = React.useState(0)
+		React.useEffect(() => {
+			if (!isLocationPostType) {
+				return
+			}
+
+			return watch(
+				() => postEditorStore.currentPost.local_seo.locations.business,
+				() => refreshPreview(count => count + 1),
+				{ deep: true }
+			)
+		}, [isLocationPostType])
 
 		const generalSidebarName = wp.data.useSelect(
 			select => select('core/edit-post').getActiveGeneralSidebarName()
@@ -106,7 +124,7 @@ export const settings = {
 		}
 
 		// Force locationId if we're in the local-business post type.
-		attributes.locationId = (!attributes.locationId && postEditorStore.currentPost.postType === rootStore.aioseo.localBusiness.postTypeName) ? postEditorStore.currentPost.id : attributes.locationId
+		attributes.locationId = (!attributes.locationId && isLocationPostType) ? postEditorStore.currentPost.id : attributes.locationId
 
 		const observeElementArgs = {
 			id      : vueAioseoId,
@@ -153,39 +171,6 @@ export const settings = {
 			observeElement(observeElementArgs)
 		}
 
-		if (postEditorStore.currentPost.postType === rootStore.aioseo.localBusiness.postTypeName) {
-			observeElement({
-				id      : vueAioseoId + '-watcher',
-				parent  : document.querySelector('.block-editor'),
-				subtree : true,
-				done    : function (el) {
-					maybeDeleteBlockVueApp(clientId, businessInfoSidebarWatcherApps)
-
-					let app = createApp({
-						name : 'Blocks/BusinessInfoWatcher',
-						data : function () {
-							return postEditorStore.currentPost.local_seo.locations.business
-						},
-						watch : {
-							$data : {
-								handler : function () {
-									setAttributes({ updated: Date.now() })
-								},
-								deep : true
-							}
-						},
-						render : () => h('div') // This stops the watcher from rendering multiple times.
-					})
-
-					app = loadPlugins(app)
-
-					app.mount(el)
-
-					businessInfoSidebarWatcherApps.push({ id: clientId, app })
-				}
-			})
-		}
-
 		if (multipleLocations && !attributes.locationId) {
 			return (
 				<>
@@ -213,7 +198,7 @@ export const settings = {
 				<div {...blockProps}>
 					<ServerSideRender
 						block={name}
-						attributes={{ ...attributes }}
+						attributes={{ ...attributes, dataObject }}
 					/>
 				</div>
 			</>

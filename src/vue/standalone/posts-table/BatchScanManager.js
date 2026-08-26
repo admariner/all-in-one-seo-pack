@@ -12,8 +12,12 @@ import { useSpellCheckerDictionaryStore } from '@/vue/stores'
  * @since 5.0.0
  */
 export default class BatchScanManager {
-	constructor ({ maxWorkers = 5, posts = [], startDelay = 2000 }) {
+	constructor ({ maxWorkers = 5, posts = [], startDelay = 2000, objectType = 'post' }) {
 		this.maxWorkers = maxWorkers // Default 5 concurrent workers
+
+		// 'post' or 'term' — decides which REST route results are saved to. Everything else about
+		// the scan is identical, since the analysis payload is normalised server-side.
+		this.objectType = objectType
 
 		// A post without an analysis payload can never be scanned — the API omits it for posts the
 		// user cannot edit — so drop it here rather than in scanPost, where it would still count
@@ -128,7 +132,12 @@ export default class BatchScanManager {
 			useSharedWorker    : false, // Dedicated worker
 			locale             : config.locale || window.aioseo?.user?.locale || 'en_US',
 			customAnalysisType : config.customAnalysisType || '',
-			useCornerstone     : config.useCornerstone || false
+			useCornerstone     : config.useCornerstone || false,
+			// Without this a term is scored by the post assessor, which runs checks a term can
+			// never satisfy (single H1, images, links) against a 300-word threshold — so the
+			// backfilled list score would sit far below what the term editor shows.
+			useTaxonomy        : config.useTaxonomy || false,
+			contentNouns       : config.contentNouns || null
 		})
 
 		await wrapper.initializeWorker()
@@ -254,7 +263,9 @@ export default class BatchScanManager {
 			workerWrapper = await this.getOrCreateWorker({
 				locale             : postData.locale,
 				customAnalysisType : postData.customAnalysisType,
-				useCornerstone     : postData.cornerstone
+				useCornerstone     : postData.cornerstone,
+				useTaxonomy        : postData.useTaxonomy,
+				contentNouns       : postData.contentNouns
 			})
 
 			// Analyze post with dedicated worker
@@ -338,7 +349,8 @@ export default class BatchScanManager {
 	 * @returns {Promise<void>} Nothing to return.
 	 */
 	async saveResults (postId, results) {
-		await http.post(links.restUrl(`truseo/posts/${postId}`))
+		const route = 'term' === this.objectType ? 'truseo/terms' : 'truseo/posts'
+		await http.post(links.restUrl(`${route}/${postId}`))
 			.send({
 				truseo              : results.truseo,
 				seo_score           : results.seo_score,
@@ -373,6 +385,18 @@ export default class BatchScanManager {
 		if (window.aioseoBus) {
 			window.aioseoBus.$emit('batchScanScoreUpdate' + postId, score)
 		}
+	}
+
+	/**
+	 * Returns the plural noun for what is being scanned, e.g. "categories".
+	 *
+	 * NOTE: Localized per list screen from the registered post type/taxonomy labels, so the notice
+	 * doesn't say "posts" on a product or category list.
+	 *
+	 * @returns {string} The plural noun.
+	 */
+	objectNounPlural () {
+		return window.aioseo?.objectNouns?.plural || __('posts', td)
 	}
 
 	/**
@@ -482,24 +506,27 @@ export default class BatchScanManager {
 		if (hasFailures && hasSuccesses) {
 			// Mixed results: some succeeded, some failed
 			message.textContent = sprintf(
-				// Translators: 1 - The number of posts analyzed successfully, 2 - The number of posts that failed.
-				__('TruSEO analysis completed with errors. %1$d post(s) analyzed successfully, but %2$d post(s) could not be analyzed. Please refresh the page and try again.', td),
+				// Translators: 1 - The number analyzed successfully, 2 - The number that failed, 3 - The plural object noun, e.g. "categories".
+				__('TruSEO analysis completed with errors. %1$d %3$s analyzed successfully, but %2$d could not be analyzed. Please refresh the page and try again.', td),
 				this.completedScans,
-				this.failedScans
+				this.failedScans,
+				this.objectNounPlural()
 			)
 		} else if (hasFailures && !hasSuccesses) {
 			// All failed
 			message.textContent = sprintf(
-				// Translators: 1 - The number of posts that failed.
-				__('TruSEO analysis failed. Could not analyze %1$d post(s). Please refresh the page and try again.', td),
-				this.failedScans
+				// Translators: 1 - The number that failed, 2 - The plural object noun, e.g. "categories".
+				__('TruSEO analysis failed. Could not analyze %1$d %2$s. Please refresh the page and try again.', td),
+				this.failedScans,
+				this.objectNounPlural()
 			)
 		} else {
 			// All succeeded
 			message.textContent = sprintf(
-				// Translators: 1 - The number of posts analyzed successfully.
-				__('TruSEO analysis complete! Successfully analyzed %1$d post(s).', td),
-				this.completedScans
+				// Translators: 1 - The number analyzed successfully, 2 - The plural object noun, e.g. "categories".
+				__('TruSEO analysis complete! Successfully analyzed %1$d %2$s.', td),
+				this.completedScans,
+				this.objectNounPlural()
 			)
 		}
 

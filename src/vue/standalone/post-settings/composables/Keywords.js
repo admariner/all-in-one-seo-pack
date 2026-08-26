@@ -9,6 +9,7 @@ import {
 import { cleanForSlug } from '@/vue/utils/cleanForSlug'
 import { updateStoreWithResults } from '@/vue/plugins/tru-seo/helpers/resultsHelper'
 import { hasAnalysisItems } from '@/app/tru-seo/helpers/resultsFilter'
+import { additionalKeywordLimitReached } from '@/vue/utils/postData/helpers'
 
 /**
  * Composable for managing keywords (focus and additional) in post editor
@@ -80,7 +81,8 @@ export const useKeywords = (truSeoRef) => {
 	 */
 	const disableAdditionalKeywords = computed(() => {
 		const additionalCount = postEditorStore.truseoData?.additionalKeywords?.length || 0
-		return (1 <= keywords.value.length && licenseStore.isUnlicensed) || (!licenseStore.isUnlicensed && postEditorStore.currentPost.maxAdditionalKeyphrases <= additionalCount)
+		return (1 <= keywords.value.length && licenseStore.isUnlicensed) ||
+			(!licenseStore.isUnlicensed && additionalKeywordLimitReached(postEditorStore.currentPost.maxAdditionalKeyphrases, additionalCount))
 	})
 
 	/**
@@ -126,7 +128,7 @@ export const useKeywords = (truSeoRef) => {
 			}
 		} else if (isAdditionalKeywordsAvailable.value) {
 			// Add as additional keyword
-			if (postEditorStore.currentPost.maxAdditionalKeyphrases <= postEditorStore.truseoData?.additionalKeywords?.length) {
+			if (additionalKeywordLimitReached(postEditorStore.currentPost.maxAdditionalKeyphrases, postEditorStore.truseoData?.additionalKeywords?.length || 0)) {
 				return
 			}
 

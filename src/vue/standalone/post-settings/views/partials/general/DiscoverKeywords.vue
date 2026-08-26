@@ -153,7 +153,7 @@
 											v-if="!isFocusKeyword(keyphrase[0])"
 										>
 											<base-button
-												v-if="index !== removingAdditionalKeyphrase && (index === addingAdditionalKeyphrase || !hasAdditionalKeyphrase(keyphrase[0])) && postEditorStore.currentPost.maxAdditionalKeyphrases > (postEditorStore.truseoData?.additionalKeywords?.length || 0)"
+												v-if="index !== removingAdditionalKeyphrase && (index === addingAdditionalKeyphrase || !hasAdditionalKeyphrase(keyphrase[0])) && !additionalKeywordLimitReached(postEditorStore.currentPost.maxAdditionalKeyphrases, postEditorStore.truseoData?.additionalKeywords?.length || 0)"
 												type="gray"
 												size="medium"
 												@click="addAdditionalKeyphrase(keyphrase[0], index)"
@@ -162,7 +162,7 @@
 												{{ strings.addAdditionalKeyphrase }}
 											</base-button>
 
-											<core-tooltip v-if="index !== removingAdditionalKeyphrase && (index === addingAdditionalKeyphrase || !hasAdditionalKeyphrase(keyphrase[0])) && postEditorStore.currentPost.maxAdditionalKeyphrases <= (postEditorStore.truseoData?.additionalKeywords?.length || 0)">
+											<core-tooltip v-if="index !== removingAdditionalKeyphrase && (index === addingAdditionalKeyphrase || !hasAdditionalKeyphrase(keyphrase[0])) && additionalKeywordLimitReached(postEditorStore.currentPost.maxAdditionalKeyphrases, postEditorStore.truseoData?.additionalKeywords?.length || 0)">
 												<base-button
 													type="gray"
 													size="medium"
@@ -298,6 +298,7 @@ import SvgLogoSemrush from '@/vue/components/common/svg/logo/Semrush'
 import SvgTrash from '@/vue/components/common/svg/Trash'
 
 import { __, sprintf } from '@/vue/plugins/translations'
+import { additionalKeywordLimitReached } from '@/vue/utils/postData/helpers'
 
 const td = import.meta.env.VITE_TEXTDOMAIN
 
@@ -488,7 +489,12 @@ const openModal = () => {
 }
 
 const getKeyphrases = () => {
-	if (!postEditorStore.currentPost?.keyphrases?.focus?.keyphrase) {
+	// Gate on the canonical focus keyword — the exact value SemrushStore.getKeyphrases() sends, so
+	// the guard and the request can't disagree. The pre-5.0 `keyphrases.focus` mirror this used to
+	// read is empty for a term (there is no such column, so PHP sends a null focus) and for any post
+	// whose keyword was set after the keyword columns landed, which skipped the request and left the
+	// table showing "No results" with no error to explain it.
+	if (!postEditorStore.truseoData?.focusKeyword) {
 		return
 	}
 

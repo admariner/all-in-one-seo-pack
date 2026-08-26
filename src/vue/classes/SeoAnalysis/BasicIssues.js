@@ -1,4 +1,6 @@
 /* eslint-disable no-unused-vars */
+import { escapeHtml } from '@/vue/utils/strings'
+
 import { __, _n, sprintf } from '@/vue/plugins/translations'
 const td = import.meta.env.VITE_TEXTDOMAIN
 
@@ -20,7 +22,7 @@ class BasicIssues {
 					__('The SEO title is %1$d characters long, which is higher than our recommended range of 40-60 characters.', td),
 					result?.length
 				),
-				content     : (result) => result?.value || '',
+				content     : (result) => escapeHtml(result?.value || ''),
 				description : __('The SEO title is the title of your page that appears in search results. It should be 40 to 60 characters long, include your focus keyword and incentivize readers to click through to your page.', td),
 				fixActionParams
 			},
@@ -37,7 +39,7 @@ class BasicIssues {
 						result?.length
 					)
 				},
-				content     : (result) => result?.value || '',
+				content     : (result) => escapeHtml(result?.value || ''),
 				description : __('The SEO title is the title of your page that appears in search results. It should be 40 to 60 characters long, include your focus keyword and incentivize readers to click through to your page.', td),
 				fixActionParams
 			},
@@ -48,7 +50,7 @@ class BasicIssues {
 					__('The SEO title is %1$d characters long, which is within our recommended range of 40-60 characters.', td),
 					result?.length
 				),
-				content     : (result) => result?.value || '',
+				content     : (result) => escapeHtml(result?.value || ''),
 				description : __('The SEO title is the title of your page that appears in search results. It should be 40 to 60 characters long, include your focus keyword and incentivize readers to click through to your page.', td)
 			}
 		}
@@ -71,7 +73,7 @@ class BasicIssues {
 					__('The meta description is %1$d characters long, which is lower than our recommended range of 120-160 characters.', td),
 					result?.length
 				),
-				content     : (result) => result?.value || '',
+				content     : (result) => escapeHtml(result?.value || ''),
 				description : __('The meta description is a summary of your page that appears in search results. It should be 120 to 160 characters long, include your focus keyword and incentivize readers to click through to your page.', td),
 				fixActionParams
 			},
@@ -82,7 +84,7 @@ class BasicIssues {
 					__('The meta description is %1$d characters long, which is higher than our recommended range of 120-160 characters.', td),
 					result?.length
 				),
-				content     : (result) => result?.value || '',
+				content     : (result) => escapeHtml(result?.value || ''),
 				description : __('The meta description is a summary of your page that appears in search results. It should be 120 to 160 characters long, include your focus keyword and incentivize readers to click through to your page.', td),
 				fixActionParams
 			},
@@ -93,7 +95,7 @@ class BasicIssues {
 					__('The meta description is %1$d characters long, which is within our recommended range of 120-160 characters.', td),
 					result?.length
 				),
-				content : (result) => result?.value || '',
+				content : (result) => escapeHtml(result?.value || ''),
 				tooltip : __('The meta description is a summary of your page that appears in search results.', td)
 			}
 		}
@@ -177,7 +179,7 @@ class BasicIssues {
 				),
 				content : (result) => 0 < result?.items?.length
 					? result?.items?.map(item => {
-						return item
+						return escapeHtml(item)
 					}).join('<br/>')
 					: '',
 				description : __('Images are important for SEO and improve user experience & engagement. Images should be optimized (relevant filename, alt text, small file size) so they can also rank separately in image search results.', td)
@@ -263,12 +265,12 @@ class BasicIssues {
 				description : __('The focus keyword is the main keyword that the page is ranking for. It should be unique to the page. If multiple pages are targeting the same focus keyword, they will all compete for the same traffic and perform worse. This is known as keyword cannibalization.', td),
 				content     : (result) => result?.posts?.map(post => {
 					if (!post?.editLink) {
-						return post.title
+						return escapeHtml(post.title)
 					}
 
 					const editLink = `${post.editLink}${fixActionParams}`
 
-					return `<a href="${editLink}" target="_blank">${post.title}</a>`
+					return `<a href="${escapeHtml(editLink)}" target="_blank">${escapeHtml(post.title)}</a>`
 				}).join('<br/>'),
 				fixActionParams
 			},

@@ -30,7 +30,7 @@
 
 				<div class="aioseo-nps-survey__scores">
 					<button
-						v-for="n in 10"
+						v-for="n in scores"
 						:key="n"
 						class="aioseo-nps-survey__score-btn"
 						:class="{ selected: n === score }"
@@ -41,8 +41,8 @@
 				</div>
 
 				<div class="aioseo-nps-survey__labels">
-					<span>{{ strings.notSatisfied }}</span>
-					<span>{{ strings.verySatisfied }}</span>
+					<span>{{ strings.notLikely }}</span>
+					<span>{{ strings.veryLikely }}</span>
 				</div>
 			</div>
 
@@ -78,12 +78,74 @@
 				</base-button>
 			</div>
 
-			<!-- Step 3: Thank you -->
+			<!-- Step 3: Thank you, routed to support or a review ask by score -->
 			<div
 				v-if="3 === step"
-				class="aioseo-nps-survey__step aioseo-nps-survey__step--thankyou"
+				class="aioseo-nps-survey__step"
+				:class="{ 'aioseo-nps-survey__step--thankyou': 'passive' === bucket }"
 			>
-				<p class="aioseo-nps-survey__thankyou">
+				<template v-if="'detractor' === bucket">
+					<div class="aioseo-nps-survey__header">
+						{{ strings.supportHeading }}
+					</div>
+
+					<p class="aioseo-nps-survey__body">
+						{{ strings.supportBody }}
+					</p>
+
+					<base-button
+						tag="a"
+						type="blue"
+						:href="supportUrl"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						{{ strings.supportButton }}
+					</base-button>
+
+					<p class="aioseo-nps-survey__hint">
+						{{ strings.supportHint }}
+					</p>
+				</template>
+
+				<template v-else-if="'promoter' === bucket">
+					<div class="aioseo-nps-survey__header">
+						{{ strings.reviewHeading }}
+					</div>
+
+					<p class="aioseo-nps-survey__body">
+						{{ strings.reviewBody }}
+					</p>
+
+					<div class="aioseo-nps-survey__actions">
+						<base-button
+							tag="a"
+							type="blue"
+							:href="reviewUrl"
+							target="_blank"
+							rel="noopener noreferrer"
+							@click="onReviewClick"
+						>
+							{{ strings.reviewButton }}
+						</base-button>
+
+						<button
+							class="aioseo-nps-survey__decline"
+							@click="onDismiss"
+						>
+							{{ strings.reviewDecline }}
+						</button>
+					</div>
+
+					<p class="aioseo-nps-survey__hint">
+						{{ strings.reviewHint }}
+					</p>
+				</template>
+
+				<p
+					v-else
+					class="aioseo-nps-survey__thankyou"
+				>
 					{{ strings.thankYou }}
 				</p>
 			</div>
@@ -98,18 +160,32 @@ import { __ } from '@/vue/plugins/translations'
 
 const td = import.meta.env.VITE_TEXTDOMAIN_PRO
 
+const supportUrl = 'https://aioseo.com/contact'
+const reviewUrl  = 'https://aioseo.com/aioseo-wordpress-rating'
+
+const scores = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+
 const strings = {
 	heading                 : __('Feedback', td),
 	question                : __('How likely are you to recommend AIOSEO to a friend or colleague?', td),
-	notSatisfied            : __('Not satisfied', td),
-	verySatisfied           : __('Very satisfied', td),
+	notLikely               : __('Not at all likely', td),
+	veryLikely              : __('Extremely likely', td),
 	feedbackHeading         : __('What could we do to improve?', td),
 	feedbackHeadingPromoter : __('What do you love most about AIOSEO?', td),
 	feedbackPlaceholder     : __('Your feedback...', td),
 	submitButton            : __('Submit feedback', td),
 	thankYou                : __('Thank you for your feedback!', td),
 	back                    : __('Back', td),
-	close                   : __('Close', td)
+	close                   : __('Close', td),
+	supportHeading          : __('Thanks — we\'d like to fix this', td),
+	supportBody             : __('If something isn\'t working, our support team can help.', td),
+	supportButton           : __('Contact support', td),
+	supportHint             : __('Opens aioseo.com/contact in a new tab', td),
+	reviewHeading           : __('Glad to hear it', td),
+	reviewBody              : __('Would you share that on WordPress.org? Reviews are how most site owners find AIOSEO in the first place.', td),
+	reviewButton            : __('Leave a review', td),
+	reviewDecline           : __('No thanks', td),
+	reviewHint              : __('Opens WordPress.org in a new tab', td)
 }
 
 const visible   = ref(true)
@@ -119,8 +195,16 @@ const feedback  = ref('')
 const submitting = ref(false)
 const submitted  = ref(false)
 
-// Promoters (9-10) get a positive prompt; passives and detractors get an improvement prompt.
-const feedbackHeading = computed(() => 9 <= score.value ? strings.feedbackHeadingPromoter : strings.feedbackHeading)
+const bucket = computed(() => {
+	if (9 <= score.value) {
+		return 'promoter'
+	}
+
+	return 7 <= score.value ? 'passive' : 'detractor'
+})
+
+// Promoters get a positive prompt; passives and detractors get an improvement prompt.
+const feedbackHeading = computed(() => 'promoter' === bucket.value ? strings.feedbackHeadingPromoter : strings.feedbackHeading)
 
 const selectScore = (n) => {
 	score.value = n
@@ -161,9 +245,21 @@ const onSubmit = async () => {
 	}
 
 	step.value = 3
-	setTimeout(() => {
-		visible.value = false
-	}, 3000)
+
+	// The support and review variants carry a CTA, so they wait to be dismissed.
+	if ('passive' === bucket.value) {
+		setTimeout(() => {
+			visible.value = false
+		}, 3000)
+	}
+}
+
+const onReviewClick = async () => {
+	try {
+		await http.post('/nps-survey/review-click')
+	} catch (e) {
+		// Non-critical — ignore errors.
+	}
 }
 
 const onKeydown = (e) => {
@@ -289,6 +385,37 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 		}
 	}
 
+	&__body {
+		font-size: 14px;
+		color: $font-color;
+		margin: 0 0 16px;
+	}
+
+	&__actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	&__decline {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 13px;
+		color: $gray3;
+		padding: 9px 4px;
+
+		&:hover {
+			color: $blue;
+		}
+	}
+
+	&__hint {
+		font-size: 12px;
+		color: $gray3;
+		margin: 10px 0 0;
+	}
+
 	&__step--thankyou {
 		display: flex;
 		align-items: center;
@@ -312,13 +439,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 		max-width: none;
 		padding: 16px;
 
+		// Eleven buttons on a narrow screen leave roughly 25px each, so the gap and
+		// horizontal padding give back what little they can.
 		&__scores {
-			gap: 4px;
+			gap: 3px;
 		}
 
 		&__score-btn {
 			height: 32px;
-			font-size: 13px;
+			font-size: 12px;
+			padding: 0 2px;
 		}
 	}
 }

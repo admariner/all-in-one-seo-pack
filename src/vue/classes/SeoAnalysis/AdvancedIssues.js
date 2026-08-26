@@ -1,4 +1,6 @@
 /* eslint-disable no-unused-vars */
+import { escapeHtml } from '@/vue/utils/strings'
+
 import { __ } from '@/vue/plugins/translations'
 const td = import.meta.env.VITE_TEXTDOMAIN
 
@@ -28,7 +30,7 @@ class AdvancedIssues {
 				title   : __('Open Graph meta tags missing.', td),
 				text    : (result) => __('The following Open Graph meta tags are missing:', td),
 				content : (result) => result?.items?.map(item => {
-					return item
+					return escapeHtml(item)
 				}).join('<br/>'),
 				description : __('Open Graph meta tags are used to control how your page appears when shared on social media and can help increase click-through rates.', td),
 				fixActionParams
@@ -37,7 +39,7 @@ class AdvancedIssues {
 				title   : __('Duplicate Open Graph meta tags found.', td),
 				text    : (result) => __('The following Open Graph meta tags are duplicated:', td),
 				content : (result) => result?.items?.map(item => {
-					return item
+					return escapeHtml(item)
 				}).join('<br/>'),
 				description : __('Open Graph meta tags are used to control how your page appears when shared on social media and can help increase click-through rates. Duplicate Open Graph meta tags can lead to conflicts and unexpected results. We recommend identifying which other plugin or theme is outputting them and disabling it.', td),
 				fixActionParams

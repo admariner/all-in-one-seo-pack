@@ -10,7 +10,7 @@ export const useCommon = () => {
 				return
 			}
 
-			if (block.attributes.content && -1 !== block.attributes.content.search(escapedOriginalPhraseHtml)) {
+			if (block.attributes.content && -1 !== String(block.attributes.content).search(escapedOriginalPhraseHtml)) {
 				targetBlockId = block.clientId
 				return
 			}
