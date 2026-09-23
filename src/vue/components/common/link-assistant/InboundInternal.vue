@@ -60,13 +60,14 @@
 					type="action"
 				>
 					<svg-trash
-						@click.native="maybeDoBulkAction({
+						:class="{ disabled: !canEditRow(row) }"
+						@click.native="canEditRow(row) && maybeDoBulkAction({
 							action       : 'delete',
 							selectedRows : [ row.id ]
 						})"
 					/>
 					<template #tooltip>
-						{{ strings.deleteLink }}
+						{{ canEditRow(row) ? strings.deleteLink : strings.noPermission }}
 					</template>
 				</core-tooltip>
 			</template>
@@ -102,7 +103,7 @@
 
 			<div class="links-bottom-right">
 				<a
-					v-if="post.links.inboundInternal.rows.length"
+					v-if="post.links.inboundInternal.rows.length && canEditAnyRow"
 					class="link-delete"
 					@click.prevent="maybeDoBulkAction({
 						action: 'delete',
@@ -111,6 +112,14 @@
 				>
 					{{ strings.deleteAllLinks }}
 				</a>
+
+				<core-tooltip v-if="post.links.inboundInternal.rows.length && !canEditAnyRow">
+					<span class="link-delete disabled">{{ strings.deleteAllLinks }}</span>
+
+					<template #tooltip>
+						{{ strings.noPermission }}
+					</template>
+				</core-tooltip>
 			</div>
 		</div>
 
@@ -193,6 +202,8 @@ const wpTableLoading = ref(false)
 const linkType       = 'inboundInternal'
 const {
 	bulkOptions,
+	canEditAnyRow,
+	canEditRow,
 	changeItemsPerPageSlug,
 	doBulkAction,
 	fetchData,

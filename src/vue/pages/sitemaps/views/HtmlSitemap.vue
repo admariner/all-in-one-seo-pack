@@ -56,12 +56,19 @@
 						v-if="!optionsStore.options.sitemap.html.postTypes.all"
 						:options="optionsStore.options.sitemap.html"
 						type="postTypes"
-						:excluded="[ 'attachment' ]"
+						sitemap-type="html"
+						:excluded="getExcludedPostTypes"
 					/>
 
 					<div class="aioseo-description">
 						{{ strings.selectPostTypes }}
 					</div>
+
+					<exclusion-notice
+						sitemap-type="html"
+						kind="postTypes"
+						:excluded="getExcludedPostTypes"
+					/>
 				</template>
 			</core-settings-row>
 
@@ -80,12 +87,19 @@
 						v-if="!optionsStore.options.sitemap.html.taxonomies.all"
 						:options="optionsStore.options.sitemap.html"
 						type="taxonomies"
-						:excluded="['product_attributes']"
+						sitemap-type="html"
+						:excluded="getExcludedTaxonomies"
 					/>
 
 					<div class="aioseo-description">
 						{{ strings.selectTaxonomies }}
 					</div>
+
+					<exclusion-notice
+						sitemap-type="html"
+						kind="taxonomies"
+						:excluded="getExcludedTaxonomies"
+					/>
 				</template>
 			</core-settings-row>
 
@@ -222,6 +236,7 @@ import CoreCard from '@/vue/components/common/core/Card'
 import CoreExcludePosts from '@/vue/components/common/core/ExcludePosts'
 import CorePostTypeOptions from '@/vue/components/common/core/PostTypeOptions'
 import CoreSettingsRow from '@/vue/components/common/core/SettingsRow'
+import ExclusionNotice from './partials/ExclusionNotice'
 import HtmlSitemapDisplayInfo from '@/vue/components/common/html-sitemap/DisplayInfo'
 
 import { __, sprintf } from '@/vue/plugins/translations'
@@ -246,6 +261,7 @@ export default {
 		CoreExcludePosts,
 		CorePostTypeOptions,
 		CoreSettingsRow,
+		ExclusionNotice,
 		HtmlSitemapDisplayInfo
 	},
 	data () {
@@ -384,6 +400,14 @@ export default {
 				excludePostsPages : __('Exclude Posts / Pages', td),
 				excludeTerms      : __('Exclude Terms', td)
 			}
+		}
+	},
+	computed : {
+		getExcludedPostTypes () {
+			return [ 'attachment' ]
+		},
+		getExcludedTaxonomies () {
+			return [ 'product_attributes' ]
 		}
 	},
 	methods : {

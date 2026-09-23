@@ -15,6 +15,7 @@
 <script>
 import links from '@/vue/utils/links'
 import {
+	useRootStore,
 	useSettingsStore
 } from '@/vue/stores'
 
@@ -28,6 +29,7 @@ const td = import.meta.env.VITE_TEXTDOMAIN
 export default {
 	setup () {
 		return {
+			rootStore     : useRootStore(),
 			settingsStore : useSettingsStore()
 		}
 	},
@@ -43,7 +45,7 @@ export default {
 					import.meta.env.VITE_NAME,
 					__('Free', td)
 				),
-				url      : links.getUpsellUrl('lite-upgrade-bar', null, 'liteUpgrade'),
+				url      : links.getUpsellUrl('lite-upgrade-bar', this.rootStore.aioseo.page, 'liteUpgrade'),
 				linkText : sprintf(
 					// Translators: 1 - "Pro".
 					__('upgrading to %1$s', td),

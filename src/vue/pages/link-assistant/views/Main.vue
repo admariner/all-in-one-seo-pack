@@ -180,6 +180,16 @@ onMounted(() => {
 					color: $red;
 				}
 			}
+
+			span.delete-all-links.disabled {
+				color: $placeholder-color;
+				cursor: default;
+			}
+
+			.aioseo-tooltip {
+				display: inline-flex;
+				margin-left: 0;
+			}
 		}
 
 		svg {
@@ -326,6 +336,15 @@ onMounted(() => {
 			}
 		}
 
+		span.link-delete.disabled {
+			color: $placeholder-color;
+			cursor: default;
+		}
+
+		.links-bottom-right .aioseo-tooltip {
+			margin-left: 0;
+		}
+
 		.links-bottom-left {
 			display: flex;
 			flex: 1 1 auto;
@@ -363,14 +382,20 @@ onMounted(() => {
 		}
 	}
 
+	svg.aioseo-trash.disabled {
+		color: $placeholder-color !important;
+		cursor: default;
+
+		&:hover {
+			color: $placeholder-color !important;
+		}
+	}
+
 	@media (max-width: 1115px) {
 		.aioseo-tabs {
 			border-bottom: 0;
 		}
 		.aioseo-mobile-tabs {
-			.tab-dropdown {
-				border-bottom: 0;
-			}
 			svg.aioseo-caret {
 				height: 20px;
 				width: 20px;

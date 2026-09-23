@@ -100,7 +100,9 @@ export default function i18n (options = {}) {
 					return
 				}
 
-				let phpContents = '<?php\n// phpcs:disable\n/* THIS IS A GENERATED FILE. DO NOT EDIT DIRECTLY. */\n$generated_i18n_strings = ['
+				// The guard is emitted because the file ships: nothing includes it, so a direct hit would
+				// only fatal on an undefined __(), but wp.org's Plugin Check treats that as an error.
+				let phpContents = '<?php\n// phpcs:disable\n/* THIS IS A GENERATED FILE. DO NOT EDIT DIRECTLY. */\nif ( ! defined( \'ABSPATH\' ) ) {\n\texit;\n}\n\n$generated_i18n_strings = ['
 
 				output[tdKey].forEach(message => {
 					let newString    = '',

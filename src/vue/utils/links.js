@@ -310,6 +310,8 @@ const trailingSlashIt = str => {
 	return unTrailingSlashIt(str) + '/'
 }
 
+const ratingUrl = `${marketingSite}aioseo-wordpress-rating`
+
 const restUrl = (path, namespace = 'aioseo/v1') => {
 	const rootStore = useRootStore()
 	path = rootStore.aioseo.data.hasUrlTrailingSlash ? trailingSlashIt(path) : unTrailingSlashIt(path)
@@ -319,6 +321,7 @@ const restUrl = (path, namespace = 'aioseo/v1') => {
 export default {
 	docLinks,
 	getDocLink,
+	ratingUrl,
 	getDocUrl,
 	getPlainLink,
 	getPricingUrl,

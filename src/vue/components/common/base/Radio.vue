@@ -23,6 +23,7 @@
 					:name="name"
 					:id="id"
 					:class="inputClass"
+					:aria-describedby="describedBy || null"
 					ref="input"
 				>
 				<span class="fancy-radio">
@@ -57,10 +58,13 @@ export default {
 				return ''
 			}
 		},
-		id       : String,
-		size     : String,
-		disabled : Boolean,
-		type     : {
+		id          : String,
+		size        : String,
+		disabled    : Boolean,
+		// Id of the element explaining why the radio is disabled, so the reason reaches
+		// assistive technology instead of only being visible on screen.
+		describedBy : String,
+		type        : {
 			type : Number,
 			default () {
 				return 1

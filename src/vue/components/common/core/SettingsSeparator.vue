@@ -190,7 +190,7 @@ export default {
 			return this.moreSeparators.map(separator => sanitizeString(separator))
 		},
 		decodedCustomSeparator () {
-			return sanitizeString(this.hiddenSeparator)
+			return sanitizeString(this.hiddenSeparator, true)
 		}
 	},
 	methods : {

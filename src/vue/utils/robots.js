@@ -1,4 +1,5 @@
 import { escapeRegex } from '@/vue/utils/regex'
+import { getJsonValue } from '@/vue/utils/json'
 
 /**
  * Converts an array of robots.txt rules into a string.
@@ -35,8 +36,8 @@ export const stringifyRuleset = ruleset => {
 export const groupRulesByUserAgent = rules => {
 	const groups = {}
 	rules.forEach(rule => {
-		const r = JSON.parse(rule)
-		if (!r.userAgent || !r.fieldValue) {
+		const r = getJsonValue(rule)
+		if (!r?.userAgent || !r?.fieldValue) {
 			return
 		}
 
@@ -50,6 +51,42 @@ export const groupRulesByUserAgent = rules => {
 	})
 
 	return groups
+}
+
+/**
+ * Whether an entry has the shape of a custom robots rule: an object carrying every rule field.
+ *
+ * NOTE: keys, not values — the editor stores a row before it is filled in, and that row must survive a reload.
+ * Must classify exactly like the PHP mirror in `Common\Tools\RobotsTxt`.
+ *
+ * @param 	{*} 	  rule The entry to test.
+ * @returns {boolean} 	   Whether the entry is a rule record.
+ */
+const isRuleShaped = rule => !!rule && 'object' === typeof rule &&
+	[ 'userAgent', 'directive', 'fieldValue' ].every(field => field in rule)
+
+/**
+ * Normalizes stored robots rules into canonical JSON strings.
+ *
+ * NOTE: classifies the decoded entry whatever its encoding; a non-rule string would render as a blank editor row.
+ *
+ * @param 	{Array} rules The raw rules, which may contain malformed entries.
+ * @returns {Array} 	  Canonical JSON-string rules.
+ */
+export const normalizeRules = rules => {
+	if (!Array.isArray(rules)) {
+		return []
+	}
+
+	return rules.reduce((normalized, rule) => {
+		const isEncoded = 'string' === typeof rule
+		const decoded   = isEncoded ? getJsonValue(rule) : rule
+		if (isRuleShaped(decoded)) {
+			normalized.push(isEncoded ? rule : JSON.stringify(decoded))
+		}
+
+		return normalized
+	}, [])
 }
 
 /**

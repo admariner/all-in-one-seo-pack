@@ -229,6 +229,12 @@ export const useAnalyzerStore = defineStore('AnalyzerStore', {
 
 					return response
 				})
+				.catch(error => {
+					// A failed request (e.g. 403 for an object the user can't edit) must still resolve the loading state.
+					this.allUrlsResults.auditItemResults[key] = { error: true, rows: [], totals: { page, pages: 0, total: 0 }, search: searchTerm, page }
+
+					console.error(`Couldn't fetch issues for object ${key}:`, error)
+				})
 		},
 		fetchAllUrls ({ limit, offset, searchTerm = '', additionalFilters = [] }) {
 			this.allUrlsResults.isLoading = true

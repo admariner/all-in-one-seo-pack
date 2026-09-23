@@ -38,21 +38,17 @@ class LinkControlSettingsDrawer extends Component {
 		super(props)
 
 		this.state = {
-			textValue : props.value.title
+			textValue : props.value.title || ''
 		}
 	}
 
-	componentDidUpdate (prevProps, prevState) {
-		if (prevState.textValue !== this.state.textValue) {
-			return
-		}
+	componentDidUpdate (prevProps) {
+		const { value } = this.props
 
-		if (prevProps.value.title !== this.props.value.title) {
-			return
-		}
-
-		if (prevProps.value.title !== prevState.textValue) {
-			this.setState({ textValue: prevProps.value.title })
+		// Re-sync the local title buffer when a different link becomes active (or its
+		// stored title changed); otherwise the previous link's title leaks into it.
+		if (prevProps.value.url !== value.url || prevProps.value.title !== value.title) {
+			this.setState({ textValue: value.title || '' })
 		}
 	}
 

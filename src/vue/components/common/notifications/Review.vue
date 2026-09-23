@@ -44,7 +44,7 @@
 					>
 						<base-button
 							tag="a"
-							href="https://aioseo.com/aioseo-wordpress-rating"
+							:href="ratingUrl"
 							size="small"
 							type="blue"
 							target="_blank"
@@ -136,9 +136,10 @@ export default {
 	},
 	data () {
 		return {
-			step    : 1,
-			active  : true,
-			strings : {
+			step      : 1,
+			active    : true,
+			ratingUrl : links.ratingUrl,
+			strings   : {
 				dismiss        : __('Dismiss', td),
 				yesILoveIt     : __('Yes, I love it!', td),
 				notReally      : __('Not Really...', td),

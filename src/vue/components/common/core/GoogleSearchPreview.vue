@@ -29,10 +29,9 @@
 					{{ hostname.replace(/^(m|www)\./, '') }}
 				</div>
 
-				<div
-					class="url text-truncate"
-					v-html="urlBreadcrumbs"
-				/>
+				<div class="url text-truncate">
+					{{ urlBreadcrumbs }}
+				</div>
 			</div>
 
 			<div class="aioseo-google-search-preview__title">
@@ -260,7 +259,9 @@ export default {
 				let out = url.hostname + decodedPathname.replace(/\/$/, '')
 				out = out.substring(0, 50).trim() + (50 < out.length ? '...' : '')
 
-				return `${url.protocol}//` + out.replaceAll('/', ' &rsaquo; ')
+				// A literal separator rather than &rsaquo; so this can be bound as text. The pathname
+				// is decoded above, so binding it as HTML would make any markup in it live.
+				return `${url.protocol}//` + out.replaceAll('/', ' › ')
 			} catch (_e) {
 				return ''
 			}

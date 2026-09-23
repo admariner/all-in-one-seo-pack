@@ -107,6 +107,11 @@
 						</template>
 					</Suspense>
 				</div>
+
+				<review-cta
+					v-if="postEditorStore.currentPost.showReviewCta && !showHeadlinePanel"
+					:screen-context="screenContext"
+				/>
 			</div>
 		</transition>
 
@@ -173,6 +178,7 @@ import {
 } from '@/vue/standalone/blocks/extend-paragraph-block'
 
 import Alert from './partials/Alert'
+import ReviewCta from './partials/ReviewCta'
 import BaseScoreBadge from '@/vue/components/common/base/ScoreBadge'
 import CoreLoader from '@/vue/components/common/core/Loader'
 import CoreMainTabs from '@/vue/components/common/core/main/Tabs'

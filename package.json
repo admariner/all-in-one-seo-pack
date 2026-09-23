@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:link-format-lite": "npm --prefix ./src/react/link-format run build-webpack-lite",
-    "build:link-format-pro": "npm --prefix ./src/react/link-format run build-webpack-pro",
+    "build:link-format-lite": "AIOSEO_VERSION=Lite npm --prefix ./src/react/link-format run build-webpack",
+    "build:link-format-pro": "AIOSEO_VERSION=Pro npm --prefix ./src/react/link-format run build-webpack",
     "build:lite": "bun run env:lite && vite build && bun run build:link-format-lite",
     "build:litewin": "bun run env:litewin && vite build && bun run build:link-format-lite",
     "build:pro": "bun run env:pro && vite build && bun run build:link-format-pro",

@@ -4,6 +4,7 @@
 			v-for="(taxonomy, index) in taxonomies"
 			:key="index"
 			:slug="`${taxonomy.name}SA`"
+			:card-id="`${taxonomy.name}SA`"
 		>
 			<template #header>
 				<div

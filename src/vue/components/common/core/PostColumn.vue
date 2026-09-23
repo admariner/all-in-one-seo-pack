@@ -65,7 +65,7 @@
 				:label="strings.title"
 				:is-custom="isCustomTitle"
 				:editing="showEditTitle"
-				:loading="postLoading"
+				:loading="isFieldLoading('title')"
 				:labelled="isMediaScreen"
 				single
 				:length="showLengthBadges ? titleLength : null"
@@ -74,8 +74,8 @@
 				:custom-tooltip="strings.customTitle"
 				:default-tooltip="strings.defaultTitle"
 				@edit="editTitle"
-				@save="save"
-				@cancel="cancel"
+				@save="save('title')"
+				@cancel="cancel('title')"
 			/>
 
 			<details-field
@@ -85,7 +85,7 @@
 				:label="strings.description"
 				:is-custom="isCustomDescription"
 				:editing="showEditDescription"
-				:loading="postLoading"
+				:loading="isFieldLoading('description')"
 				:labelled="isMediaScreen"
 				:length="showLengthBadges ? descriptionLength : null"
 				:tags-context="getTagText('post', post?.postType, 'Description')"
@@ -93,8 +93,8 @@
 				:custom-tooltip="strings.customDescription"
 				:default-tooltip="strings.defaultDescription"
 				@edit="editDescription"
-				@save="save"
-				@cancel="cancel"
+				@save="save('description')"
+				@cancel="cancel('description')"
 			/>
 			<slot />
 
@@ -146,7 +146,7 @@
 				<base-button
 					type="gray"
 					size="small"
-					@click.prevent="cancel"
+					@click.prevent="cancel('imageTitle')"
 				>
 					{{ strings.discardChanges }}
 				</base-button>
@@ -154,7 +154,7 @@
 				<base-button
 					type="blue"
 					size="small"
-					@click.prevent="saveColumn"
+					@click.prevent="saveColumn('imageTitle')"
 				>
 					{{ strings.saveChanges }}
 				</base-button>
@@ -210,7 +210,7 @@
 				<base-button
 					type="gray"
 					size="small"
-					@click.prevent="cancel"
+					@click.prevent="cancel('imageAltTag')"
 				>
 					{{ strings.discardChanges }}
 				</base-button>
@@ -218,7 +218,7 @@
 				<base-button
 					type="blue"
 					size="small"
-					@click.prevent="saveColumn"
+					@click.prevent="saveColumn('imageAltTag')"
 				>
 					{{ strings.saveChanges }}
 				</base-button>
@@ -321,7 +321,7 @@ export default {
 			isSpecialPage           : false,
 			inspectionResult        : {},
 			inspectionResultLoading : true,
-			postLoading             : false,
+			loadingField            : null,
 			truSeoScanning          : false,
 			generatingAlt           : false,
 			strings                 : merge(this.composableStrings, {
@@ -405,6 +405,9 @@ export default {
 		hasText (value) {
 			return !!(value && String(value).trim())
 		},
+		isFieldLoading (field) {
+			return field === this.loadingField || 'both' === this.loadingField
+		},
 		observeColumnWidth () {
 			if (!window.ResizeObserver) {
 				return
@@ -420,7 +423,7 @@ export default {
 			this.resizeObserver.observe(this.$el)
 		},
 		refreshParsedValues () {
-			this.postLoading = true
+			this.loadingField = 'both'
 
 			http.post(links.restUrl('posts-list/load-details-column'))
 				.send({ ids: [ this.post.id ] })
@@ -439,21 +442,29 @@ export default {
 					console.error(`Unable to refresh post ${this.post.id}: ${error}`)
 				})
 				.finally(() => {
-					this.postLoading = false
+					this.loadingField = null
 				})
 		},
-		save () {
+		save (field) {
 			if (!allowed('aioseo_page_general_settings')) {
 				return
 			}
 
-			this.showEditTitle       = false
-			this.showEditDescription = false
-			// Both editors post together, so an untouched field would be saved as the post's
-			// own copy of the template and stop following it if the default changes.
-			this.post.title          = this.storedValue(this.title, this.post.defaultTitle)
-			this.post.description    = this.storedValue(this.postDescription, this.post.defaultDescription)
-			this.postLoading         = true
+			// Commit only the field being saved so an open editor for the other field keeps its
+			// saved baseline (used by cancel() to revert) and isn't persisted with unsaved changes.
+			// An editor left at the template is stored empty so the field keeps following the
+			// template if the default changes.
+			if ('title' === field) {
+				this.post.title    = this.storedValue(this.title, this.post.defaultTitle)
+				this.showEditTitle = false
+			}
+
+			if ('description' === field) {
+				this.post.description    = this.storedValue(this.postDescription, this.post.defaultDescription)
+				this.showEditDescription = false
+			}
+
+			this.loadingField = field
 			http.post(links.restUrl('posts-list/update-details-column'))
 				.send({
 					postId      : this.post.id,
@@ -475,20 +486,24 @@ export default {
 					console.error(`Unable to update post with ID ${this.post.id}: ${error}`)
 				})
 				.finally(() => {
-					this.postLoading = false
+					this.loadingField = null
 				})
 		},
-		saveColumn () {
+		saveColumn (field) {
 			if (!allowed('aioseo_page_general_settings')) {
 				return
 			}
 
-			this.showEditImageTitle  = false
-			this.showEditImageAltTag = false
-			this.post.title          = this.title
-			this.post.description    = this.postDescription
-			this.post.imageTitle     = this.imageTitle
-			this.post.imageAltTag    = this.imageAltTag
+			// Commit only the field being saved so the other open editors keep their saved baseline.
+			if ('imageTitle' === field) {
+				this.post.imageTitle    = this.imageTitle
+				this.showEditImageTitle = false
+			}
+
+			if ('imageAltTag' === field) {
+				this.post.imageAltTag    = this.imageAltTag
+				this.showEditImageAltTag = false
+			}
 
 			http.post(links.restUrl('posts-list/update-details-column'))
 				.send({
@@ -506,11 +521,27 @@ export default {
 					console.error(`Unable to update attachment with ID ${this.post.id}: ${error}`)
 				})
 		},
-		cancel () {
-			this.showEditTitle       = false
-			this.showEditDescription = false
-			this.showEditImageTitle  = false
-			this.showEditImageAltTag = false
+		cancel (field) {
+			// Revert the field's unsaved value to its saved baseline and close only that editor.
+			if ('title' === field) {
+				this.title         = this.post.title || this.post.defaultTitle
+				this.showEditTitle = false
+			}
+
+			if ('description' === field) {
+				this.postDescription     = this.post.description || this.post.defaultDescription
+				this.showEditDescription = false
+			}
+
+			if ('imageTitle' === field) {
+				this.imageTitle         = this.post.imageTitle
+				this.showEditImageTitle = false
+			}
+
+			if ('imageAltTag' === field) {
+				this.imageAltTag         = this.post.imageAltTag
+				this.showEditImageAltTag = false
+			}
 		},
 		editTitle () {
 			this.showEditTitle = true

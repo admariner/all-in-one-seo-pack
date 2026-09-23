@@ -139,7 +139,8 @@ function InlineLinkUI ({
 		})
 
 		if (isCollapsed(value) && !isActive) {
-			const newText = nextValue.title || newUrl
+			// A picked suggestion supplies its own label; the title attribute is not a label.
+			const newText = nextValue.suggestionLabel || nextValue.title || newUrl
 			const toInsert = applyFormat(
 				create({ text: newText }),
 				format,

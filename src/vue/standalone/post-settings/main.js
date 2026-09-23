@@ -32,6 +32,10 @@ registerHighlightFormats()
 initWatcher()
 
 const localCreateApp = (app) => {
+	// useId() restarts its counter per app, so the metabox and sidebar apps hand the same
+	// component the same ids. Namespace each app to keep SVG defs from resolving across them.
+	app.config.idPrefix = `aioseo-${++appCount}`
+
 	app = loadPlugins(app)
 	app = loadComponents(app)
 	app = loadVersionedComponents(app)
@@ -48,7 +52,9 @@ const localCreateApp = (app) => {
 	return app
 }
 
-let sidebarApp
+let appCount = 0,
+	sidebarApp
+
 const loadSidebarApp = () => {
 	if (sidebarApp) {
 		sidebarApp.unmount()

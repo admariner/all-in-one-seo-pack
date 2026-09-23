@@ -3,6 +3,7 @@
 		class="aioseo-highlight-toggle"
 		:class="[
 			{ active: active },
+			{ disabled: disabled },
 			{ [size]: size }
 		]"
 		@click="toggleCheckbox"
@@ -14,6 +15,8 @@
 			:modelValue="modelValue"
 			:size="size"
 			:round="round"
+			:disabled="disabled"
+			:describedBy="describedBy"
 			@update:modelValue="$emit('update:modelValue', $event)"
 		>
 			<slot />
@@ -42,9 +45,13 @@ export default {
 			type     : [ Boolean, String, Event ],
 			required : true
 		},
-		active : Boolean,
-		size   : String,
-		round  : Boolean
+		active      : Boolean,
+		size        : String,
+		round       : Boolean,
+		disabled    : Boolean,
+		// Id of the element explaining why the toggle is disabled, so the reason reaches
+		// assistive technology instead of only being visible on screen.
+		describedBy : String
 	},
 	methods : {
 		toggleCheckbox () {
@@ -72,6 +79,21 @@ export default {
 	&.active {
 		border-color: $blue;
 		box-shadow: 0px 5px 10px rgba(0, 90, 224, 0.1);
+	}
+
+	&.disabled {
+		background-color: $box-background;
+		cursor: default;
+
+		> *,
+		.icon {
+			cursor: default;
+		}
+
+		&.active {
+			border-color: $border;
+			box-shadow: none;
+		}
 	}
 
 	&.medium {

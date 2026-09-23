@@ -195,7 +195,8 @@ export default {
 			cachedPhrase : '',
 			strings      : {
 				searchPlaceholder    : __('Search for an item...', td),
-				enterCustomFieldName : __('Enter a custom field/taxonomy name...', td),
+				enterCustomFieldName : __('Enter a custom field name...', td),
+				enterTaxonomyName    : __('Enter a taxonomy name (e.g. category)...', td),
 				learnMoreSmartTags   : __('Learn more about Smart Tags', td),
 				removeSmartTag       : __('Remove Smart Tag', td)
 			}
@@ -516,6 +517,10 @@ export default {
 							customFieldInput          : this.$refs['tag-custom'].innerHTML,
 							documentationDiv          : this.$refs['documentation-div'].innerHTML,
 							listItemClassNoMatch      : 'aioseo-tag-no-match',
+							customFieldPlaceholders   : {
+								custom_field : this.strings.enterCustomFieldName,
+								tax_name     : this.strings.enterTaxonomyName
+							},
 							renderItemNoMatch () {
 								return 'No matches found'
 							},

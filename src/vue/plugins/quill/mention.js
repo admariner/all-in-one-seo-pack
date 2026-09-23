@@ -437,6 +437,12 @@ class Mention {
 			this.customFieldInput.style.display = 'block'
 			const customInput = this.customFieldInput && this.customFieldInput.querySelector('input')
 			const customValue = this.currentNode.querySelector('.tag-custom')
+			if (customInput) {
+				const placeholder = (this.options.customFieldPlaceholders || {})[this.currentNode.dataset.id]
+				if (placeholder) {
+					customInput.placeholder = placeholder
+				}
+			}
 			if (customInput && customValue) {
 				customInput.value = customValue.innerHTML.replace('&nbsp;-&nbsp;', '').trim()
 			}
@@ -562,6 +568,13 @@ class Mention {
 				this.insertingCustomItem = false
 			}, 50)
 			this.customFieldInput.style.display = 'block'
+
+			const customInput = this.customFieldInput && this.customFieldInput.querySelector('input')
+			const placeholder = (this.options.customFieldPlaceholders || {})[data.id]
+			if (customInput && placeholder) {
+				customInput.placeholder = placeholder
+			}
+
 			this.customFieldInput.click()
 		}
 

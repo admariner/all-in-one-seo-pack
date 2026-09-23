@@ -23,6 +23,7 @@
 					:id="id"
 					:class="inputClass"
 					:disabled="disabled"
+					:aria-describedby="describedBy || null"
 					ref="input"
 				>
 				<span
@@ -58,11 +59,14 @@ export default {
 				return ''
 			}
 		},
-		id       : String,
-		size     : String,
-		disabled : Boolean,
-		round    : Boolean,
-		type     : {
+		id          : String,
+		size        : String,
+		disabled    : Boolean,
+		round       : Boolean,
+		// Id of the element explaining why the checkbox is disabled, so the reason reaches
+		// assistive technology instead of only being visible on screen.
+		describedBy : String,
+		type        : {
 			type : String,
 			default () {
 				return 'blue'

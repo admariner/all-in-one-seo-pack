@@ -138,6 +138,7 @@
 						v-if="!optionsStore.options.sitemap.general.postTypes.all"
 						:options="optionsStore.options.sitemap.general"
 						type="postTypes"
+						sitemap-type="general"
 					/>
 
 					<div class="aioseo-description">
@@ -147,6 +148,11 @@
 							v-html="links.getDocLink(GLOBAL_STRINGS.learnMore, 'selectPostTypes', true)"
 						/>
 					</div>
+
+					<exclusion-notice
+						sitemap-type="general"
+						kind="postTypes"
+					/>
 				</template>
 			</core-settings-row>
 
@@ -165,6 +171,7 @@
 						v-if="!optionsStore.options.sitemap.general.taxonomies.all"
 						:options="optionsStore.options.sitemap.general"
 						type="taxonomies"
+						sitemap-type="general"
 					/>
 
 					<div class="aioseo-description">
@@ -174,6 +181,11 @@
 							v-html="links.getDocLink(GLOBAL_STRINGS.learnMore, 'selectPostTypes', true)"
 						/>
 					</div>
+
+					<exclusion-notice
+						sitemap-type="general"
+						kind="taxonomies"
+					/>
 				</template>
 			</core-settings-row>
 
@@ -184,6 +196,8 @@
 					<base-radio-toggle
 						v-model="optionsStore.options.sitemap.general.date"
 						name="dateArchiveSitemap"
+						:disabled="isArchiveInert('date')"
+						:describedBy="isArchiveInert('date') ? archiveNoticeId('date') : null"
 						:options="[
 							{ label: GLOBAL_STRINGS.disabled, value: false, activeClass: 'dark' },
 							{ label: GLOBAL_STRINGS.enabled, value: true }
@@ -197,6 +211,12 @@
 							v-html="links.getDocLink(GLOBAL_STRINGS.learnMore, 'includeArchivePages', true)"
 						/>
 					</div>
+
+					<exclusion-notice
+						sitemap-type="general"
+						kind="archives"
+						:names="[ 'date' ]"
+					/>
 				</template>
 			</core-settings-row>
 
@@ -207,6 +227,8 @@
 					<base-radio-toggle
 						v-model="optionsStore.options.sitemap.general.author"
 						name="authorSitemap"
+						:disabled="isArchiveInert('author')"
+						:describedBy="isArchiveInert('author') ? archiveNoticeId('author') : null"
 						:options="[
 							{ label: GLOBAL_STRINGS.disabled, value: false, activeClass: 'dark' },
 							{ label: GLOBAL_STRINGS.enabled, value: true }
@@ -220,6 +242,12 @@
 							v-html="links.getDocLink(GLOBAL_STRINGS.learnMore, 'includeArchivePages', true)"
 						/>
 					</div>
+
+					<exclusion-notice
+						sitemap-type="general"
+						kind="archives"
+						:names="[ 'author' ]"
+					/>
 				</template>
 			</core-settings-row>
 		</core-card>
@@ -394,6 +422,7 @@ import {
 } from '@/vue/stores'
 
 import { useCommonSitemap } from '@/vue/pages/sitemaps/composables/CommonSitemap'
+import { useSitemapExclusions } from '@/vue/pages/sitemaps/composables/SitemapExclusions'
 
 import AdditionalPages from './AdditionalPages'
 import BaseCheckbox from '@/vue/components/common/base/Checkbox'
@@ -404,6 +433,7 @@ import CoreExcludePosts from '@/vue/components/common/core/ExcludePosts'
 import CorePostTypeOptions from '@/vue/components/common/core/PostTypeOptions'
 import CorePriorityScore from '@/vue/components/common/core/PriorityScore'
 import CoreSettingsRow from '@/vue/components/common/core/SettingsRow'
+import ExclusionNotice from './partials/ExclusionNotice'
 import SearchConsole from './partials/SearchConsole'
 import SearchConsoleInline from './partials/SearchConsoleInline'
 import SvgExternal from '@/vue/components/common/svg/External'
@@ -416,10 +446,19 @@ export default {
 	setup () {
 		const { validateLinksPerIndex } = useCommonSitemap()
 
+		const {
+			getExclusionCause,
+			getInertNames,
+			getNoticeId
+		} = useSitemapExclusions()
+
 		return {
 			optionsStore : useOptionsStore(),
 			rootStore    : useRootStore(),
 			validateLinksPerIndex,
+			getExclusionCause,
+			getInertNames,
+			getNoticeId,
 			GLOBAL_STRINGS,
 			links
 		}
@@ -432,6 +471,7 @@ export default {
 		CoreCard,
 		CoreExcludePosts,
 		CorePostTypeOptions,
+		ExclusionNotice,
 		CorePriorityScore,
 		CoreSettingsRow,
 		SearchConsole,
@@ -486,6 +526,9 @@ export default {
 		}
 	},
 	computed : {
+		inertArchives () {
+			return this.getInertNames('archives')
+		},
 		linksPerIndexValue : {
 			get () {
 				return this.optionsStore.options.sitemap.general.linksPerIndex
@@ -514,6 +557,14 @@ export default {
 				labels[t.name] = t.label
 			})
 			return labels
+		}
+	},
+	methods : {
+		isArchiveInert (archive) {
+			return this.inertArchives.includes(archive)
+		},
+		archiveNoticeId (archive) {
+			return this.getNoticeId('general', 'archives', this.getExclusionCause('archives', archive), [ archive ])
 		}
 	}
 }

@@ -8,7 +8,7 @@ import icon from './icon'
 import metadata from './block.json'
 import { addQueryArgs } from '@wordpress/url'
 
-import { maybeDeleteBlockVueApp } from '@/vue/standalone/blocks/utils'
+import { maybeDeleteBlockVueApp, panelBodyMountTarget, useBlockSettingsRemount } from '@/vue/standalone/blocks/utils'
 
 import loadPlugins from '@/vue/plugins'
 import {
@@ -32,6 +32,7 @@ const {
 export { metadata, name }
 
 const wp                = window.wp
+const { useEffect }     = wp.element
 const ServerSideRender  = wp.serverSideRender || wp.components.ServerSideRender
 const InspectorControls = wp.blockEditor?.InspectorControls || wp.editor.InspectorControls
 const PanelBody         = wp.components.PanelBody
@@ -56,17 +57,14 @@ export const settings = {
 		}
 	})(function (props) {
 		const blockProps = useBlockProps()
-		// All React hooks must run unconditionally, before any early return below.
-		// `core/edit-post` is absent in the Site Editor (FSE uses `core/edit-site`).
-		const generalSidebarName = wp.data.useSelect(
-			select => select('core/edit-post')?.getActiveGeneralSidebarName()
-		)
 		const rootStore         = useRootStore()
 		const postEditorStore   = usePostEditorStore()
 		const optionsStore      = useOptionsStore()
 		const multipleLocations = optionsStore.options.localBusiness?.locations.general.multiple
 		const { setAttributes, attributes, clientId, isSelected, toggleSelection } = props
 		let { locations } = props
+		useBlockSettingsRemount(toggleSelection)
+
 		const vueAioseoId   = 'aioseo-location-map-' + clientId
 		const isLocationPostType = postEditorStore.currentPost.postType === rootStore.aioseo.localBusiness.postTypeName
 
@@ -164,17 +162,13 @@ export const settings = {
 			observeElement(observeElementArgs)
 		}
 
-		if ('edit-post/block' === generalSidebarName) {
-			'function' !== typeof toggleSelection || toggleSelection(true)
-		}
-
 		if (multipleLocations) {
 			if (!attributes.locationId) {
 				return (
 					<>
 						<InspectorControls>
-							<PanelBody title={__('Block Settings', td)} initialOpen={true} onToggle={observeElement(observeElementArgs)}>
-								<div id={vueAioseoId}></div>
+							<PanelBody title={__('Block Settings', td)} initialOpen={true}>
+								{panelBodyMountTarget(vueAioseoId)}
 							</PanelBody>
 						</InspectorControls>
 						<div {...blockProps}>{ sprintf(
@@ -195,8 +189,8 @@ export const settings = {
 				return (
 					<>
 						<InspectorControls>
-							<PanelBody title={__('Block Settings', td)} initialOpen={true} onToggle={observeElement(observeElementArgs)}>
-								<div id={vueAioseoId}></div>
+							<PanelBody title={__('Block Settings', td)} initialOpen={true}>
+								{panelBodyMountTarget(vueAioseoId)}
 							</PanelBody>
 						</InspectorControls>
 						<div {...blockProps} dangerouslySetInnerHTML={{
@@ -237,8 +231,8 @@ export const settings = {
 		return (
 			<>
 				<InspectorControls>
-					<PanelBody title={__('Block Settings', td)} initialOpen={true} onToggle={observeElement(observeElementArgs)}>
-						<div id={vueAioseoId}></div>
+					<PanelBody title={__('Block Settings', td)} initialOpen={true}>
+						{panelBodyMountTarget(vueAioseoId)}
 					</PanelBody>
 				</InspectorControls>
 				<div {...blockProps}>

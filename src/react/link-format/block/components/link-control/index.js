@@ -414,7 +414,14 @@ function LinkControl ({
 
 	const handleSelectSuggestion = (suggestion, _value = {}) => {
 		setIsEditingLink(false)
-		onChange({ ..._value, ...suggestion })
+		onChange({
+			..._value,
+			...suggestion,
+			// The spread carries the suggestion's own title. That labels the inserted text,
+			// but the link's title attribute is the user's to set, so it has to win here.
+			title           : _value?.title,
+			suggestionLabel : suggestion.title
+		})
 
 		doAction('aioseo-link-format-link-added', {
 			...value,
@@ -526,23 +533,22 @@ function LinkControl ({
 								suggestion={ suggestion }
 								index={ index }
 								onClick={ () => {
-									let title = suggestion.title
-									if (isNaN(parseInt(suggestion.id))) {
-										// Manually override the title with the selected text.
-										title = selectedText
-									}
+									// A non-numeric ID means the row is a direct URL entry rather than a post.
+									const suggestionLabel = isNaN(parseInt(suggestion.id)) ? selectedText : suggestion.title
 
 									stopEditing()
 									onChange({
 										...value,
 										...suggestion,
-										title
+										// Same as above: the row only supplies the label, never the title attribute.
+										title : value?.title,
+										suggestionLabel
 									})
 
 									doAction('aioseo-link-format-link-added', {
 										...value,
 										...suggestion,
-										title
+										title : suggestionLabel
 									})
 								} }
 								isSelected={ index === selectedSuggestion }

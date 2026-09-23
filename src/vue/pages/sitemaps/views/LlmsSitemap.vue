@@ -269,6 +269,7 @@
 							v-if="!optionsStore.options.sitemap.llms.advancedSettings.postTypes.all"
 							:options="optionsStore.options.sitemap.llms.advancedSettings"
 							type="postTypes"
+							sitemap-type="llms"
 							:excluded="getExcludedPostTypes"
 						/>
 
@@ -279,6 +280,12 @@
 								v-html="links.getDocLink(GLOBAL_STRINGS.learnMore, 'llmsTxt', true)"
 							/>
 						</div>
+
+						<exclusion-notice
+							sitemap-type="llms"
+							kind="postTypes"
+							:excluded="getExcludedPostTypes"
+						/>
 					</template>
 				</core-settings-row>
 
@@ -297,7 +304,8 @@
 							v-if="!optionsStore.options.sitemap.llms.advancedSettings.taxonomies.all"
 							:options="optionsStore.options.sitemap.llms.advancedSettings"
 							type="taxonomies"
-							:excluded="[]"
+							sitemap-type="llms"
+							:excluded="getExcludedTaxonomies"
 						/>
 
 						<div class="aioseo-description">
@@ -307,6 +315,12 @@
 								v-html="links.getDocLink(GLOBAL_STRINGS.learnMore, 'llmsTxt', true)"
 							/>
 						</div>
+
+						<exclusion-notice
+							sitemap-type="llms"
+							kind="taxonomies"
+							:excluded="getExcludedTaxonomies"
+						/>
 					</template>
 				</core-settings-row>
 
@@ -364,6 +378,7 @@ import CorePostTypeOptions from '@/vue/components/common/core/PostTypeOptions'
 import CoreProBadge from '@/vue/components/common/core/ProBadge'
 import CoreSettingsRow from '@/vue/components/common/core/SettingsRow'
 import CoreTooltip from '@/vue/components/common/core/Tooltip'
+import ExclusionNotice from './partials/ExclusionNotice'
 import SvgExternal from '@/vue/components/common/svg/External'
 
 import { __, sprintf } from '@/vue/plugins/translations'
@@ -385,6 +400,10 @@ const descriptionCount = ref(0)
 
 const getExcludedPostTypes = computed(() => {
 	return [ 'attachment' ]
+})
+
+const getExcludedTaxonomies = computed(() => {
+	return []
 })
 
 const linksPerPostTaxValue = computed({

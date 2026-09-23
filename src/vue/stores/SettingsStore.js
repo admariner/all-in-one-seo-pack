@@ -67,6 +67,14 @@ export const useSettingsStore = defineStore('SettingsStore', {
 				})
 				.then(() => {})
 		},
+		dismissReviewCta (delay) {
+			return http.post(links.restUrl('settings/dismiss-review-cta'))
+				.send({
+					delay
+				})
+				.then(() => {})
+				.catch(error => console.error('Failed to dismiss the review CTA.', error))
+		},
 		changeItemsPerPage ({ slug, value }) {
 			this.settings.tablePagination[slug] = value
 

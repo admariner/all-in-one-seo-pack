@@ -16,7 +16,8 @@ const prepareCachedCurrentPost = (currentPost) => {
 	// change. The user's keyword text is tracked via `keyphrases`.
 	// `highlightingEnabled` is a per-post viewing preference persisted on its own
 	// endpoint — excluded so toggling the highlighter never trips an unsaved-changes prompt.
-	const ignore = new Set([ 'modalOpen', 'seo_score', 'page_analysis', 'truseo', 'additional_keywords', 'headlineAnalyzer', 'loading', 'score', 'analysis', 'ai', 'highlightingEnabled' ])
+	// `showReviewCta` is server-computed UI state dismissed through its own endpoint — same reason.
+	const ignore = new Set([ 'modalOpen', 'seo_score', 'page_analysis', 'truseo', 'additional_keywords', 'headlineAnalyzer', 'loading', 'score', 'analysis', 'ai', 'highlightingEnabled', 'showReviewCta' ])
 
 	return JSON.stringify(currentPost, (key, value) => ignore.has(key) ? undefined : value)
 }

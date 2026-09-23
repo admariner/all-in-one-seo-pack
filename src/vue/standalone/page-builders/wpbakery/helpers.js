@@ -28,6 +28,22 @@ const getTitle = (mode) => {
 }
 
 /**
+ * Gets the post excerpt.
+ *
+ * NOTE: Only the front-end editor renders #vc_post_excerpt, and only for post types with excerpt support.
+ *
+ * @param {string} mode The editor mode.
+ * @returns {string} The post excerpt.
+ */
+const getExcerpt = (mode) => {
+	if ('admin_frontend_editor' === mode) {
+		return document.querySelector('#vc_post_excerpt')?.value || ''
+	}
+
+	return ''
+}
+
+/**
  * Gets the post slug.
  *
  * @param {string} mode The editor mode.
@@ -72,7 +88,7 @@ export const getEditorData = () => {
 	return {
 		content       : getContent(),
 		title         : getTitle(vcMode),
-		excerpt       : '',
+		excerpt       : getExcerpt(vcMode),
 		slug          : slug,
 		permalink     : getPermalink(vcMode),
 		featuredImage : ''

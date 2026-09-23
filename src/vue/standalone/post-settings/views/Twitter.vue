@@ -188,6 +188,13 @@ export default {
 			setImageUrl
 		} = useImage()
 
+		// Resolve the Facebook fallback with its own instance so the Twitter
+		// preview never depends on the shared image ref or the global bus.
+		const {
+			imageUrl    : facebookImageUrl,
+			setImageUrl : setFacebookImageUrl
+		} = useImage()
+
 		const {
 			maxRecommendedCount
 		} = useMaxCounts()
@@ -203,6 +210,7 @@ export default {
 		})
 
 		return {
+			facebookImageUrl,
 			getImageSourceOptionFiltered,
 			imageSourceOptionsFiltered,
 			imageUrl,
@@ -212,6 +220,7 @@ export default {
 			parseTags,
 			postEditorStore : usePostEditorStore(),
 			rootStore       : useRootStore(),
+			setFacebookImageUrl,
 			setImageUrl,
 			twitterCardOptions
 		}
@@ -236,7 +245,6 @@ export default {
 			tags,
 			titleCount       : 0,
 			descriptionCount : 0,
-			facebookImageUrl : '',
 			strings          : {
 				twitterPreview              : __('X (Twitter) Preview', td),
 				twitterPreviewDescription   : __('X cards by default will use the data defined below. If no data is set, X will instead pick up the data set on the Facebook tab.', td),
@@ -326,27 +334,20 @@ export default {
 			this.postEditorStore.savePostState()
 		},
 		handleImageUpdate () {
+			this.setFacebookImageUrl('facebook')
 			this.setImageUrl('twitter')
-		},
-		updateImagePreview (param) {
-			if ('facebook' === param.social) {
-				this.facebookImageUrl = param.image
-			}
 		}
 	},
 	mounted () {
-		window.aioseoBus.$on('updateSocialImagePreview', this.updateImagePreview)
 		window.aioseoBus.$on('updateFeaturedImage', this.handleImageUpdate)
 
 		this.scrollToElement()
 
-		this.setImageUrl('facebook').then(() => {
-			this.setImageUrl('twitter')
-		})
+		this.setFacebookImageUrl('facebook')
+		this.setImageUrl('twitter')
 	},
 	beforeUnmount () {
 		window.aioseoBus.$off('updateFeaturedImage', this.handleImageUpdate)
-		window.aioseoBus.$off('updateSocialImagePreview', this.updateImagePreview)
 	}
 }
 </script>

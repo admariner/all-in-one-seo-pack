@@ -940,6 +940,13 @@ export default {
 	tr .aioseo-wp-table {
 		padding: 0 16px 16px 16px;
 
+		// A nested table lives inside the outer table's tbody, so WP core's
+		// `.widefat tbody th` matches its header cells too and top-aligns them.
+		thead th,
+		tfoot th {
+			vertical-align: middle;
+		}
+
 		.wp-table {
 			box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.04);
 		}

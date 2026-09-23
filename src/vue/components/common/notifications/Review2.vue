@@ -21,7 +21,7 @@
 				<div class="actions">
 					<base-button
 						tag="a"
-						href="https://aioseo.com/aioseo-wordpress-rating"
+						:href="ratingUrl"
 						size="small"
 						type="blue"
 						target="_blank"
@@ -56,6 +56,8 @@ import {
 	useNotificationsStore
 } from '@/vue/stores'
 
+import links from '@/vue/utils/links'
+
 import BaseButton from '@/vue/components/common/base/Button'
 import SvgCircleCheck from '@/vue/components/common/svg/circle/Check'
 import TransitionSlide from '@/vue/components/common/transition/Slide'
@@ -84,8 +86,9 @@ export default {
 	},
 	data () {
 		return {
-			active  : true,
-			strings : {
+			active    : true,
+			ratingUrl : links.ratingUrl,
+			strings   : {
 				dismiss        : __('Dismiss', td),
 				yesILoveIt     : __('Yes, I love it!', td),
 				notReally      : __('Not Really...', td),

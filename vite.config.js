@@ -317,8 +317,9 @@ export default ({ mode }) => {
 					}),
 					jsonToPhp([
 						{
-							from : `dist/${version}/assets/.vite/manifest.json`,
-							to   : `dist/${version}/manifest.php`
+							
+							from   : `dist/${version}/assets/.vite/manifest.json`,
+							to     : `dist/${version}/manifest.php`
 						}
 					]),
 					/* visualizer({

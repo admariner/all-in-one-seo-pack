@@ -2,9 +2,11 @@
 	<div class="aioseo-search-appearance-advanced">
 		<core-card
 			slug="searchAdvanced"
+			:deep-link-ids="[ 'aioseo-global-robots-meta-row', 'description-format' ]"
 			:header-text="strings.advanced"
 		>
 			<core-settings-row
+				id="aioseo-global-robots-meta-row"
 				:name="strings.globalRobotsMeta"
 			>
 				<template #content>

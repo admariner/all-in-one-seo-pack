@@ -49,6 +49,16 @@ export default {
 			editorInstance : null
 		}
 	},
+	watch : {
+		// The editor reads its content once at creation, so external updates have to be pushed in.
+		value (newValue) {
+			if (this.getValue() === newValue) {
+				return
+			}
+
+			this.setValue(newValue)
+		}
+	},
 	methods : {
 		/**
 		 * Get the current editor value.

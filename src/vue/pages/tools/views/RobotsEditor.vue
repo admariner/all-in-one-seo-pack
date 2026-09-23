@@ -454,7 +454,8 @@ import {
 
 import license from '@/vue/utils/license'
 import { arrayColumn, arrayUnique } from '@/vue/utils/helpers'
-import { groupRulesByUserAgent, stringifyRuleset, validateRuleset } from '@/vue/utils/robots'
+import { getJsonValue } from '@/vue/utils/json'
+import { groupRulesByUserAgent, normalizeRules, stringifyRuleset, validateRuleset } from '@/vue/utils/robots'
 
 import { useNetwork } from '@/vue/composables/Network'
 
@@ -630,7 +631,7 @@ export default {
 		inputCustomRobotsTxtPreview () {
 			let output = null
 			const sitemapUrls  = '\r\n' + this.rootStore.aioseo.data.robots.sitemapUrls.filter(url => 0 < url.length).join('\r\n')
-			const networkRules = this.isNetworkSite && this.optionsStore.networkOptions.tools.robots.enable ? groupRulesByUserAgent(this.networkStore.getNetworkRobots.rules) : {}
+			const networkRules = groupRulesByUserAgent(this.normalizedNetworkRules)
 
 			output = this.getOptions.enable
 				? this.mergeRuleset(this.defaultRules, this.mergeRuleset(networkRules, groupRulesByUserAgent(this.networkStore.networkRobots.rules)), true)
@@ -679,7 +680,10 @@ export default {
 		parsedCustomRules () {
 			const parsed = []
 			for (const rule of this.networkStore.networkRobots.rules.values()) {
-				const r = JSON.parse(rule)
+				const r = getJsonValue(rule)
+				if (!r) {
+					continue
+				}
 				parsed.push({
 					userAgent    : r.userAgent,
 					directive    : r.directive,
@@ -707,20 +711,26 @@ export default {
 
 			return parsed
 		},
+		normalizedNetworkRules () {
+			// These reads come straight from the options payload, which skips the store's normalizer.
+			return this.isNetworkSite && this.optionsStore.networkOptions.tools.robots.enable
+				? normalizeRules(this.networkStore.getNetworkRobots.rules)
+				: []
+		},
 		parsedNetworkRules () {
-			const networkRules = this.isNetworkSite && this.optionsStore.networkOptions.tools.robots.enable ? this.networkStore.getNetworkRobots.rules : {}
 			const parsed = []
-			if (Object.keys(networkRules).length) {
-				for (const rule of networkRules.values()) {
-					const r = JSON.parse(rule)
-					parsed.push({
-						userAgent    : r.userAgent,
-						directive    : r.directive,
-						fieldValue   : r.fieldValue,
-						default      : false,
-						networkLevel : true
-					})
+			for (const rule of this.normalizedNetworkRules) {
+				const r = getJsonValue(rule)
+				if (!r) {
+					continue
 				}
+				parsed.push({
+					userAgent    : r.userAgent,
+					directive    : r.directive,
+					fieldValue   : r.fieldValue,
+					default      : false,
+					networkLevel : true
+				})
 			}
 			return parsed
 		},
@@ -761,7 +771,8 @@ export default {
 		},
 		tableRules : {
 			get () {
-				return this.networkStore.networkRobots.rules.map(rule => JSON.parse(rule))
+				// Map 1:1 with the store (never filter) — deleteRow()/updateRule() splice the store by a row's index.
+				return this.networkStore.networkRobots.rules.map(rule => getJsonValue(rule))
 			},
 			set (newTableRules) {
 				const rawRules = []
@@ -774,7 +785,7 @@ export default {
 			}
 		},
 		readOnlyRules () {
-			return this.networkStore.networkRobots.rules.filter(rule => JSON.parse(rule).readOnly)
+			return this.networkStore.networkRobots.rules.filter(rule => getJsonValue(rule)?.readOnly)
 		}
 	},
 	methods : {

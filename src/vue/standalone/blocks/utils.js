@@ -237,6 +237,37 @@ export const formatCurrency = (amount, currency) => {
 }
 
 /**
+ * Returns a PanelBody children function that keeps a Vue mount target in the DOM while the panel is collapsed.
+ *
+ * NOTE: PanelBody drops plain children when collapsed, which would destroy the container the app is mounted into.
+ *
+ * @param   {string}   id The ID of the mount target.
+ * @returns {Function}    The PanelBody children function.
+ */
+export const panelBodyMountTarget = id => ({ opened }) => html`<div id=${id} hidden=${!opened}></div>`
+
+/**
+ * Renders the block again when the editor sidebar tab changes, so its app mounts into the new panel.
+ *
+ * NOTE: The sidebar drops the Block Settings mount target while its tab is not active. Call this before
+ * any early return in the block, because React hooks must run unconditionally.
+ *
+ * @param   {Function} toggleSelection The `toggleSelection` prop of the block.
+ * @returns {void}
+ */
+export const useBlockSettingsRemount = toggleSelection => {
+	const generalSidebarName = window.wp.data.useSelect(
+		select => select('core/edit-post')?.getActiveGeneralSidebarName()
+	)
+
+	window.wp.element.useEffect(() => {
+		if ('edit-post/block' === generalSidebarName && 'function' === typeof toggleSelection) {
+			toggleSelection(true)
+		}
+	}, [ generalSidebarName ])
+}
+
+/**
  * Unmount app and prevent Vue from creating multiple instances of the same app.
  *
  * @param {string} id The identifier of the app to unmount.

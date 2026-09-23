@@ -12,7 +12,7 @@
 				class="aioseo-breadcrumb-separator"
 				v-if="1 < previewLength && index > 0 && index < previewLength"
 			>
-				{{ sanitizeString(optionsStore.options.breadcrumbs.separator) }}
+				{{ sanitizeString(optionsStore.options.breadcrumbs.separator, true) }}
 			</span>
 
 			<span

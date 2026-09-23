@@ -17,7 +17,7 @@ import VueBlock from './vue/Block'
 import { useAiContent } from '@/vue/composables/AiContent'
 import { observeElement } from '@/vue/utils/helpers'
 import { getEditorDocument } from '@/vue/utils/editor'
-import { maybeDeleteBlockVueApp } from '@/vue/standalone/blocks/utils'
+import { maybeDeleteBlockVueApp, useBlockSettingsRemount } from '@/vue/standalone/blocks/utils'
 
 import { TranslateSelectorMenu } from './components/TranslateSelector'
 import { ImproveSelectorMenu } from './components/ImproveSelector'
@@ -69,15 +69,7 @@ export const settings = {
 
 		const $blockParent = document.querySelector('.block-editor')
 
-		const generalSidebarName = window.wp.data.useSelect(
-			select => select('core/edit-post').getActiveGeneralSidebarName()
-		)
-
-		useEffect(() => {
-			if ('edit-post/block' === generalSidebarName && 'function' === typeof toggleSelection) {
-				toggleSelection(true)
-			}
-		}, [ generalSidebarName ])
+		useBlockSettingsRemount(toggleSelection)
 
 		if (isSelected || $block) {
 			observeElement({

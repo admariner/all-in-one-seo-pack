@@ -6,7 +6,7 @@ import { observeElement } from '@/vue/utils/helpers'
 import icon from './icon'
 import metadata from './block.json'
 
-import { maybeDeleteBlockVueApp } from '@/vue/standalone/blocks/utils'
+import { maybeDeleteBlockVueApp, panelBodyMountTarget, useBlockSettingsRemount } from '@/vue/standalone/blocks/utils'
 
 import loadPlugins from '@/vue/plugins'
 import { loadPiniaStores } from '@/vue/stores'
@@ -97,18 +97,13 @@ export const settings = {
 			observeElement(observeElementArgs)
 		}
 
-		const generalSidebarName = wp.data.useSelect(
-			select => select('core/edit-post').getActiveGeneralSidebarName()
-		)
-		if ('edit-post/block' === generalSidebarName) {
-			'function' !== typeof toggleSelection || toggleSelection(true)
-		}
+		useBlockSettingsRemount(toggleSelection)
 
 		return (
 			<>
 				<InspectorControls>
-					<PanelBody title={__('Block Settings', td)} initialOpen={true} onToggle={observeElement(observeElementArgs)}>
-						<div id={vueAioseoId}></div>
+					<PanelBody title={__('Block Settings', td)} initialOpen={true}>
+						{panelBodyMountTarget(vueAioseoId)}
 					</PanelBody>
 				</InspectorControls>
 				<div {...blockProps}>

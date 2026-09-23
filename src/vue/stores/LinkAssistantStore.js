@@ -385,8 +385,9 @@ export const useLinkAssistantStore = defineStore('LinkAssistantStore', {
 					this.getOverviewData()
 				})
 		},
-		postSettingsUpdate ({ postContent, skipNextRun }) {
-			if (this.skipNextPostSettingsUpdate) {
+		postSettingsUpdate ({ postContent, skipNextRun, fromWatcher }) {
+			// `skipNextRun` only suppresses the watcher's redundant follow-up, never an explicit refresh.
+			if (fromWatcher && this.skipNextPostSettingsUpdate) {
 				this.skipNextPostSettingsUpdate = false
 				return
 			}

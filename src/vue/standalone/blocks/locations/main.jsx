@@ -7,7 +7,7 @@ import { observeElement } from '@/vue/utils/helpers'
 import icon from './icon'
 import metadata from './block.json'
 
-import { maybeDeleteBlockVueApp } from '@/vue/standalone/blocks/utils'
+import { maybeDeleteBlockVueApp, panelBodyMountTarget, useBlockSettingsRemount } from '@/vue/standalone/blocks/utils'
 
 import loadPlugins from '@/vue/plugins'
 import SidebarOptions from './vue/SidebarOptions'
@@ -53,13 +53,7 @@ export const settings = {
 		let { categories } = props
 		const vueAioseoId   = 'aioseo-' + clientId
 
-		const generalSidebarName = wp.data.useSelect(
-			select => select('core/edit-post').getActiveGeneralSidebarName()
-		)
-
-		if ('edit-post/block' === generalSidebarName) {
-			'function' !== typeof toggleSelection || toggleSelection(true)
-		}
+		useBlockSettingsRemount(toggleSelection)
 
 		if (multipleLocations && null === categories) {
 			return (
@@ -142,8 +136,8 @@ export const settings = {
 			return (
 				<>
 					<InspectorControls>
-						<PanelBody title={__('Block Settings', td)} initialOpen={true} onToggle={observeElement(observeElementArgs)}>
-							<div id={vueAioseoId}></div>
+						<PanelBody title={__('Block Settings', td)} initialOpen={true}>
+							{panelBodyMountTarget(vueAioseoId)}
 						</PanelBody>
 					</InspectorControls>
 					<div {...blockProps}>{ sprintf(
@@ -158,8 +152,8 @@ export const settings = {
 		return (
 			<>
 				<InspectorControls>
-					<PanelBody title={__('Block Settings', td)} initialOpen={true} onToggle={observeElement(observeElementArgs)}>
-						<div id={vueAioseoId}></div>
+					<PanelBody title={__('Block Settings', td)} initialOpen={true}>
+						{panelBodyMountTarget(vueAioseoId)}
 					</PanelBody>
 				</InspectorControls>
 				<div {...blockProps}>

@@ -42,7 +42,7 @@
 				:label="strings.seoTitle"
 				:is-custom="isCustomTitle"
 				:editing="showEditTitle"
-				:loading="termLoading"
+				:loading="isFieldLoading('title')"
 				single
 				:length="showLengthBadges ? titleLength : null"
 				:tags-context="getTagText('taxonomy', term?.taxonomy, 'Title')"
@@ -50,8 +50,8 @@
 				:custom-tooltip="strings.customTitle"
 				:default-tooltip="strings.defaultTitle"
 				@edit="editTitle"
-				@save="save"
-				@cancel="cancel"
+				@save="save('title')"
+				@cancel="cancel('title')"
 			/>
 
 			<details-field
@@ -61,15 +61,15 @@
 				:label="strings.metaDescription"
 				:is-custom="isCustomDescription"
 				:editing="showEditDescription"
-				:loading="termLoading"
+				:loading="isFieldLoading('description')"
 				:length="showLengthBadges ? descriptionLength : null"
 				:tags-context="getTagText('taxonomy', term?.taxonomy, 'Description')"
 				:default-tags="[ 'taxonomy_description' ]"
 				:custom-tooltip="strings.customDescription"
 				:default-tooltip="strings.defaultDescription"
 				@edit="editDescription"
-				@save="save"
-				@cancel="cancel"
+				@save="save('description')"
+				@cancel="cancel('description')"
 			/>
 		</div>
 	</div>
@@ -133,7 +133,7 @@ export default {
 			descriptionParsed   : null,
 			showEditTitle       : false,
 			showEditDescription : false,
-			termLoading         : false,
+			loadingField        : null,
 			showTitle           : true,
 			showDescription     : true,
 			columnWidth         : 0,
@@ -183,6 +183,9 @@ export default {
 		storedValue (value, template) {
 			return value === template ? '' : value
 		},
+		isFieldLoading (field) {
+			return field === this.loadingField || 'both' === this.loadingField
+		},
 		// `showScore` only arrives for TruSEO-eligible taxonomies, so an absent key means "leave the
 		// badge as it is" rather than "hide it".
 		applyScore (data) {
@@ -205,7 +208,7 @@ export default {
 			this.hasScore   = true
 		},
 		refreshParsedValues () {
-			this.termLoading = true
+			this.loadingField = 'both'
 
 			http.post(links.restUrl('terms-list/load-details-column'))
 				.send({ ids: [ this.term.id ] })
@@ -226,21 +229,29 @@ export default {
 					console.error(`Unable to refresh term ${this.term.id}: ${error}`)
 				})
 				.finally(() => {
-					this.termLoading = false
+					this.loadingField = null
 				})
 		},
-		save () {
+		save (field) {
 			if (!allowed('aioseo_page_general_settings')) {
 				return
 			}
 
-			this.showEditTitle       = false
-			this.showEditDescription = false
-			// Both editors post together, so an untouched field would be saved as the term's
-			// own copy of the template and stop following it if the taxonomy default changes.
-			this.term.title          = this.storedValue(this.title, this.term.defaultTitle)
-			this.term.description    = this.storedValue(this.termDescription, this.term.defaultDescription)
-			this.termLoading         = true
+			// Commit only the field being saved so an open editor for the other field keeps its
+			// saved baseline (used by cancel() to revert) and isn't persisted with unsaved changes.
+			// An editor left at the template is stored empty so the field keeps following the
+			// taxonomy template if the default changes.
+			if ('title' === field) {
+				this.term.title    = this.storedValue(this.title, this.term.defaultTitle)
+				this.showEditTitle = false
+			}
+
+			if ('description' === field) {
+				this.term.description    = this.storedValue(this.termDescription, this.term.defaultDescription)
+				this.showEditDescription = false
+			}
+
+			this.loadingField = field
 
 			http.post(links.restUrl('terms-list/update-details-column'))
 				.send({
@@ -261,12 +272,20 @@ export default {
 					console.error(`Unable to update term with ID ${this.term.id}: ${error}`)
 				})
 				.finally(() => {
-					this.termLoading = false
+					this.loadingField = null
 				})
 		},
-		cancel () {
-			this.showEditTitle = false
-			this.showEditDescription = false
+		cancel (field) {
+			// Revert the field's unsaved value to its saved baseline and close only that editor.
+			if ('title' === field) {
+				this.title         = this.term.title || this.term.defaultTitle
+				this.showEditTitle = false
+			}
+
+			if ('description' === field) {
+				this.termDescription     = this.term.description || this.term.defaultDescription
+				this.showEditDescription = false
+			}
 		},
 		editTitle () {
 			this.showEditTitle = true

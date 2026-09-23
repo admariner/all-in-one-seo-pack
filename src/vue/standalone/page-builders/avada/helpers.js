@@ -22,6 +22,19 @@ const getTitle = () => {
 }
 
 /**
+ * Gets the post excerpt.
+ *
+ * NOTE: Saved value. FusionApp exposes no editable excerpt field.
+ *
+ * @returns {string} The post excerpt.
+ */
+const getExcerpt = () => {
+	const { FusionApp } = window
+
+	return FusionApp?.getDynamicPost('post_meta')?.post_excerpt || ''
+}
+
+/**
  * Gets the post slug.
  *
  * @returns {string} The post slug.
@@ -78,7 +91,7 @@ export const getEditorData = () => {
 	return {
 		content       : getContent(),
 		title         : getTitle(),
-		excerpt       : '',
+		excerpt       : getExcerpt(),
 		slug          : getSlug(),
 		permalink     : getPermalink(),
 		featuredImage : getFeaturedImage()

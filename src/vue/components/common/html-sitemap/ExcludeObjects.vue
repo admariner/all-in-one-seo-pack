@@ -60,11 +60,10 @@
 
 					<div
 						class="multiselect__tag-remove"
+						@mousedown.prevent
 						@click.stop="remove(option)"
 					>
-						<svg-close
-							@click.native.stop="remove(option)"
-						/>
+						<svg-close />
 					</div>
 				</div>
 			</template>

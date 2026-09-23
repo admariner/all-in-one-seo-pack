@@ -4,10 +4,8 @@
 	"private": true,
 	"scripts": {
 		"watch": "wp-scripts build --watch",
-		"build-webpack-lite": "dotenv -e .env.lite -- wp-scripts build",
-		"build-webpack-pro": "dotenv -e .env.pro -- wp-scripts build",
-		"dev-webpack-lite": "dotenv -e .env.lite -- wp-scripts build --watch",
-		"dev-webpack-pro": "dotenv -e .env.pro -- wp-scripts build --watch"
+		"build-webpack": "wp-scripts build",
+		"dev-webpack": "wp-scripts build --watch"
 	},
 	"devDependencies": {
 		"@wordpress/icons": "14.0.1",

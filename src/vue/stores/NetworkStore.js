@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import http from '@/vue/utils/http'
 import links from '@/vue/utils/links'
+import { normalizeRules } from '@/vue/utils/robots'
 
 import {
 	useOptionsStore,
@@ -50,7 +51,8 @@ export const useNetworkStore = defineStore('NetworkStore', {
 		fetchSiteRobots (blogId) {
 			return http.get(links.restUrl(`network-robots/${blogId}`))
 				.then(response => {
-					this.networkRobots.rules = response.body.rules
+					// Normalize at the store's entry point — the table's row indices have to line up with the store.
+					this.networkRobots.rules = normalizeRules(response.body.rules)
 				})
 		},
 		getActiveSites (domains) {

@@ -2,6 +2,7 @@
 	<div class="aioseo-search-appearance-content-types">
 		<core-card
 			:slug="`${postType.name}SA`"
+			:card-id="`${postType.name}SA`"
 		>
 			<template #header>
 				<div

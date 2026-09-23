@@ -7,6 +7,12 @@ import { Button } from '@wordpress/components'
 import { createElement, createRoot, flushSync } from '@wordpress/element'
 import { createHigherOrderComponent } from '@wordpress/compose'
 
+// Hooks must come from the WP runtime React (shared dispatcher); a bundled copy
+// would hit a null dispatcher and crash the block. The helpers above are only used
+// for the detached inserter-button render, which intentionally uses its own React.
+const { useMemo }   = window.wp?.element || {}
+const { useSelect } = window.wp?.data || {}
+
 const td      = import.meta.env.VITE_TEXTDOMAIN
 const strings = {
 	placeholder : __('Type / to choose a block or // to use AI Assistant', td)
@@ -32,7 +38,15 @@ const isRootLevelParagraphBlock = (block, blockEditor) => {
 
 /**
  * Extend the paragraph block placeholder for root-level blocks only.
- * Uses a HOC to modify the placeholder prop without changing stored attributes.
+ *
+ * Uses an editor.BlockEdit HOC to inject the placeholder as a render-only prop;
+ * the block's stored attributes are never mutated, so nothing is persisted to the
+ * post's content.
+ *
+ * NOTE: the injected `attributes` object is memoized on the block's own attributes
+ * reference. Handing downstream filters (e.g. AI Engine's own editor.BlockEdit HOC)
+ * a fresh object on every render is what caused the infinite re-render loop; a stable
+ * reference breaks that cascade without changing what the placeholder does.
  *
  * @param {Object} options                  Options object.
  * @param {Object} options.aiAssistantStore The AI Assistant store instance.
@@ -45,8 +59,7 @@ export const extendParagraphPlaceholder = ({ aiAssistantStore }) => {
 	}
 
 	const { addFilter } = window.wp?.hooks || {}
-	const { select }    = window.wp?.data || {}
-	if (!addFilter || !select) {
+	if (!addFilter) {
 		return
 	}
 
@@ -55,20 +68,30 @@ export const extendParagraphPlaceholder = ({ aiAssistantStore }) => {
 		'aioseo/paragraph-placeholder',
 		createHigherOrderComponent(
 			(BlockEdit) => (props) => {
-				const blockEditor = select('core/block-editor')
+				const isRootLevelParagraph = useSelect(
+					(select) => 'core/paragraph' === props.name &&
+						!select('core/block-editor').getBlockRootClientId(props.clientId),
+					[ props.name, props.clientId ]
+				)
 
-				// Only modify root-level paragraph blocks when AI Assistant is available.
-				if (!aiAssistantStore.isBlockAvailable || !isRootLevelParagraphBlock(props, blockEditor)) {
+				const isBlockAvailable = aiAssistantStore.isBlockAvailable
+
+				const attributes = useMemo(() => {
+					if (!isRootLevelParagraph || !isBlockAvailable || props.attributes?.placeholder) {
+						return props.attributes
+					}
+
+					return {
+						...props.attributes,
+						placeholder : strings.placeholder
+					}
+				}, [ props.attributes, isRootLevelParagraph, isBlockAvailable ])
+
+				if (attributes === props.attributes) {
 					return createElement(BlockEdit, props)
 				}
 
-				return createElement(BlockEdit, {
-					...props,
-					attributes : {
-						...props.attributes,
-						placeholder : props.attributes.placeholder || strings.placeholder
-					}
-				})
+				return createElement(BlockEdit, { ...props, attributes })
 			},
 			'aioseoExtendParagraphPlaceholder'
 		)

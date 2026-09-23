@@ -42,9 +42,19 @@ export const useLinks = (params = {}) => {
 	})
 
 	const strings = {
-		frontPage  : __('Front Page', td),
-		deleteLink : __('Delete Link', td)
+		frontPage    : __('Front Page', td),
+		deleteLink   : __('Delete Link', td),
+		noPermission : __('You don\'t have permission to edit this post.', td)
 	}
+
+	// Deleting an inbound link rewrites the post the link lives in, so those rows are authorized
+	// against their own post; the other link types always mutate the report's post.
+	const canEditRow = (row) => {
+		const target = 'inboundInternal' === linkType ? row : post
+		return false !== target?.context?.canEdit
+	}
+
+	const canEditAnyRow = computed(() => rows.value.some(canEditRow))
 
 	const modalStrings = {
 		areYouSureSingle     : __('Are you sure you want to delete this link?', td),
@@ -57,9 +67,15 @@ export const useLinks = (params = {}) => {
 		noChangedMind        : __('No, I changed my mind', td)
 	}
 
-	const bulkOptions = [
-		{ label: __('Delete', td), value: 'delete' }
-	]
+	const bulkOptions = computed(() => {
+		if (!canEditAnyRow.value) {
+			return []
+		}
+
+		return [
+			{ label: __('Delete', td), value: 'delete' }
+		]
+	})
 
 	const linkAssistantStore = useLinkAssistantStore()
 	const postEditorStore    = usePostEditorStore()
@@ -161,10 +177,17 @@ export const useLinks = (params = {}) => {
 			window.aioseoBus.$emit('updatingLinks', false)
 			blockEditorRemoveLink(rowIndex)
 			window.aioseoBus.$emit('updatingLinks', false)
+			return
 		}
+
 		if (isClassicEditor()) {
 			classicEditorRemoveLink(rowIndex)
+			return
 		}
+
+		// Inside a page builder's own editor neither branch can reach the content, so say so.
+		const link = postEditorStore.currentPost.linkAssistant.links[linkType].rows[rowIndex]
+		useCommon().notifyPhraseNotFound(link ? link.phrase_html.trim() : '')
 	}
 
 	const blockEditorRemoveLink = (rowIndex) => {
@@ -175,40 +198,50 @@ export const useLinks = (params = {}) => {
 
 		window.aioseoBus.$emit('updatingLinks', true)
 
-		const escapedAnchor     = escapeRegex(link.anchor.trim())
-		const phraseHtml        = link.phrase_html.trim()
-		const escapedPhraseHtml = escapeRegex(phraseHtml)
+		const escapedAnchor = escapeRegex(link.anchor.trim())
+		const phraseHtml    = link.phrase_html.trim()
 
-		const blocks              = window.wp.data.select('core/block-editor').getBlocks()
-		const { findTargetBlock } = useCommon()
-		const targetBlockId       = findTargetBlock(blocks, phraseHtml)
+		const { findTargetBlock, getBlockContent, notifyPhraseNotFound, phrasePattern } = useCommon()
+
+		const blocks        = window.wp.data.select('core/block-editor').getBlocks()
+		const targetBlockId = findTargetBlock(blocks, phraseHtml)
 
 		if (!targetBlockId) {
+			notifyPhraseNotFound(phraseHtml)
 			window.aioseoBus.$emit('updatingLinks', false)
 			return
 		}
 
 		const targetBlock = window.wp.data.select('core/block-editor').getBlock(targetBlockId)
 		if (!targetBlock) {
+			notifyPhraseNotFound(phraseHtml)
 			window.aioseoBus.$emit('updatingLinks', false)
 			return
 		}
 
-		// eslint-disable-next-line one-var
-		let pattern         = new RegExp(`(<t?a[^<>]*>)(.*)?(${escapedAnchor})(.*)?(</t?a[^<>]*>)`, 'i')
-		const newPhraseHtml = phraseHtml.replace(pattern, '$2$3$4')
+		const anchorPattern = new RegExp(`(<t?a[^<>]*>)(.*)?(${escapedAnchor})(.*)?(</t?a[^<>]*>)`, 'i')
+		const newPhraseHtml = phraseHtml.replace(anchorPattern, '$2$3$4')
 
-		pattern = new RegExp(`${escapedPhraseHtml}`, 'i')
-
+		// The phrase can hold `$` sequences (prices), which a replacement string would read as backreferences.
 		window.wp.data.dispatch('core/block-editor').updateBlockAttributes(targetBlockId, {
-			content : String(targetBlock.attributes.content).replace(pattern, newPhraseHtml)
+			content : getBlockContent(targetBlock).replace(phrasePattern(phraseHtml), () => newPhraseHtml)
 		}).then(() => {
 			post.links[linkType].rows.splice(rowIndex, 1)
+
+			if (0 < post.links[linkType].totals.total) {
+				post.links[linkType].totals.total--
+			}
 		}).catch((error) => {
 			console.error(`Couldn\t delete link with type "${linkType}" and index ${rowIndex}:`, error)
 		}).finally(() => {
 			window.aioseoBus.$emit('updatingLinks', false)
 			emit('linksUpdated')
+
+			// Re-scan server-side so the totals reconcile; skip the watcher's follow-up run.
+			linkAssistantStore.postSettingsUpdate({
+				postContent : window.wp.data.select('core/editor').getEditedPostContent(),
+				skipNextRun : true
+			})
 		})
 	}
 
@@ -244,13 +277,20 @@ export const useLinks = (params = {}) => {
 		}
 
 		const escapedAnchor = escapeRegex(link.anchor.trim())
-		// eslint-disable-next-line one-var
-		let pattern         = new RegExp(`(<t?a[^<>]*>)(.*)?(${escapedAnchor})(.*)?(</t?a[^<>]*>)`, 'i')
+		const anchorPattern = new RegExp(`(<t?a[^<>]*>)(.*)?(${escapedAnchor})(.*)?(</t?a[^<>]*>)`, 'i')
+		const newPhraseHtml = phraseHtml.replace(anchorPattern, '$2$3$4')
 
-		const newPhraseHtml     = phraseHtml.replace(pattern, '$2$3$4')
-		const escapedPhraseHtml = escapeRegex(phraseHtml)
-		pattern                 = new RegExp(`${escapedPhraseHtml}`, 'i')
-		postContent             = postContent.replace(pattern, newPhraseHtml)
+		const { notifyPhraseNotFound, phrasePattern } = useCommon()
+
+		const pattern = phrasePattern(phraseHtml)
+		if (!pattern.test(postContent)) {
+			notifyPhraseNotFound(phraseHtml)
+			window.aioseoBus.$emit('updatingLinks', false)
+			return
+		}
+
+		// The phrase can hold `$` sequences (prices), which a replacement string would read as backreferences.
+		postContent = postContent.replace(pattern, () => newPhraseHtml)
 
 		if (editor) {
 			editor.setContent(postContent)
@@ -259,6 +299,10 @@ export const useLinks = (params = {}) => {
 		}
 
 		post.links[linkType].rows.splice(rowIndex, 1)
+
+		if (0 < post.links[linkType].totals.total) {
+			post.links[linkType].totals.total--
+		}
 
 		linkAssistantStore.postSettingsUpdate({ postContent: postContent })?.finally(() => {
 			window.aioseoBus.$emit('updatingLinks', false)
@@ -300,6 +344,8 @@ export const useLinks = (params = {}) => {
 
 	return {
 		bulkOptions,
+		canEditAnyRow,
+		canEditRow,
 		changeItemsPerPageSlug,
 		doBulkAction,
 		fetchData,

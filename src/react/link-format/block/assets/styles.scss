@@ -4,7 +4,7 @@
 		border: 0;
 		width: 100%;
 		cursor: default;
-		padding: 16px 16px 16px 24px;
+		padding: 12px 16px 12px 24px;
 	}
 
 	.block-editor-link-control__search-item {
@@ -32,12 +32,18 @@
 	.block-editor-link-control__settings {
 		border-top: 1px solid #ddd;
 		margin: 0;
-		padding: 16px 24px;
+		padding: 12px 24px;
 	}
 
+	// Four toggles plus a text field make this popover taller than core's, so it is the
+	// first to run out of room and start clipping on short viewports.
 	.block-editor-link-control__setting {
 		padding: 0;
-		margin-bottom: 12px;
+		margin-bottom: 8px;
+
+		&:last-child {
+			margin-bottom: 0;
+		}
 	}
 
 	input.block-editor-url-input__input,

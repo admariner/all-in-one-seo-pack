@@ -33,6 +33,8 @@
 						:name="type.name"
 						type="checkbox"
 						:modelValue="getValue(type)"
+						:disabled="inertNames.includes(type.name)"
+						:describedBy="getDescribedBy(type.name)"
 						@update:modelValue="checked => updateValue(checked, type)"
 					>
 						<core-tooltip>
@@ -62,6 +64,7 @@ import {
 } from '$/vue/stores'
 
 import { usePostTypes } from '@/vue/composables/PostTypes'
+import { useSitemapExclusions } from '@/vue/pages/sitemaps/composables/SitemapExclusions'
 
 import BaseHighlightToggle from '@/vue/components/common/base/HighlightToggle'
 import CoreAlert from '@/vue/components/common/core/alert/Index'
@@ -79,8 +82,17 @@ export default {
 			getPostIconClass
 		} = usePostTypes()
 
+		const {
+			getExclusionCause,
+			getInertNames,
+			getNoticeId
+		} = useSitemapExclusions()
+
 		return {
 			getPostIconClass,
+			getExclusionCause,
+			getInertNames,
+			getNoticeId,
 			rootStore : useRootStore()
 		}
 	},
@@ -101,6 +113,10 @@ export default {
 			required : true
 		},
 		registeredPostTypes : Object,
+		// Set by the Sitemaps tabs only. Opting in greys out the objects this sitemap can no
+		// longer include, and points them at the notice that explains why. Every other consumer
+		// of this component leaves it unset and behaves exactly as before.
+		sitemapType         : String,
 		excluded            : {
 			type : Array,
 			default () {
@@ -130,6 +146,9 @@ export default {
 		getRegisteredPostTypes () {
 			return this.registeredPostTypes || this.rootStore.aioseo.postData
 		},
+		inertNames () {
+			return this.sitemapType ? this.getInertNames(this.type, this.excluded) : []
+		},
 		postTypes () {
 			return this.getRegisteredPostTypes[this.type].filter(postType => {
 				let filtered = true
@@ -142,6 +161,15 @@ export default {
 		}
 	},
 	methods : {
+		// Points a greyed-out toggle at the notice explaining its own cause — several notices can be
+		// rendered for one section now, and the first one is not necessarily the right one.
+		getDescribedBy (name) {
+			if (!this.sitemapType || !this.inertNames.includes(name)) {
+				return null
+			}
+
+			return this.getNoticeId(this.sitemapType, this.type, this.getExclusionCause(this.type, name))
+		},
 		emitInput (value) {
 			this.$emit('input', value)
 		},

@@ -67,7 +67,7 @@ export const useTags = ({ separator: defaultSeparator }) => {
 		string = string.replace(/%\|%/g, '')
 
 		// Sanitize the string to prevent JS from being injected.
-		return sanitizeString(string)
+		return sanitizeString(string, true)
 	}
 
 	return {

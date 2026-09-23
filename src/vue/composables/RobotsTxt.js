@@ -3,6 +3,8 @@ import {
 	useOptionsStore,
 	useNetworkStore
 } from '@/vue/stores'
+import { getJsonValue } from '@/vue/utils/json'
+import { normalizeRules } from '@/vue/utils/robots'
 
 export const useRobotsTxt = () => {
 	const networkStore = useNetworkStore()
@@ -12,9 +14,12 @@ export const useRobotsTxt = () => {
 
 	const getOptions = computed(() => 'network' === networkStore.currentSite?.blog_id ? optionsStore.networkOptions : optionsStore.options)
 
-	networkStore.networkRobots.rules = 'network' === networkStore.currentSite?.blog_id
-		? networkStore.getNetworkRobots.rules
-		: optionsStore.options.tools.robots.rules
+	// Seed through the normalizer — this window-data path skips fetchSiteRobots' server-side pass.
+	networkStore.networkRobots.rules = normalizeRules(
+		'network' === networkStore.currentSite?.blog_id
+			? networkStore.getNetworkRobots.rules
+			: optionsStore.options.tools.robots.rules
+	)
 
 	const updateUnwantedBotRules = (value, userAgent) => {
 		const userAgentsOrder = [ 'AdsBot', 'Google-Extended', 'GPTBot', 'CCBot' ]
@@ -48,7 +53,7 @@ export const useRobotsTxt = () => {
 
 		networkStore.networkRobots.rules = [
 			...botRules.value,
-			...networkStore.networkRobots.rules.filter(rule => !JSON.parse(rule).bot)
+			...networkStore.networkRobots.rules.filter(rule => !getJsonValue(rule)?.bot)
 		]
 	}
 
@@ -82,7 +87,7 @@ export const useRobotsTxt = () => {
 
 		networkStore.networkRobots.rules = [
 			...rules,
-			...networkStore.networkRobots.rules.filter(rule => !JSON.parse(rule).preventCrawling)
+			...networkStore.networkRobots.rules.filter(rule => !getJsonValue(rule)?.preventCrawling)
 		]
 	}
 

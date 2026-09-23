@@ -85,10 +85,15 @@ export function isValidHref (href) {
 /**
  * Generates the format object that will be applied to the link text.
  *
+ * NOTE: Attributes are replaced wholesale, so omitting one clears it from the link.
+ *
  * @param {Object}  options                  The options.
  * @param {string}  options.url              The href of the link.
  * @param {boolean} options.opensInNewWindow Whether this link will open in a new window.
- * @param {Object}  options.text             The text that is being hyperlinked.
+ * @param {boolean} options.nofollow         Whether to add rel="nofollow".
+ * @param {boolean} options.sponsored        Whether to add rel="sponsored".
+ * @param {boolean} options.ugc              Whether to add rel="ugc".
+ * @param {string}  options.title            The title attribute; blank clears it.
  *
  * @returns {Object} The final format object.
  */
@@ -123,9 +128,10 @@ export function createLinkFormat ({ url, opensInNewWindow, nofollow, sponsored, 
 		format.attributes.rel = relAttributes.join(' ')
 	}
 
-	// Check if the title isn't undefined to prevent errors, but still reset it if it's an empty string so that users can clear out the title attribute field if desired.
-	if (undefined !== title) {
-		format.attributes.title = title
+	const trimmedTitle = title?.trim()
+
+	if (trimmedTitle) {
+		format.attributes.title = trimmedTitle
 	}
 
 	return format

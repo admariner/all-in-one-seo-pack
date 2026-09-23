@@ -610,13 +610,10 @@ export default {
 			}
 		}
 
-		.tab-dropdown {
-			border: 1px solid $border;
-			border-top: none;
-		}
-
 		.tab-links {
 			background: #fff;
+			border: 1px solid $input-border;
+			border-top: none;
 			position: relative;
 			z-index: 3;
 			padding: 8px;

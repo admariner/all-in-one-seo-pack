@@ -98,6 +98,7 @@
 						v-if="!optionsStore.options.sitemap.rss.postTypes.all"
 						:options="optionsStore.options.sitemap.rss"
 						type="postTypes"
+						sitemap-type="rss"
 						:excluded="getExcludedPostTypes"
 					/>
 
@@ -108,6 +109,12 @@
 							v-html="links.getDocLink(GLOBAL_STRINGS.learnMore, 'selectPostTypesRss', true)"
 						/>
 					</div>
+
+					<exclusion-notice
+						sitemap-type="rss"
+						kind="postTypes"
+						:excluded="getExcludedPostTypes"
+					/>
 				</template>
 			</core-settings-row>
 		</core-card>
@@ -128,6 +135,7 @@ import BaseCheckbox from '@/vue/components/common/base/Checkbox'
 import CoreCard from '@/vue/components/common/core/Card'
 import CorePostTypeOptions from '@/vue/components/common/core/PostTypeOptions'
 import CoreSettingsRow from '@/vue/components/common/core/SettingsRow'
+import ExclusionNotice from './partials/ExclusionNotice'
 import SearchConsole from './partials/SearchConsole'
 import SearchConsoleInline from './partials/SearchConsoleInline'
 import SvgExternal from '@/vue/components/common/svg/External'
@@ -153,6 +161,7 @@ export default {
 		CoreCard,
 		CorePostTypeOptions,
 		CoreSettingsRow,
+		ExclusionNotice,
 		SearchConsole,
 		SearchConsoleInline,
 		SvgExternal

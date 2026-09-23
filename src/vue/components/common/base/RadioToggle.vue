@@ -14,6 +14,7 @@
 				@input="$emit('update:modelValue', option.value)"
 				:checked="option.value === modelValue"
 				:disabled="disabled || option.disabled"
+				:aria-describedby="describedBy || null"
 			/>
 
 			<label
@@ -49,8 +50,11 @@ export default {
 				return false
 			}
 		},
-		inline : Boolean,
-		circle : Boolean
+		inline      : Boolean,
+		circle      : Boolean,
+		// Id of the element explaining why the toggle is disabled, so the reason reaches
+		// assistive technology instead of only being visible on screen.
+		describedBy : String
 	}
 }
 </script>
